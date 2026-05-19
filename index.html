@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>지역관리 시스템 — 청년회</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- GAS 미연동 안내 (배포 후 자동 숨김) -->
+<div id="gas-notice" style="background:#FFF3CD;border:1px solid #FFCB6B;border-radius:8px;padding:9px 14px;margin-bottom:8px;font-size:12px;color:#856404;font-family:sans-serif;display:none;">
+  ⚙️ <strong>개발자 설정 필요:</strong> <code>js/config.js</code>에서 <code>GAS_URL</code>을 Apps Script 배포 URL로 교체하세요.
+  현재는 샘플 데이터로 동작합니다.
+</div>
+
+<div class="shell">
+
+  <!-- ─── ROLE BAR ─── -->
+  <div class="role-bar">
+    <div class="role-logo">
+      <div class="role-logo-mark adm" id="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      </div>
+      지역관리
+    </div>
+    <button class="role-btn adm on" id="rb-adm" onclick="setRole('adm')">🔵 청년회</button>
+    <button class="role-btn reg"     id="rb-reg" onclick="setRole('reg')">🟢 지역 담당자</button>
+    <div class="role-bar-right">
+      <span id="sync-status" style="font-size:11px;color:var(--text3);">—</span>
+      <button class="btn" onclick="loadData(true)" title="수동 새로고침">
+        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        동기화
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── SYNC BAR ─── -->
+  <div class="sync-bar" id="sync-bar" style="display:none;">
+    <div class="live-dot"></div>
+    <span id="sync-bar-msg">데이터 로딩 중...</span>
+  </div>
+
+  <div class="body">
+
+    <!-- ─── SIDEBAR ─── -->
+    <div class="sidebar adm" id="sidebar">
+      <!-- 청년회(ADM) 아이콘 -->
+      <div class="sico on adm" id="si-adm-dash" onclick="nav('adm-dash')" title="종합 대시보드">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>종합
+      </div>
+      <div class="sico" id="si-adm-board" onclick="nav('adm-board')" title="전지역 보유현황">
+        <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>보유
+      </div>
+      <div class="sico" id="si-adm-check" onclick="nav('adm-check')" title="개강 준비 체크">
+        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>체크
+      </div>
+      <div class="sico" id="si-adm-field" onclick="nav('adm-field')" title="항목 관리">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2"/></svg>설정
+      </div>
+
+      <div class="sico-div"></div>
+
+      <!-- 지역 담당자(REG) 아이콘 (기본 숨김) -->
+      <div class="sico" id="si-reg-board" onclick="nav('reg-board')" title="내 지역 보유현황" style="display:none;">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>보유
+      </div>
+      <div class="sico" id="si-reg-check" onclick="nav('reg-check')" title="개강 준비 체크" style="display:none;">
+        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>체크
+      </div>
+    </div>
+
+    <!-- ─── MAIN ─── -->
+    <div class="main">
+
+      <!-- 로딩 화면 -->
+      <div id="sc-loading" class="screen on" style="padding:0;">
+        <div class="loading-box">
+          <div class="loading-spin"></div>
+          <div style="font-size:14px;font-weight:600;color:var(--text2);">구글 시트에서 데이터 불러오는 중...</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px;">청년누적 · 청년탈락 · 개강체크 시트 읽는 중</div>
+        </div>
+      </div>
+
+      <!-- ══ ADM: 종합 대시보드 ══ -->
+      <div id="sc-adm-dash" class="screen">
+        <div class="role-stripe adm">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          청년회 — 종합 대시보드
+        </div>
+        <div class="p14">
+          <div class="stat-row c4">
+            <div class="stat-card adm-c"><div class="stat-label">전체 인원</div><div class="stat-val adm" id="ds-total">—</div><div class="stat-sub">청년누적 전체</div></div>
+            <div class="stat-card base"><div class="stat-label">탈락 인원</div><div class="stat-val" id="ds-tallag" style="color:var(--red);">—</div><div class="stat-sub">청년탈락 시트</div></div>
+            <div class="stat-card reg-c"><div class="stat-label">활성 인원</div><div class="stat-val reg" id="ds-active">—</div><div class="stat-sub">누적 − 탈락</div></div>
+            <div class="stat-card base"><div class="stat-label">체크 완료율</div><div class="stat-val" id="ds-check-rate" style="color:var(--amber);">—</div><div class="stat-sub">개강체크 기준</div></div>
+          </div>
+
+          <div class="sl">단계별 현황 (청년누적 기준)</div>
+          <div class="dash-tbl-wrap">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr>
+                  <th style="padding:8px 12px;background:#bde0f5;color:#0c2d42;border:1px solid var(--border);text-align:center;">지역</th>
+                  <th style="padding:8px 8px;background:#e0f2fe;color:#0369a1;border:1px solid var(--border);text-align:center;">찾기</th>
+                  <th style="padding:8px 8px;background:#ede9fe;color:#6d28d9;border:1px solid var(--border);text-align:center;">합자</th>
+                  <th style="padding:8px 8px;background:#fffbeb;color:#92400e;border:1px solid var(--border);text-align:center;">육따기</th>
+                  <th style="padding:8px 8px;background:#fff7ed;color:#c2410c;border:1px solid var(--border);text-align:center;">영따기</th>
+                  <th style="padding:8px 8px;background:#ecfdf5;color:#065f46;border:1px solid var(--border);text-align:center;">복음방</th>
+                  <th style="padding:8px 8px;background:#eef2ff;color:#3730a3;border:1px solid var(--border);text-align:center;">센확</th>
+                  <th style="padding:8px 8px;background:#FDE8FF;color:#7B00A0;border:1px solid var(--border);text-align:center;">수신</th>
+                  <th style="padding:8px 8px;background:var(--adm-light);color:var(--adm2);border:1px solid var(--border);text-align:center;font-weight:700;">합계</th>
+                </tr>
+              </thead>
+              <tbody id="dash-stage-body">
+                <tr><td colspan="9" class="loading-box">로딩 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="sl">개강 준비 체크 현황</div>
+          <div id="dash-check-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+        </div>
+      </div>
+
+      <!-- ══ ADM: 전지역 보유현황 ══ -->
+      <div id="sc-adm-board" class="screen">
+        <div class="role-stripe adm">
+          <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          청년회 — 전지역 보유현황
+        </div>
+        <div class="flt-bar">
+          <div class="flt-group">
+            <span class="flt-label">지역</span>
+            <select class="top-sel" id="board-region-sel" onchange="renderBoardTable()"><option value="">전체</option></select>
+          </div>
+          <div class="flt-group">
+            <span class="flt-label">단계</span>
+            <select class="top-sel" id="board-stage-sel" onchange="renderBoardTable()">
+              <option value="">전체</option>
+              <option>찾기</option><option>합자</option><option>육따기</option>
+              <option>영따기</option><option>복음방</option><option>센확</option><option>수신</option>
+            </select>
+          </div>
+          <div class="flt-group">
+            <span class="flt-label">개강월</span>
+            <select class="top-sel" id="board-kaigang-sel" onchange="renderBoardTable()"><option value="">전체</option></select>
+          </div>
+          <span id="board-count" style="font-size:11px;color:var(--text3);margin-left:auto;"></span>
+        </div>
+        <div class="p14">
+          <div class="tw">
+            <table class="bt">
+              <thead>
+                <tr>
+                  <th>단계</th><th>실적지역</th><th>인도자</th><th>섭외자</th>
+                  <th>목표개강</th><th>목표센터</th>
+                  <th>합자보고</th><th>육따보고</th><th>따기보고</th><th>복음방보고</th>
+                </tr>
+              </thead>
+              <tbody id="board-body">
+                <tr><td colspan="10" class="loading-box">로딩 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ADM: 개강 준비 체크 전체 ══ -->
+      <div id="sc-adm-check" class="screen">
+        <div class="role-stripe adm">
+          <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          청년회 — 개강 준비 체크 전체 현황
+        </div>
+        <div class="flt-bar">
+          <div class="flt-group">
+            <span class="flt-label">지역</span>
+            <select class="top-sel" id="adm-check-region-sel" onchange="renderAdmCheckTable()"><option value="">전체</option></select>
+          </div>
+          <button class="btn" onclick="syncTallag()">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+            탈락 동기화
+          </button>
+          <span id="adm-check-count" style="font-size:11px;color:var(--text3);margin-left:auto;"></span>
+        </div>
+        <div class="p14">
+          <div class="tw">
+            <table class="bt">
+              <thead><tr id="adm-check-thead-row">
+                <th>실적지역</th><th>인도자</th><th>섭외자</th><th>목표개강</th><th>체크항목</th>
+              </tr></thead>
+              <tbody id="adm-check-body">
+                <tr><td colspan="5" class="loading-box">로딩 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ADM: 항목 관리(설정) ══ -->
+      <div id="sc-adm-field" class="screen">
+        <div class="role-stripe adm">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2"/></svg>
+          청년회 — 개강 준비 항목 관리
+        </div>
+        <div class="p14">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;">개강 준비 체크 항목</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:2px;">지역사명자가 체크하는 항목을 관리합니다</div>
+            </div>
+            <button class="btn adm-pri" onclick="showAddItemModal()">+ 항목 추가</button>
+          </div>
+          <div id="item-manage-list"><div class="loading-box">로딩 중...</div></div>
+        </div>
+      </div>
+
+      <!-- ══ REG: 내 지역 보유현황 ══ -->
+      <div id="sc-reg-board" class="screen">
+        <div class="role-stripe reg">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          지역 담당자 — 내 지역 보유현황
+        </div>
+        <div class="flt-bar">
+          <div class="flt-group">
+            <span class="flt-label">내 지역</span>
+            <select class="top-sel" id="reg-region-sel" onchange="renderRegBoard()"><option value="">전체</option></select>
+          </div>
+        </div>
+        <div class="p14">
+          <div class="tw">
+            <table class="bt">
+              <thead>
+                <tr>
+                  <th>단계</th><th>섭외자</th><th>인도자</th>
+                  <th>목표개강</th><th>목표센터</th>
+                  <th>합자보고</th><th>육따보고</th><th>따기보고</th><th>복음방보고</th>
+                </tr>
+              </thead>
+              <tbody id="reg-board-body">
+                <tr><td colspan="9" class="loading-box">로딩 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ REG: 개강 준비 체크 ══ -->
+      <div id="sc-reg-check" class="screen">
+        <div class="role-stripe reg">
+          <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          지역 담당자 — 개강 준비 체크
+        </div>
+        <div class="flt-bar">
+          <div class="flt-group">
+            <span class="flt-label">내 지역</span>
+            <select class="top-sel" id="reg-check-region-sel" onchange="renderRegCheck()"><option value="">전체</option></select>
+          </div>
+          <div class="flt-group">
+            <span class="flt-label">체크자 이름</span>
+            <input type="text" class="top-sel" id="checker-name" placeholder="이름 입력" style="width:110px;">
+          </div>
+        </div>
+        <div class="p14">
+          <div id="reg-check-list"><div class="loading-box">로딩 중...</div></div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /body -->
+</div><!-- /shell -->
+
+<!-- ─── 항목 추가 모달 ─── -->
+<div class="modal-bg" id="add-item-modal">
+  <div class="modal">
+    <div class="modal-title">체크 항목 추가</div>
+    <input type="text" class="modal-input" id="new-item-input" placeholder="예: 프리뷰파티 확답">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAddItemModal()">취소</button>
+      <button class="btn adm-pri" onclick="addItemConfirm()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── JS 로드 순서 중요 ─── -->
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/api.js"></script>
+<script src="js/router.js"></script>
+<script src="js/pages/adm-dash.js"></script>
+<script src="js/pages/adm-board.js"></script>
+<script src="js/pages/adm-check.js"></script>
+<script src="js/pages/adm-field.js"></script>
+<script src="js/pages/reg-board.js"></script>
+<script src="js/pages/reg-check.js"></script>
+
+<script>
+  // 엔터/ESC 키 모달 처리
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAddItemModal();
+    if (e.key === 'Enter' && document.getElementById('add-item-modal').classList.contains('show')) addItemConfirm();
+  });
+
+  // 초기 로드
+  loadData();
+
+  // 5분마다 자동 갱신
+  setInterval(() => loadData(), AUTO_REFRESH_MS);
+</script>
+</body>
+</html>
