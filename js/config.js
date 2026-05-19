@@ -1,11 +1,14 @@
 // ══════════════════════════════════════════════════════
-//  config.js — 설정값 (GAS URL 여기서만 수정)
+//  config.js — 설정값 (여기서만 수정)
 // ══════════════════════════════════════════════════════
 
-// ⚠️ Apps Script 배포 후 아래 URL을 교체하세요
+// ⚠️ Apps Script 배포 URL
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx94rAb6olhwRaHds6EZsTzFS56dUq1xbeFpxv5ZOO7EhoS0ckavlKUYmkNM-p8AY7Y/exec';
 
-// 샘플 모드 여부 (GAS_URL 교체 전까지 true)
+// ⚠️ Google OAuth 클라이언트 ID
+const GOOGLE_CLIENT_ID = '930451155946-g6antqc5d7cbvlqp3n7v0tkundpt6jhl.apps.googleusercontent.com';
+
+// 샘플 모드 여부
 const USE_SAMPLE = GAS_URL.includes('YOUR_DEPLOYMENT_ID');
 
 // 단계 정의

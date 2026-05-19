@@ -11,6 +11,8 @@ const STATE = {
   tallagKeys: new Set(),
   syncedAt:   null,
   role:       'adm',
+  authUsers:    [],
+  authRequests: [],
   currentScreen: 'loading',
 };
 
