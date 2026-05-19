@@ -6,7 +6,7 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx94rAb6olhwRaHds6EZsTzFS56dUq1xbeFpxv5ZOO7EhoS0ckavlKUYmkNM-p8AY7Y/exec';
 
 // ⚠️ Google OAuth 클라이언트 ID
-const GOOGLE_CLIENT_ID = '930451155946-g6antqc5d7cbvlqp3n7v0tkundpt6jhl.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '930451155946-8ov88buetjcsql33qtl0v17aenfmkeru.apps.googleusercontent.com';
 
 // 샘플 모드 여부
 const USE_SAMPLE = GAS_URL.includes('YOUR_DEPLOYMENT_ID');
