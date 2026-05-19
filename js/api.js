@@ -31,6 +31,9 @@ async function loadData(manual = false) {
     STATE.checks     = data.checks     || [];
     STATE.checkItems = data.checkItems || [];
     STATE.tallagKeys = new Set(data.tallagKeys || []);
+    STATE.goals      = data.goals      || {};
+    STATE.meets      = (data.meets || []).map(r => ({ ...r, _date: parseMeetDateGas(r['다음만남일'] || r['다음만남일
+'] || '') }));
     STATE.syncedAt   = data.syncedAt;
 
     populateFilters();
