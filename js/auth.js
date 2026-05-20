@@ -99,6 +99,11 @@ function onLoginSuccess() {
     setRole('adm');
   } else {
     setRole('reg');
+    // 지역 권한이면 역할 전환 버튼 숨기기
+    const admBtn = document.getElementById('rb-adm');
+    const regBtn = document.getElementById('rb-reg');
+    if (admBtn) admBtn.style.display = 'none';
+    if (regBtn) regBtn.style.display = 'none';
   }
 
   // 데이터 로드

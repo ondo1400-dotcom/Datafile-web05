@@ -36,6 +36,15 @@ async function loadData(manual = false) {
     }));
     STATE.syncedAt   = data.syncedAt;
 
+    // 지역 권한 필터링 (관리자가 아니면 허용된 지역만)
+    if (USER_AUTH && USER_AUTH.role !== 'admin') {
+      const allowed = USER_AUTH.regions || [];
+      STATE.nujeok     = STATE.nujeok.filter(r => allowed.includes(r['실적지역']));
+      STATE.tallag     = STATE.tallag.filter(r => allowed.includes(r['실적지역']));
+      STATE.meets      = STATE.meets.filter(r => allowed.includes(r['실적지역']));
+      STATE.dbFindings = STATE.dbFindings.filter(r => allowed.includes(r['실적지역']));
+    }
+
     populateFilters();
 
     const firstScreen = STATE.role === 'adm' ? 'adm-dash' : 'reg-board';
