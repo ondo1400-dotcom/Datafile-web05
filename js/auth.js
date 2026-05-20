@@ -258,14 +258,10 @@ async function submitRequest() {
     if (USE_SAMPLE) {
       await new Promise(r => setTimeout(r, 800));
     } else {
-      await fetch(GAS_URL + '?t=' + Date.now(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action:  'requestAccess',
-          email:   CURRENT_USER.email,
-          name, mission, region, reason,
-        }),
+      await gasPost({
+        action:  'requestAccess',
+        email:   CURRENT_USER.email,
+        name, mission, region, reason,
       });
     }
 
