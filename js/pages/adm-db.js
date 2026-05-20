@@ -68,6 +68,8 @@ function openDbDetail(rowIndex) {
        '출생연도','성별','사는곳','하는일','종교','신앙년수',
        '섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적','등록일시'];
 
+  const isAdmin = USER_AUTH?.role === 'admin';
+
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">
       ${fields.map(f => `
@@ -77,15 +79,20 @@ function openDbDetail(rowIndex) {
         </div>
       `).join('')}
     </div>
-    ${r['합자요청여부'] !== 'Y'
-      ? `<div style="display:flex;gap:8px;margin-top:14px;">
-           <button class="btn reg-pri" style="flex:1;padding:12px;font-size:14px;"
-             onclick="closeDbDetail();openHapjaModal(${rowIndex})">합자 요청하기</button>
-           <button class="btn" style="flex:1;padding:12px;font-size:14px;"
-             onclick="closeDbDetail();openDbEditModal(${rowIndex})">✏️ 수정</button>
-         </div>`
+    ${isAdmin
+      ? (r['합자요청여부'] !== 'Y'
+          ? `<div style="display:flex;gap:8px;margin-top:14px;">
+               <button class="btn reg-pri" style="flex:1;padding:12px;font-size:14px;"
+                 onclick="closeDbDetail();openHapjaModal(${rowIndex})">합자 요청하기</button>
+               <button class="btn" style="flex:1;padding:12px;font-size:14px;"
+                 onclick="closeDbDetail();openDbEditModal(${rowIndex})">✏️ 수정</button>
+             </div>`
+          : `<div style="display:flex;gap:8px;margin-top:14px;">
+               <div style="flex:1;text-align:center;color:var(--green);font-weight:700;">✅ 합자 요청 완료</div>
+               <button class="btn" style="flex:1;padding:12px;font-size:14px;"
+                 onclick="closeDbDetail();openDbEditModal(${rowIndex})">✏️ 수정</button>
+             </div>`)
       : `<div style="display:flex;gap:8px;margin-top:14px;">
-           <div style="flex:1;text-align:center;color:var(--green);font-weight:700;">✅ 합자 요청 완료</div>
            <button class="btn" style="flex:1;padding:12px;font-size:14px;"
              onclick="closeDbDetail();openDbEditModal(${rowIndex})">✏️ 수정</button>
          </div>`
@@ -269,24 +276,29 @@ async function submitNewDb() {
 
 // ─── REG: DB/찾기 (지역 담당자용) ───
 function renderRegDb() {
-  // 지역 담당자: DB만 표시 (찾기 제외, 합자요청 버튼 없음)
-  const data = (STATE.dbFindings || []).filter(r => r['구분'] === 'DB');
+  const typeFilter = document.getElementById('reg-db-type-sel')?.value || '';
+  const data = (STATE.dbFindings || []).filter(r => {
+    if (typeFilter && r['구분'] !== typeFilter) return false;
+    return true;
+  });
 
   const tbody = document.getElementById('reg-db-body');
   if (!tbody) return;
 
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3);">DB 데이터 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3);">데이터 없음</td></tr>';
     return;
   }
 
   tbody.innerHTML = data.map(r => {
-    const ri = r['__rowIndex'];
+    const ri        = r['__rowIndex'];
+    const typeColor = r['구분'] === 'DB' ? 'b-gray' : 'b-reg';
     return `<tr class="cr" onclick="openDbDetail(${ri})">
+      <td><span class="badge ${typeColor}">${r['구분']||'—'}</span></td>
       <td><strong>${r['섭외자']||'—'}</strong></td>
       <td style="font-size:11px;">${r['전화번호']||'—'}</td>
       <td style="font-size:11px;">${r['실적지역']||'—'}</td>
-      <td style="font-size:11px;">${r['등록일시']||'—'}</td>
+      <td style="font-size:11px;color:var(--text3);">${String(r['등록일시']||'').substring(0,10)}</td>
     </tr>`;
   }).join('');
 }
