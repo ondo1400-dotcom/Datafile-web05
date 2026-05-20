@@ -93,3 +93,92 @@ function renderAdmDash() {
     checkSummary.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:10px;">체크 항목을 설정탭에서 추가해주세요</div>';
   }
 }
+
+// ─── REG: 종합 현황 (지역 담당자용) ───
+function renderRegDash() {
+  const el = document.getElementById('reg-dash-content');
+  if (!el) return;
+
+  const active   = STATE.nujeok.filter(r => !isTallag(r));
+  const allowed  = getAllowedRegions(); // null=전체, 배열=허용지역
+
+  // 지역별 단계 집계 (전체)
+  const byRegion = {};
+  const totals   = {};
+  STAGE_ORDER.forEach(s => totals[s] = 0);
+
+  STATE.nujeok.filter(r => !isTallag(r)).forEach(r => {
+    const region = r['실적지역'] || '기타';
+    const stage  = r['단계'];
+    if (!byRegion[region]) {
+      byRegion[region] = {};
+      STAGE_ORDER.forEach(s => byRegion[region][s] = 0);
+    }
+    if (STAGE_ORDER.includes(stage)) {
+      byRegion[region][stage]++;
+      totals[stage]++;
+    }
+  });
+
+  const regions = Object.keys(byRegion).sort();
+
+  // 내 지역 하이라이트
+  const myRegions = allowed || [];
+
+  el.innerHTML = `
+    <div class="stat-row c4" style="margin-bottom:20px;">
+      <div class="stat-card base" style="text-align:center;">
+        <div class="stat-label">전체 인원</div>
+        <div class="stat-val" style="font-size:22px;">${STATE.nujeok.length}</div>
+      </div>
+      <div class="stat-card base" style="text-align:center;">
+        <div class="stat-label">활성 인원</div>
+        <div class="stat-val reg" style="font-size:22px;">${active.length}</div>
+      </div>
+      <div class="stat-card base" style="text-align:center;">
+        <div class="stat-label">탈락 인원</div>
+        <div class="stat-val" style="font-size:22px;color:var(--red);">${STATE.tallag.length}</div>
+      </div>
+      <div class="stat-card base" style="text-align:center;">
+        <div class="stat-label">내 지역</div>
+        <div class="stat-val reg" style="font-size:16px;">${myRegions.join(', ') || '전체'}</div>
+      </div>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;">지역별 단계 현황</div>
+    <div class="tw">
+      <table class="bt">
+        <thead>
+          <tr>
+            <th>지역</th>
+            ${STAGE_ORDER.map(s => `<th style="color:${STAGE_COLORS[s]?.c||'#555'}">${s}</th>`).join('')}
+            <th>합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${regions.map(region => {
+            const isMyRegion = allowed === null || myRegions.includes(region);
+            const rowStyle   = isMyRegion && allowed !== null
+              ? 'background:var(--reg-light);font-weight:700;'
+              : '';
+            const total = STAGE_ORDER.reduce((sum, s) => sum + (byRegion[region][s]||0), 0);
+            return `<tr style="${rowStyle}">
+              <td>
+                ${isMyRegion && allowed !== null
+                  ? `<span style="color:var(--reg2);font-weight:700;">★ ${region}</span>`
+                  : region}
+              </td>
+              ${STAGE_ORDER.map(s => `<td style="text-align:center;">${byRegion[region][s]||0}</td>`).join('')}
+              <td style="text-align:center;font-weight:700;">${total}</td>
+            </tr>`;
+          }).join('')}
+          <tr style="background:var(--surface2);font-weight:700;">
+            <td>합계</td>
+            ${STAGE_ORDER.map(s => `<td style="text-align:center;">${totals[s]||0}</td>`).join('')}
+            <td style="text-align:center;">${STAGE_ORDER.reduce((sum,s)=>sum+(totals[s]||0),0)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
