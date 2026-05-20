@@ -67,11 +67,10 @@ async function loadData(manual = false) {
 }
 
 async function gasPost(payload) {
-  const res = await fetch(GAS_URL + '?t=' + Date.now(), {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload),
-  });
+  // Apps Script는 POST preflight(OPTIONS)를 막는 경우가 있어서
+  // payload를 JSON으로 인코딩해서 GET으로 전송
+  const encoded = encodeURIComponent(JSON.stringify(payload));
+  const res = await fetch(GAS_URL + '?payload=' + encoded + '&t=' + Date.now());
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
