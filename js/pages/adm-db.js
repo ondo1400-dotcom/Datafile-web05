@@ -274,6 +274,16 @@ async function submitNewDb() {
   }
 }
 
+// ─── 날짜 포맷 헬퍼 (GAS 한국어 timestamp 처리) ───
+function fmtRegDate(val) {
+  if (!val) return '—';
+  const s = String(val);
+  // "2026. 5. 20. 오후 2:54:44" → "2026.5.20"
+  const m = s.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+  if (m) return `${m[1]}.${m[2]}.${m[3]}`;
+  return s.substring(0, 10);
+}
+
 // ─── REG: DB/찾기 (지역 담당자용) ───
 function renderRegDb() {
   const typeFilter = document.getElementById('reg-db-type-sel')?.value || '';
@@ -291,14 +301,15 @@ function renderRegDb() {
   }
 
   tbody.innerHTML = data.map(r => {
-    const ri        = r['__rowIndex'];
-    const typeColor = r['구분'] === 'DB' ? 'b-gray' : 'b-reg';
+    const ri   = r['__rowIndex'];
+    const type = r['구분'] === '찾기' ? '찾기' : 'DB';
+    const typeColor = type === 'DB' ? '#e2e8f0;color:#475569' : '#dcfce7;color:#166534';
     return `<tr class="cr" onclick="openDbDetail(${ri})">
-      <td><span class="badge ${typeColor}">${r['구분']||'—'}</span></td>
+      <td><span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${typeColor};">${type}</span></td>
       <td><strong>${r['섭외자']||'—'}</strong></td>
       <td style="font-size:11px;">${r['전화번호']||'—'}</td>
       <td style="font-size:11px;">${r['실적지역']||'—'}</td>
-      <td style="font-size:11px;color:var(--text3);">${String(r['등록일시']||'').substring(0,10)}</td>
+      <td style="font-size:11px;color:var(--text3);">${fmtRegDate(r['등록일시'])}</td>
     </tr>`;
   }).join('');
 }
