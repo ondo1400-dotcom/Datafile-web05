@@ -68,7 +68,7 @@ function openDbDetail(rowIndex) {
        '출생연도','성별','사는곳','하는일','종교','신앙년수',
        '섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적','등록일시'];
 
-  const isAdmin = USER_AUTH?.role === 'admin';
+  const isAdmin = STATE.currentScreen === 'adm-db';
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">
