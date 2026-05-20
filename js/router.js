@@ -28,6 +28,7 @@ function nav(screen) {
     'reg-detail':renderRegDetail,
     'reg-db':    renderRegDb,
     'reg-board': renderRegBoard,
+    'reg-meet':  renderRegMeet,
     'reg-check': renderRegCheck,
   };
   if (renderMap[screen]) renderMap[screen]();
