@@ -488,24 +488,49 @@
           <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
           지역 담당자 — 내 지역 보유현황
         </div>
-        <div class="flt-bar">
+        <div class="flt-bar" style="flex-wrap:wrap;gap:6px;">
           <div class="flt-group">
-            <span class="flt-label">내 지역</span>
+            <span class="flt-label">지역</span>
             <select class="top-sel" id="reg-region-sel" onchange="renderRegBoard()"><option value="">전체</option></select>
           </div>
+          <div class="flt-group">
+            <span class="flt-label">개강</span>
+            <select class="top-sel" id="reg-kaigang-sel" onchange="renderRegBoard()"><option value="">전체</option></select>
+          </div>
+          <div class="flt-group">
+            <span class="flt-label">센터</span>
+            <select class="top-sel" id="reg-center-sel" onchange="renderRegBoard()"><option value="">전체</option></select>
+          </div>
+          <div class="flt-group">
+            <span class="flt-label">단계</span>
+            <select class="top-sel" id="reg-stage-sel" onchange="renderRegBoard()">
+              <option value="">전체</option>
+              <option>찾기</option><option>합자</option><option>육따기</option>
+              <option>영따기</option><option>복음방</option><option>센확</option><option>수신</option>
+            </select>
+          </div>
+          <div class="flt-group">
+            <span class="flt-label">정렬</span>
+            <select class="top-sel" id="reg-sort-sel" onchange="renderRegBoard()">
+              <option value="stage-asc">단계 오름차순</option>
+              <option value="stage-desc">단계 내림차순</option>
+              <option value="meet-asc">만남일 오름차순</option>
+              <option value="meet-desc">만남일 내림차순</option>
+            </select>
+          </div>
+          <span id="reg-board-count" style="font-size:11px;color:var(--text3);margin-left:auto;align-self:center;"></span>
         </div>
         <div class="p14">
           <div class="tw">
             <table class="bt">
               <thead>
                 <tr>
-                  <th>단계</th><th>섭외자</th><th>인도자</th>
-                  <th>목표개강</th><th>목표센터</th>
-                  <th>합자보고</th><th>육따보고</th><th>따기보고</th><th>복음방보고</th>
+                  <th>단계</th><th>섭외자</th><th>인도자</th><th>교사</th>
+                  <th>다음만남일</th><th>만남목적</th>
                 </tr>
               </thead>
               <tbody id="reg-board-body">
-                <tr><td colspan="9" class="loading-box">로딩 중...</td></tr>
+                <tr><td colspan="6" class="loading-box">로딩 중...</td></tr>
               </tbody>
             </table>
           </div>
