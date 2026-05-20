@@ -78,9 +78,17 @@ function openDbDetail(rowIndex) {
       `).join('')}
     </div>
     ${r['합자요청여부'] !== 'Y'
-      ? `<button class="btn reg-pri" style="width:100%;padding:12px;font-size:14px;"
-           onclick="closeDbDetail();openHapjaModal(${rowIndex})">합자 요청하기</button>`
-      : '<div style="text-align:center;color:var(--green);font-weight:700;">✅ 합자 요청 완료</div>'
+      ? `<div style="display:flex;gap:8px;margin-top:14px;">
+           <button class="btn reg-pri" style="flex:1;padding:12px;font-size:14px;"
+             onclick="closeDbDetail();openHapjaModal(${rowIndex})">합자 요청하기</button>
+           <button class="btn" style="flex:1;padding:12px;font-size:14px;"
+             onclick="closeDbDetail();openDbEditModal(${rowIndex})">✏️ 수정</button>
+         </div>`
+      : `<div style="display:flex;gap:8px;margin-top:14px;">
+           <div style="flex:1;text-align:center;color:var(--green);font-weight:700;">✅ 합자 요청 완료</div>
+           <button class="btn" style="flex:1;padding:12px;font-size:14px;"
+             onclick="closeDbDetail();openDbEditModal(${rowIndex})">✏️ 수정</button>
+         </div>`
     }`;
 
   document.getElementById('db-detail-modal').classList.add('show');
@@ -152,6 +160,34 @@ async function submitHapja() {
     const el = document.getElementById('hapja-' + inputId);
     if (el) payload[origKey] = el.value;
   });
+
+  // 필수 필드 검증
+  const required = {
+    '실적지역': '실적지역',
+    '인도자': '인도자',
+    '목표개강(연도/월)': '목표개강(연도/월)',
+    '목표센터': '목표센터',
+    '섭외자': '섭외자',
+    '출생연도': '출생연도',
+    '성별': '성별',
+    '사는곳': '사는곳',
+    '하는일': '하는일',
+    '종교': '종교',
+    '신앙년수': '신앙년수',
+    '섭외유형': '섭외유형',
+    '2차연결유형': '2차연결유형',
+    '따기예정일': '따기예정일',
+    '교사': '교사',
+  };
+
+  const emptyFields = Object.entries(required)
+    .filter(([key]) => !payload[key] || String(payload[key]).trim() === '')
+    .map(([, label]) => label);
+
+  if (emptyFields.length > 0) {
+    showToast('⚠️ 필수 항목을 채워주세요: ' + emptyFields.join(', '), 'error');
+    return;
+  }
 
   const btn = document.getElementById('hapja-submit-btn');
   if (btn) { btn.textContent = '전송 중...'; btn.disabled = true; }

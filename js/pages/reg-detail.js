@@ -221,3 +221,75 @@ function fmtMD(date) {
   if (!date) return '—';
   return `${date.getMonth()+1}/${date.getDate()}`;
 }
+
+// ─── DB_찾기 상세 수정 모달 ───
+let _editDbRow = null;
+
+function openDbEditModal(rowIndex) {
+  _editDbRow = (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
+  if (!_editDbRow) return;
+
+  const modal = document.getElementById('db-edit-modal');
+  if (!modal) return;
+
+  // 폼 채우기
+  const fields = [
+    '실적지역','인도자부서/지역/팀/구역','인도자',
+    '목표개강(연도/월)','목표센터','섭외자','전화번호',
+    '출생연도','성별','사는곳','하는일','종교','신앙년수',
+    '섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적'
+  ];
+
+  fields.forEach(key => {
+    const id = 'edit-' + key.replace(/[\/\(\)]/g, '_');
+    const el = document.getElementById(id);
+    if (el) el.value = _editDbRow[key] || '';
+  });
+
+  modal.classList.add('show');
+}
+
+function closeDbEditModal() {
+  document.getElementById('db-edit-modal')?.classList.remove('show');
+  _editDbRow = null;
+}
+
+async function submitDbEdit() {
+  if (!_editDbRow) return;
+
+  const payload = { ..._editDbRow };
+  const fields = [
+    '실적지역','인도자부서/지역/팀/구역','인도자',
+    '목표개강(연도/월)','목표센터','섭외자','전화번호',
+    '출생연도','성별','사는곳','하는일','종교','신앙년수',
+    '섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적'
+  ];
+
+  fields.forEach(key => {
+    const id = 'edit-' + key.replace(/[\/\(\)]/g, '_');
+    const el = document.getElementById(id);
+    if (el) payload[key] = el.value;
+  });
+
+  const btn = document.getElementById('db-edit-submit-btn');
+  if (btn) { btn.textContent = '저장 중...'; btn.disabled = true; }
+
+  try {
+    if (USE_SAMPLE) {
+      const target = (STATE.dbFindings || []).find(r => r['__rowIndex'] === _editDbRow['__rowIndex']);
+      if (target) Object.assign(target, payload);
+      showToast('✅ 수정됨 (샘플 모드)');
+      closeDbEditModal();
+      return;
+    }
+
+    const res = await gasPost({ action: 'saveOrUpdateDbFinding', ...payload });
+    if (!res.success) throw new Error(res.error);
+    STATE.dbFindings = res.dbFindings;
+    showToast('✅ 수정 완료');
+    closeDbEditModal();
+  } catch(e) {
+    showToast('⚠️ 수정 실패: ' + e.message, 'error');
+    if (btn) { btn.textContent = '저장'; btn.disabled = false; }
+  }
+}
