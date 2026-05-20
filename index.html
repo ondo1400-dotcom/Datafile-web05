@@ -452,33 +452,18 @@
       <div id="sc-reg-db" class="screen">
         <div class="role-stripe reg">
           <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-          지역 담당자 — DB / 찾기
-        </div>
-        <div class="flt-bar">
-          <div class="flt-group">
-            <span class="flt-label">구분</span>
-            <select class="top-sel" id="reg-db-type-sel" onchange="renderRegDb()">
-              <option value="">전체</option>
-              <option>DB</option>
-              <option>찾기</option>
-            </select>
-          </div>
-          <div style="margin-left:auto;display:flex;gap:6px;">
-            <button class="btn" onclick="openNewDbModal('DB')">+ DB 등록</button>
-            <button class="btn reg-pri" onclick="openNewDbModal('찾기')">+ 찾기 등록</button>
-          </div>
+          지역 담당자 — DB
         </div>
         <div class="p14">
           <div class="tw">
             <table class="bt">
               <thead>
                 <tr>
-                  <th>구분</th><th>섭외자</th><th>전화번호</th>
-                  <th>인도자</th><th>목표개강</th><th>다음만남일</th><th>합자</th>
+                  <th>섭외자</th><th>전화번호</th><th>지역</th><th>등록일</th>
                 </tr>
               </thead>
               <tbody id="reg-db-body">
-                <tr><td colspan="7" class="loading-box">로딩 중...</td></tr>
+                <tr><td colspan="4" class="loading-box">로딩 중...</td></tr>
               </tbody>
             </table>
           </div>

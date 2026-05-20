@@ -1,16 +1,20 @@
 // ══════════════════════════════════════════════════════
 //  pages/reg-board.js — 지역 담당자 보유현황
+//  찾기 이상 단계만 표시 (DB 제외)
 // ══════════════════════════════════════════════════════
+
+// 찾기 이상 단계
+const VALID_STAGES = ['찾기', '합자', '육따기', '영따기', '복음방', '센확', '수신'];
 
 function renderRegBoard() {
   const regionF = document.getElementById('reg-region-sel')?.value || '';
-  const data    = regionF
-    ? STATE.nujeok.filter(r => r['실적지역'] === regionF)
-    : STATE.nujeok;
+  const data    = STATE.nujeok
+    .filter(r => !regionF || r['실적지역'] === regionF)
+    .filter(r => VALID_STAGES.includes(r['단계'])); // 찾기 이상만
 
   const tbody = document.getElementById('reg-board-body');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3);">지역을 선택하거나 데이터가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3);">데이터가 없습니다</td></tr>';
     return;
   }
 
