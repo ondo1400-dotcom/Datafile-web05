@@ -25,6 +25,12 @@ function renderRegBoard() {
 
   let data = STATE.nujeok
     .filter(r => VALID_STAGES.includes(r['단계']))
+    .filter(r => {
+      // 지역 권한이면 허용된 지역만
+      const allowed = getAllowedRegions();
+      if (allowed !== null && !allowed.includes(r['실적지역'])) return false;
+      return true;
+    })
     .filter(r => !regionF  || r['실적지역']          === regionF)
     .filter(r => !kaigangF || r['목표개강(연도/월)']  === kaigangF)
     .filter(r => !centerF  || r['목표센터']           === centerF)

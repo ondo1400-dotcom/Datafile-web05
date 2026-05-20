@@ -36,13 +36,16 @@ async function loadData(manual = false) {
     }));
     STATE.syncedAt   = data.syncedAt;
 
-    // 지역 권한 필터링 (관리자가 아니면 허용된 지역만)
+    // 지역 권한 필터링
+    // nujeok은 전체 보존 (종합 탭에서 타지역 비교용)
+    // 만남/DB/찾기는 내 지역만
     if (USER_AUTH && USER_AUTH.role !== 'admin') {
       const allowed = USER_AUTH.regions || [];
-      STATE.nujeok     = STATE.nujeok.filter(r => allowed.includes(r['실적지역']));
       STATE.tallag     = STATE.tallag.filter(r => allowed.includes(r['실적지역']));
       STATE.meets      = STATE.meets.filter(r => allowed.includes(r['실적지역']));
       STATE.dbFindings = STATE.dbFindings.filter(r => allowed.includes(r['실적지역']));
+      // nujeok은 전체 유지 (reg-dash에서 전체 지역 비교)
+      // reg-board에서는 본인 지역만 보이도록 reg-board.js에서 필터링
     }
 
     populateFilters();
