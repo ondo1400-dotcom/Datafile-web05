@@ -95,7 +95,7 @@ function populateFilters() {
   const kaigangMonths = [...new Set(STATE.nujeok.map(r => r['목표개강(연도/월)']).filter(Boolean))].sort();
 
   // 지역 셀렉트 (여러 곳)
-  ['board-region-sel', 'adm-check-region-sel', 'reg-region-sel', 'reg-check-region-sel'].forEach(id => {
+  ['board-region-sel', 'adm-check-region-sel', 'reg-region-sel', 'reg-check-region-sel', 'meet-region-sel', 'db-region-sel'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     const cur = sel.value;
@@ -116,4 +116,9 @@ function populateFilters() {
     itemSel.innerHTML = '<option value="">전체</option>'
       + STATE.checkItems.map(i => `<option>${i}</option>`).join('');
   }
+}
+
+// GAS에서 온 날짜 파싱 (api.js에서 사용)
+function parseMeetDateGas(raw) {
+  return typeof parseMeetDate === 'function' ? parseMeetDate(raw) : null;
 }

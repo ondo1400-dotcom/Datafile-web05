@@ -17,6 +17,7 @@ function nav(screen) {
 
   // 화면별 렌더 함수 호출
   const renderMap = {
+    'adm-db':    renderAdmDb,
     'adm-dash':  renderAdmDash,
     'adm-meet':  renderAdmMeet,
     'adm-board': renderBoardTable,
@@ -39,7 +40,7 @@ function setRole(role) {
   document.getElementById('logo-mark').className = 'role-logo-mark ' + role;
   document.getElementById('sidebar').className = 'sidebar ' + role;
 
-  const admIcons = ['si-adm-dash', 'si-adm-board', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-auth'];
+  const admIcons = ['si-adm-dash', 'si-adm-board', 'si-adm-db', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-auth'];
   const regIcons = ['si-reg-board', 'si-reg-meet', 'si-reg-check'];
 
   admIcons.forEach(id => {

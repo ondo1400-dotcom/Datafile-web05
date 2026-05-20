@@ -29,6 +29,7 @@ async function loadData(manual = false) {
     STATE.checkItems = data.checkItems || [];
     STATE.goals      = data.goals      || {};
     STATE.tallagKeys = new Set(data.tallagKeys || []);
+    STATE.dbFindings = data.dbFindings || [];
     STATE.meets      = (data.meets || []).map(r => ({
       ...r,
       _date: parseMeetDate(r['다음만남일'] || '')
@@ -53,7 +54,8 @@ async function loadData(manual = false) {
 
     if (!STATE.nujeok.length) {
       Object.assign(STATE, SAMPLE_DATA);
-      STATE.tallagKeys = new Set(SAMPLE_DATA.tallagKeys || []);
+      STATE.tallagKeys  = new Set(SAMPLE_DATA.tallagKeys || []);
+      STATE.dbFindings = SAMPLE_DATA.dbFindings || [];
       STATE.meets = (SAMPLE_DATA.meets || []).map(r => ({
         ...r,
         _date: parseMeetDate(r['다음만남일'] || '')
