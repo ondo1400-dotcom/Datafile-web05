@@ -1,0 +1,223 @@
+// ══════════════════════════════════════════════════════
+//  pages/reg-detail.js — 섭외자 상세 페이지
+// ══════════════════════════════════════════════════════
+
+let _detailRow = null;
+let _detailTab = 'basic'; // basic | history | meets | check
+
+function openPersonDetail(rowIndex) {
+  _detailRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex);
+  if (!_detailRow) return;
+  _detailTab = 'basic';
+  nav('reg-detail');
+}
+
+function renderRegDetail() {
+  if (!_detailRow) { nav('reg-board'); return; }
+  const r = _detailRow;
+
+  const initials = (r['섭외자'] || '?').charAt(0);
+  const tallag   = isTallag(r);
+  const sc       = STAGE_COLORS[r['단계']] || { bg:'#f0f0f0', c:'#555' };
+
+  // 만남 기록 (다음만남일 시트에서)
+  const personMeets = (STATE.meets || []).filter(m =>
+    m['섭외자'] === r['섭외자'] && m['인도자'] === r['인도자']
+  ).sort((a, b) => {
+    const da = a._date ? a._date.getTime() : 0;
+    const db = b._date ? b._date.getTime() : 0;
+    return db - da;
+  });
+
+  const lastMeet   = personMeets[0];
+  const totalMeets = personMeets.length;
+
+  // 개강 체크
+  const key        = makeKey(r);
+  const checkMap   = buildCheckMap();
+  const doneChecks = STATE.checkItems.filter(item => checkMap[key + '||' + item]?.checked).length;
+
+  document.getElementById('detail-content').innerHTML = `
+    <!-- 상단 카드 -->
+    <div style="background:var(--reg-light);border:1px solid var(--reg-mid);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;position:relative;">
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <!-- 아바타 -->
+        <div style="width:52px;height:52px;border-radius:50%;background:var(--reg2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;flex-shrink:0;">
+          ${initials}
+        </div>
+        <!-- 기본 정보 -->
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span style="font-size:20px;font-weight:700;">${r['섭외자'] || '—'}</span>
+            <span style="background:${sc.bg};color:${sc.c};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;">${r['단계'] || '—'}</span>
+            ${tallag ? '<span class="badge b-red">탈락</span>' : ''}
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">
+            ${r['실적지역']||''} · ${r['인도자팀']||''} · ${r['목표개강(연도/월)']||''}
+            ${r['섭외유형'] ? ' · ' + r['섭외유형'] : ''}
+            ${r['인도자구역'] ? ' · 구역: ' + r['인도자구역'] : ''}
+          </div>
+          <!-- 주요 인물 카드들 -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+            ${[
+              ['인도자', r['인도자']],
+              ['교사', r['교사']],
+              ['섬외자', r['섭외자']],
+              ['총 만남', totalMeets + '회'],
+            ].map(([label, val]) => `
+              <div style="background:#fff;border-radius:8px;padding:8px;text-align:center;border:1px solid var(--border);">
+                <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">${label}</div>
+                <div style="font-size:13px;font-weight:700;color:${label==='총 만남'?'var(--reg2)':'var(--text1)'};">${val||'—'}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <!-- 오른쪽 버튼 -->
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+          <button class="btn" onclick="nav('reg-board')" style="font-size:11px;padding:6px 10px;">← 목록</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 탭 -->
+    <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;">
+      ${[['basic','기본 정보'],['meets','만남 기록'],['check','개강 준비']].map(([id, label]) => `
+        <button onclick="switchDetailTab('${id}')" id="dtab-${id}"
+          style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;
+          border-bottom:${_detailTab===id?'2px solid var(--reg2)':'2px solid transparent'};
+          color:${_detailTab===id?'var(--reg2)':'var(--text3)'};margin-bottom:-2px;">
+          ${label}
+        </button>
+      `).join('')}
+    </div>
+
+    <!-- 탭 내용 -->
+    <div id="detail-tab-content"></div>
+  `;
+
+  renderDetailTab();
+}
+
+function switchDetailTab(tab) {
+  _detailTab = tab;
+  // 탭 버튼 스타일 업데이트
+  ['basic','meets','check'].forEach(id => {
+    const btn = document.getElementById('dtab-' + id);
+    if (!btn) return;
+    btn.style.borderBottom = id === tab ? '2px solid var(--reg2)' : '2px solid transparent';
+    btn.style.color = id === tab ? 'var(--reg2)' : 'var(--text3)';
+  });
+  renderDetailTab();
+}
+
+function renderDetailTab() {
+  const r   = _detailRow;
+  const el  = document.getElementById('detail-tab-content');
+  if (!el || !r) return;
+
+  if (_detailTab === 'basic') {
+    // 만남 현황
+    const personMeets = (STATE.meets || []).filter(m =>
+      m['섭외자'] === r['섭외자'] && m['인도자'] === r['인도자']
+    ).sort((a, b) => (b._date?.getTime()||0) - (a._date?.getTime()||0));
+
+    const lastMeet = personMeets[0];
+    const nextMeet = personMeets.find(m => {
+      const diff = m._date ? Math.round((m._date - new Date().setHours(0,0,0,0)) / 86400000) : null;
+      return diff !== null && diff >= 0;
+    });
+
+    el.innerHTML = `
+      <div class="sl">만남 현황</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+        <div class="stat-card base"><div class="stat-label">최근 만남일</div><div style="font-size:15px;font-weight:700;">${lastMeet ? fmtMD(lastMeet._date) : '—'}</div></div>
+        <div class="stat-card base"><div class="stat-label">만남 목적</div><div style="font-size:13px;font-weight:600;">${lastMeet?.['다음만남목적']||'—'}</div></div>
+        <div class="stat-card base"><div class="stat-label">만남 결과</div><div style="font-size:15px;">${lastMeet?.['만남결과']||'—'}</div></div>
+        <div class="stat-card base"><div class="stat-label">다음 만남일</div><div style="font-size:15px;font-weight:700;color:var(--reg2);">${nextMeet ? fmtMD(nextMeet._date) : '—'}</div></div>
+        <div class="stat-card base"><div class="stat-label">만남 시간</div><div style="font-size:13px;font-weight:600;">${r['다음만남시간']||'—'}</div></div>
+        <div class="stat-card base"><div class="stat-label">다음 만남 목적</div><div style="font-size:13px;font-weight:600;">${r['다음만남목적']||'—'}</div></div>
+      </div>
+
+      <div class="sl">따기 기간</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+        <div class="stat-card base"><div class="stat-label">주 횟수</div><div style="font-size:15px;font-weight:700;">${r['따기주간횟수']||'—'}</div></div>
+        <div class="stat-card base"><div class="stat-label">기간</div><div style="font-size:15px;font-weight:700;">${r['따기기간']||'—'}</div></div>
+        <div class="stat-card base"><div class="stat-label">고정 요일</div><div style="font-size:15px;font-weight:700;">${r['고정요일']||'—'}</div></div>
+      </div>
+
+      <div class="sl">기본 정보</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        ${[
+          ['출생연도', r['출생연도']],
+          ['성별', r['성별']],
+          ['사는곳', r['사는곳']],
+          ['하는일', r['하는일']],
+          ['종교', r['종교']],
+          ['신앙년수', r['신앙년수']],
+          ['섭외유형', r['섭외유형']],
+          ['2차연결유형', r['2차연결유형']],
+          ['목표센터', r['목표센터']],
+        ].map(([label, val]) => `
+          <div class="stat-card base">
+            <div class="stat-label">${label}</div>
+            <div style="font-size:13px;font-weight:600;">${val||'—'}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+  } else if (_detailTab === 'meets') {
+    const personMeets = (STATE.meets || []).filter(m =>
+      m['섭외자'] === r['섭외자'] && m['인도자'] === r['인도자']
+    ).sort((a, b) => (b._date?.getTime()||0) - (a._date?.getTime()||0));
+
+    if (!personMeets.length) {
+      el.innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center;">만남 기록 없음</div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="tw">
+        <table class="bt">
+          <thead><tr><th>날짜</th><th>시간</th><th>목적</th><th>결과</th></tr></thead>
+          <tbody>
+            ${personMeets.map(m => `
+              <tr>
+                <td style="font-weight:700;">${m._date ? fmtMD(m._date) : '—'}</td>
+                <td>${m['다음만남시간']||'—'}</td>
+                <td>${m['다음만남목적']||'—'}</td>
+                <td style="font-size:16px;">${m['만남결과']||'⬜'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+  } else if (_detailTab === 'check') {
+    const key      = makeKey(r);
+    const checkMap = buildCheckMap();
+
+    el.innerHTML = `
+      <div class="sl">개강 준비 체크 (${STATE.checkItems.filter(item => checkMap[key+'||'+item]?.checked).length}/${STATE.checkItems.length} 완료)</div>
+      ${STATE.checkItems.map(item => {
+        const ck  = key + '||' + item;
+        const st  = checkMap[ck] || {};
+        const done = st.checked;
+        return `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid ${done?'var(--green)':'var(--border)'};border-radius:8px;background:${done?'var(--green-light)':'#fff'};margin-bottom:6px;">
+            <span style="font-size:16px;">${done?'✅':'⬜'}</span>
+            <span style="flex:1;font-size:13px;font-weight:500;">${item}</span>
+            ${done ? `<span style="font-size:10px;color:var(--text3);">✓ ${st.체크자||''} ${st.체크일시||''}</span>` : ''}
+          </div>
+        `;
+      }).join('')}
+    `;
+  }
+}
+
+// fmtMD 함수 (adm-meet.js에서도 사용)
+function fmtMD(date) {
+  if (!date) return '—';
+  return `${date.getMonth()+1}/${date.getDate()}`;
+}

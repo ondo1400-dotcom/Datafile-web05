@@ -230,3 +230,36 @@ async function submitNewDb() {
     showToast('⚠️ 등록 실패: ' + e.message, 'error');
   }
 }
+
+// ─── REG: DB/찾기 (지역 담당자용) ───
+function renderRegDb() {
+  const typeF = document.getElementById('reg-db-type-sel')?.value || '';
+  const data  = (STATE.dbFindings || []).filter(r => !typeF || r['구분'] === typeF);
+
+  const tbody = document.getElementById('reg-db-body');
+  if (!tbody) return;
+
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3);">데이터 없음</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => {
+    const isHapja   = r['합자요청여부'] === 'Y';
+    const typeColor = r['구분'] === 'DB' ? 'b-gray' : 'b-reg';
+    const ri        = r['__rowIndex'];
+
+    return `<tr class="cr" onclick="openDbDetail(${ri})">
+      <td><span class="badge ${typeColor}">${r['구분']||'—'}</span></td>
+      <td><strong>${r['섭외자']||'—'}</strong></td>
+      <td style="font-size:11px;">${r['전화번호']||'—'}</td>
+      <td style="font-size:11px;">${r['인도자']||'—'}</td>
+      <td style="font-size:11px;">${r['목표개강(연도/월)']||'—'}</td>
+      <td style="font-size:11px;">${r['다음만남일']||'—'}</td>
+      <td>${isHapja
+        ? '<span class="badge b-green">완료</span>'
+        : `<button class="btn reg-pri" style="font-size:11px;padding:4px 10px;" onclick="event.stopPropagation();openHapjaModal(${ri})">합자 요청</button>`
+      }</td>
+    </tr>`;
+  }).join('');
+}

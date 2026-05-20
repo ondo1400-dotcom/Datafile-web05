@@ -17,8 +17,9 @@ function renderRegBoard() {
   tbody.innerHTML = data.map(r => {
     const tallag = isTallag(r);
     const style  = tallag ? 'opacity:.5;' : '';
+    const ri     = r['__rowIndex'];
 
-    return `<tr style="${style}">
+    return `<tr style="${style};cursor:pointer;" class="cr" onclick="openPersonDetail(${ri})">
       <td>
         ${stageBadge(r['단계'])}
         ${tallag ? '<span class="badge b-red" style="margin-left:4px;">탈락</span>' : ''}

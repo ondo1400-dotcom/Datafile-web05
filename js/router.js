@@ -25,6 +25,8 @@ function nav(screen) {
     'adm-goal':  renderAdmGoal,
     'adm-field': renderItemManage,
     'adm-auth':  renderAdmAuth,
+    'reg-detail':renderRegDetail,
+    'reg-db':    renderRegDb,
     'reg-board': renderRegBoard,
     'reg-check': renderRegCheck,
   };
@@ -46,7 +48,7 @@ function setRole(role) {
   // 지역 권한: ADM 탭 중 종합(dash)만 보임
   const admIcons = ['si-adm-dash', 'si-adm-board', 'si-adm-db', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-auth'];
   const admOnlyForAdmin = ['si-adm-board', 'si-adm-db', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-auth'];
-  const regIcons = ['si-reg-board', 'si-reg-meet', 'si-reg-check'];
+  const regIcons = ['si-reg-board', 'si-reg-db', 'si-reg-meet', 'si-reg-check'];
 
   admIcons.forEach(id => {
     const el = document.getElementById(id);
