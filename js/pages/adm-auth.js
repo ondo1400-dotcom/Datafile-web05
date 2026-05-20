@@ -3,8 +3,10 @@
 // ══════════════════════════════════════════════════════
 
 function renderAdmAuth() {
-  renderAuthUsers();
-  renderAuthRequests();
+  loadAuthData().then(() => {
+    renderAuthUsers();
+    renderAuthRequests();
+  });
 }
 
 // ─── 승인된 사용자 목록 ───
