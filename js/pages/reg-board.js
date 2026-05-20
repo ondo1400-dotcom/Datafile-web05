@@ -31,7 +31,6 @@ function renderRegBoard() {
       if (allowed !== null && !allowed.includes(r['실적지역'])) return false;
       return true;
     })
-    .filter(r => !regionF  || r['실적지역']          === regionF)
     .filter(r => !kaigangF || r['목표개강(연도/월)']  === kaigangF)
     .filter(r => !centerF  || r['목표센터']           === centerF)
     .filter(r => !stageF   || r['단계']               === stageF);
