@@ -40,13 +40,29 @@ function setRole(role) {
   document.getElementById('logo-mark').className = 'role-logo-mark ' + role;
   document.getElementById('sidebar').className = 'sidebar ' + role;
 
+  const isAdmin = USER_AUTH && USER_AUTH.role === 'admin';
+
+  // 관리자: 모든 ADM 탭 보임
+  // 지역 권한: ADM 탭 중 종합(dash)만 보임
   const admIcons = ['si-adm-dash', 'si-adm-board', 'si-adm-db', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-auth'];
+  const admOnlyForAdmin = ['si-adm-board', 'si-adm-db', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-auth'];
   const regIcons = ['si-reg-board', 'si-reg-meet', 'si-reg-check'];
 
   admIcons.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = role === 'adm' ? '' : 'none';
+    if (!el) return;
+    if (role === 'adm') {
+      // 지역 권한이면 종합만 보임
+      if (!isAdmin && admOnlyForAdmin.includes(id)) {
+        el.style.display = 'none';
+      } else {
+        el.style.display = '';
+      }
+    } else {
+      el.style.display = 'none';
+    }
   });
+
   regIcons.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = role === 'reg' ? '' : 'none';
