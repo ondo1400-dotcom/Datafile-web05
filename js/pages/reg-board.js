@@ -56,6 +56,19 @@ function renderRegBoard() {
     const meetDate = meet?._date ? fmtMD(meet._date) : (meet?.['다음만남일'] || '—');
     const meetPurpose = meet?.['다음만남목적'] || '—';
 
+    // 심의요청 상태 확인 (DB_찾기에서 찾기)
+    const dbRow = (STATE.dbFindings || []).find(d =>
+      d['섭외자'] === r['섭외자'] && d['인도자'] === r['인도자']
+    );
+    const reviewStatus = dbRow?.['심의요청여부'] === 'Y'
+      ? (dbRow?.['전송완료여부'] === 'Y'
+          ? '<span class="badge b-green" style="font-size:10px;">전송완료</span>'
+          : dbRow?.['심의승인여부'] === 'Y'
+            ? '<span class="badge b-adm" style="font-size:10px;">승인완료</span>'
+            : '<span class="badge b-amber" style="font-size:10px;">심의대기</span>')
+      : `<button class="btn" style="font-size:10px;padding:3px 7px;"
+           onclick="event.stopPropagation();openRequestReviewModal(${ri})">심의요청</button>`;
+
     return `<tr style="${style}cursor:pointer;" class="cr" onclick="openPersonDetail(${ri})">
       <td>
         ${stageBadge(r['단계'])}
@@ -66,6 +79,7 @@ function renderRegBoard() {
       <td style="font-size:12px;">${r['교사'] || '—'}</td>
       <td style="font-size:12px;font-weight:600;color:var(--reg2);">${meetDate}</td>
       <td style="font-size:11px;color:var(--text2);">${meetPurpose}</td>
+      <td onclick="event.stopPropagation()">${reviewStatus}</td>
     </tr>`;
   }).join('');
 }
@@ -104,4 +118,78 @@ function _fillSelect(id, options) {
     ...options.map(v => `<option${v === cur ? ' selected' : ''}>${v}</option>`)
   ];
   sel.innerHTML = opts.join('');
+}
+
+// ─── 심의요청 모달 ───
+let _reviewRow = null;
+
+function openRequestReviewModal(rowIndex) {
+  _reviewRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex);
+  if (!_reviewRow) return;
+
+  // 현재 단계로 기본 선택
+  const stage = _reviewRow['단계'] || '찾기';
+  document.getElementById('review-stage-sel').value = stage;
+  document.getElementById('review-name').textContent  = _reviewRow['섭외자'] || '—';
+  document.getElementById('review-stage-txt').textContent = stage;
+  document.getElementById('request-review-modal').classList.add('show');
+}
+
+function closeRequestReviewModal() {
+  document.getElementById('request-review-modal').classList.remove('show');
+  _reviewRow = null;
+}
+
+async function submitRequestReview() {
+  if (!_reviewRow) return;
+
+  const stage = document.getElementById('review-stage-sel').value;
+
+  // DB_찾기에서 해당 섭외자 찾기
+  let dbRow = (STATE.dbFindings || []).find(d =>
+    d['섭외자'] === _reviewRow['섭외자'] && d['인도자'] === _reviewRow['인도자']
+  );
+
+  const btn = document.getElementById('review-submit-btn');
+  if (btn) { btn.textContent = '요청 중...'; btn.disabled = true; }
+
+  try {
+    if (USE_SAMPLE) {
+      showToast('✅ 심의 요청 완료 (샘플)');
+      closeRequestReviewModal();
+      renderRegBoard();
+      return;
+    }
+
+    // DB_찾기에 없으면 먼저 저장
+    if (!dbRow) {
+      const saveRes = await gasPost({
+        action: 'saveOrUpdateDbFinding',
+        구분: _reviewRow['단계'] || '찾기',
+        ...Object.fromEntries(
+          Object.entries(_reviewRow).filter(([k]) => !k.startsWith('__'))
+        ),
+      });
+      STATE.dbFindings = saveRes.dbFindings || STATE.dbFindings;
+      dbRow = (STATE.dbFindings || []).find(d =>
+        d['섭외자'] === _reviewRow['섭외자'] && d['인도자'] === _reviewRow['인도자']
+      );
+    }
+
+    const res = await gasPost({
+      action: 'requestReview',
+      __rowIndex: dbRow?.['__rowIndex'],
+      심의단계: stage,
+    });
+
+    if (!res.success) throw new Error(res.error);
+    STATE.dbFindings = res.dbFindings;
+
+    showToast('✅ 심의 요청 완료!');
+    closeRequestReviewModal();
+    renderRegBoard();
+  } catch(e) {
+    showToast('⚠️ 요청 실패: ' + e.message, 'error');
+    if (btn) { btn.textContent = '심의 요청'; btn.disabled = false; }
+  }
 }

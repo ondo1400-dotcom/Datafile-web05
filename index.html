@@ -107,6 +107,9 @@
       <div class="sico" id="si-adm-auth" onclick="nav('adm-auth')" title="권한 관리">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>권한
       </div>
+      <div class="sico" id="si-adm-review" onclick="nav('adm-review')" title="심의">
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>심의
+      </div>
 
       <div class="sico-div"></div>
 
@@ -536,6 +539,7 @@
               <thead>
                 <tr>
                   <th>단계</th><th>섭외자</th><th>인도자</th><th>교사</th>
+                  <th>다음만남일</th><th>만남목적</th><th>심의</th>
                   <th>다음만남일</th><th>만남목적</th>
                 </tr>
               </thead>
@@ -593,6 +597,42 @@
         </div>
         <div class="p14">
           <div id="reg-check-list"><div class="loading-box">로딩 중...</div></div>
+        </div>
+      </div>
+
+      <!-- ══ ADM: 심의 ══ -->
+      <div id="sc-adm-review" class="screen">
+        <div class="role-stripe adm">
+          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          청년회 — 심의
+        </div>
+        <div class="p14">
+          <div class="stat-row c3" style="margin-bottom:14px;">
+            <div class="stat-card base" style="text-align:center;">
+              <div class="stat-label">심의 대기</div>
+              <div class="stat-val" id="rv-stat-pending" style="font-size:22px;color:var(--amber);">0</div>
+            </div>
+            <div class="stat-card adm-c" style="text-align:center;">
+              <div class="stat-label">승인완료</div>
+              <div class="stat-val adm" id="rv-stat-approved" style="font-size:22px;">0</div>
+            </div>
+            <div class="stat-card reg-c" style="text-align:center;">
+              <div class="stat-label">전송완료</div>
+              <div class="stat-val reg" id="rv-stat-sent" style="font-size:22px;">0</div>
+            </div>
+          </div>
+          <div class="tw">
+            <table class="bt">
+              <thead>
+                <tr>
+                  <th>단계</th><th>섭외자</th><th>지역</th><th>인도자</th><th>요청일</th><th>상태</th><th>액션</th>
+                </tr>
+              </thead>
+              <tbody id="rv-body">
+                <tr><td colspan="7" class="loading-box">로딩 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -713,6 +753,44 @@
   </div>
 </div>
 
+<!-- ─── 심의요청 모달 (지역) ─── -->
+<div class="modal-bg" id="request-review-modal">
+  <div class="modal" style="width:340px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="modal-title" style="margin:0;">심의 요청</div>
+      <button class="btn" onclick="closeRequestReviewModal()">✕</button>
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:13px;">
+      <strong id="review-name">—</strong>
+      <span style="color:var(--text3);margin-left:6px;" id="review-stage-txt"></span>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">심의 단계 선택</div>
+      <select id="review-stage-sel" class="top-sel" style="width:100%;">
+        <option>찾기</option>
+        <option>합자</option>
+        <option>육따기</option>
+        <option>따기</option>
+        <option>복음방</option>
+      </select>
+    </div>
+    <button id="review-submit-btn" class="btn reg-pri" style="width:100%;padding:12px;font-size:14px;" onclick="submitRequestReview()">
+      심의 요청
+    </button>
+  </div>
+</div>
+
+<!-- ─── 심의 상세 모달 (청년회) ─── -->
+<div class="modal-bg" id="rv-detail-modal">
+  <div class="modal" style="width:500px;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="modal-title" style="margin:0;">심의 상세</div>
+      <button class="btn" onclick="closeReviewDetail()">✕</button>
+    </div>
+    <div id="rv-detail-body"></div>
+  </div>
+</div>
+
 <!-- ─── DB/찾기 수정 모달 ─── -->
 <div class="modal-bg" id="db-edit-modal">
   <div class="modal" style="width:520px;max-height:85vh;overflow-y:auto;">
@@ -771,6 +849,7 @@
 <script src="js/pages/adm-goal.js"></script>
 <script src="js/pages/adm-field.js"></script>
 <script src="js/pages/adm-auth.js"></script>
+<script src="js/pages/adm-review.js"></script>
 <script src="js/pages/reg-board.js"></script>
 <script src="js/pages/reg-detail.js"></script>
 <script src="js/pages/reg-meet.js"></script>

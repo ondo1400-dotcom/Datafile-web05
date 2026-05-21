@@ -127,6 +127,9 @@ function openHapjaModal(rowIndex) {
     if (el) el.value = _hapjaRow[origKeys[i]] || '';
   });
 
+  const btn = document.getElementById('hapja-submit-btn');
+  if (btn) { btn.textContent = '텔레그램으로 합자 요청 전송'; btn.disabled = false; }
+
   document.getElementById('hapja-modal').classList.add('show');
 }
 
