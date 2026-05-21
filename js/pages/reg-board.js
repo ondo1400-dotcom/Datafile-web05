@@ -23,8 +23,12 @@ function renderRegBoard() {
     }
   });
 
-  let data = STATE.nujeok
-    .filter(r => VALID_STAGES.includes(r['단계']))
+  // DB_찾기에서 찾기 단계 데이터 추가
+  const findingRows = (STATE.dbFindings || [])
+    .filter(r => r['구분'] === '찾기')
+    .map(r => ({ ...r, '단계': '찾기' }));
+
+  let data = [...STATE.nujeok.filter(r => VALID_STAGES.includes(r['단계'])), ...findingRows]
     .filter(r => {
       // 지역 권한이면 허용된 지역만
       const allowed = getAllowedRegions();
