@@ -7,7 +7,11 @@ function renderBoardTable() {
   const stageF   = document.getElementById('board-stage-sel')?.value   || '';
   const kaigangF = document.getElementById('board-kaigang-sel')?.value || '';
 
-  const data = STATE.nujeok.filter(r => {
+  const findingRows = (STATE.dbFindings || [])
+    .filter(r => r['구분'] === '찾기')
+    .map(r => ({ ...r, '단계': '찾기' }));
+
+  const data = [...STATE.nujeok, ...findingRows].filter(r => {
     if (regionF  && r['실적지역']          !== regionF)  return false;
     if (stageF   && r['단계']              !== stageF)   return false;
     if (kaigangF && r['목표개강(연도/월)'] !== kaigangF) return false;
