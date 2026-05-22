@@ -207,7 +207,7 @@ function toggleStageItem(stage, cb) {
 
 function setSortDir(dir) {
   const sortSel = document.getElementById('reg-sort-sel');
-  if (sortSel) sortSel.value = 'meet-' + dir;
+  if (sortSel) sortSel.value = dir; closeStageFilter();
   renderRegBoard();
 }
 

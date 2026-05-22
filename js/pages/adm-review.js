@@ -12,7 +12,6 @@ function renderAdmReview() {
   if (statusF === 'approved') data = data.filter(r => r['심의승인여부'] === 'Y' && r['전송완료여부'] !== 'Y');
   if (statusF === 'sent')     data = data.filter(r => r['전송완료여부'] === 'Y');
 
-  // 통계
   const all      = (STATE.dbFindings || []).filter(r => r['심의요청여부'] === 'Y');
   const pending  = all.filter(r => r['심의승인여부'] !== 'Y').length;
   const approved = all.filter(r => r['심의승인여부'] === 'Y' && r['전송완료여부'] !== 'Y').length;
@@ -41,26 +40,15 @@ function renderAdmReview() {
     else if (isApproved) statusBadge = '<span class="badge b-adm">승인완료</span>';
     else                 statusBadge = '<span class="badge b-amber">심의대기</span>';
 
-    // 액션 버튼 — 심의요청한 단계 하나만 승인 버튼
+    // 승인 버튼 누르면 바로 전송
     let actionBtn = '';
-    if (!isApproved) {
-      actionBtn = `
-        <button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
-          onclick="approveReview(${ri}, '${stage}')">
-          ✓ ${stage} 승인
-        </button>`;
-    } else if (!isSent) {
-      actionBtn = `
-        <button class="btn reg-pri" style="font-size:11px;padding:4px 10px;"
-          onclick="sendReviewTelegram(${ri})">
-          📤 전송
-        </button>`;
+    if (!isSent) {
+      actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
+        onclick="approveAndSend(${ri}, '${stage}')">✓ ${stage} 승인</button>`;
     }
 
     return `<tr>
-      <td>
-        <span style="background:${sc.bg};color:${sc.c};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${stage}</span>
-      </td>
+      <td><span style="background:${sc.bg};color:${sc.c};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${stage}</span></td>
       <td><strong>${r['섭외자']||'—'}</strong></td>
       <td style="font-size:12px;">${r['실적지역']||'—'}</td>
       <td style="font-size:12px;">${r['인도자']||'—'}</td>
@@ -68,14 +56,33 @@ function renderAdmReview() {
       <td>${statusBadge}</td>
       <td style="display:flex;gap:4px;align-items:center;white-space:nowrap;">
         <button class="btn" style="font-size:11px;padding:4px 8px;"
-          onclick="openReviewDetail(${ri})">상세</button>
+          onclick="openReviewPersonDetail(${ri})">상세</button>
         ${actionBtn}
       </td>
     </tr>`;
   }).join('');
 }
 
-// ─── 상세 보기 ───
+// ─── 상세 버튼 → 섭외자 상세 페이지 ───
+function openReviewPersonDetail(rowIndex) {
+  const r = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
+  if (!r) return;
+
+  // nujeok에서 같은 사람 찾기
+  const nujeokRow = STATE.nujeok.find(n =>
+    n['섭외자'] === r['섭외자'] && n['인도자'] === r['인도자']
+  );
+
+  if (nujeokRow) {
+    // 섭외자 상세 페이지로 이동
+    openPersonDetail(nujeokRow['__rowIndex']);
+  } else {
+    // nujeok에 없으면 DB_찾기 데이터로 모달 표시
+    openReviewDetail(rowIndex);
+  }
+}
+
+// ─── 간단 상세 모달 (nujeok 없는 경우) ───
 function openReviewDetail(rowIndex) {
   const r = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
   if (!r) return;
@@ -92,9 +99,8 @@ function openReviewDetail(rowIndex) {
   };
   const fields = fieldMap[stage] || Object.keys(r).filter(k => !k.startsWith('__') && !['구분','등록일시','심의요청여부','심의요청일시','심의승인여부','심의승인일시','전송완료여부','전송완료일시','심의단계'].includes(k));
 
-  const isSent     = r['전송완료여부'] === 'Y';
-  const isApproved = r['심의승인여부'] === 'Y';
-  const ri         = r['__rowIndex'];
+  const isSent = r['전송완료여부'] === 'Y';
+  const ri     = r['__rowIndex'];
 
   document.getElementById('rv-detail-body').innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
@@ -111,12 +117,9 @@ function openReviewDetail(rowIndex) {
       `).join('')}
     </div>
     <div style="display:flex;gap:8px;">
-      ${!isApproved ? `
+      ${!isSent ? `
         <button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
-          onclick="closeReviewDetail();approveReview(${ri},'${stage}')">✓ ${stage} 승인</button>
-      ` : !isSent ? `
-        <button class="btn reg-pri" style="flex:1;padding:10px;font-size:13px;"
-          onclick="closeReviewDetail();sendReviewTelegram(${ri})">📤 전송</button>
+          onclick="closeReviewDetail();approveAndSend(${ri},'${stage}')">✓ ${stage} 승인 및 전송</button>
       ` : `
         <div style="flex:1;text-align:center;color:var(--green);font-weight:700;padding:10px;">✅ 전송 완료</div>
       `}
@@ -131,58 +134,39 @@ function closeReviewDetail() {
   document.getElementById('rv-detail-modal').classList.remove('show');
 }
 
-// ─── 단계별 승인 ───
-async function approveReview(rowIndex, stage) {
-  if (!confirm(`[${stage}] 승인하시겠어요?`)) return;
+// ─── 승인 + 즉시 전송 ───
+async function approveAndSend(rowIndex, stage) {
+  if (!confirm(`[${stage}] 승인하고 바로 전송할까요?`)) return;
 
-  try {
-    if (USE_SAMPLE) {
-      const target = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
-      if (target) { target['심의승인여부'] = 'Y'; target['심의단계'] = stage; }
-      showToast(`✅ ${stage} 승인 완료`);
-      renderAdmReview();
-      return;
-    }
-
-    const res = await gasPost({ action: 'approveReview', rowIndex, stage });
-    if (!res.success) throw new Error(res.error);
-
-    STATE.dbFindings = res.dbFindings || STATE.dbFindings;
-    showToast(`✅ ${stage} 승인 완료`);
-    renderAdmReview();
-  } catch(e) {
-    showToast('⚠️ 승인 실패: ' + e.message, 'error');
-  }
-}
-
-// ─── 텔레그램 전송 ───
-async function sendReviewTelegram(rowIndex) {
-  const r = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
-  if (!r) return;
-
-  const stage = r['심의단계'] || '';
-  if (!confirm(`[${stage}] ${r['섭외자']} 전송하시겠어요?`)) return;
-
-  const btns = document.querySelectorAll(`[onclick*="sendReviewTelegram(${rowIndex})"]`);
+  const btns = document.querySelectorAll(`[onclick*="approveAndSend(${rowIndex}"]`);
   btns.forEach(b => { b.textContent = '전송 중...'; b.disabled = true; });
 
   try {
     if (USE_SAMPLE) {
-      const target = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
-      if (target) { target['전송완료여부'] = 'Y'; }
+      const t = (STATE.dbFindings||[]).find(d => d['__rowIndex'] === rowIndex);
+      if (t) { t['심의승인여부']='Y'; t['심의단계']=stage; t['전송완료여부']='Y'; }
       showToast('📤 전송 완료! (샘플)');
       renderAdmReview();
       return;
     }
 
-    const res = await gasPost({ action: 'sendReviewTelegram', rowIndex, ...r });
-    if (!res.success) throw new Error(res.error);
+    // 1. 승인
+    const approveRes = await gasPost({ action: 'approveReview', rowIndex, stage });
+    if (!approveRes.success) throw new Error(approveRes.error);
+    STATE.dbFindings = approveRes.dbFindings || STATE.dbFindings;
 
-    STATE.dbFindings = res.dbFindings || STATE.dbFindings;
-    showToast('📤 전송 완료!');
+    // 2. 즉시 전송
+    const r = (STATE.dbFindings||[]).find(d => d['__rowIndex'] === rowIndex);
+    if (!r) throw new Error('데이터 없음');
+
+    const sendRes = await gasPost({ action: 'sendReviewTelegram', rowIndex, ...r });
+    if (!sendRes.success) throw new Error(sendRes.error);
+    STATE.dbFindings = sendRes.dbFindings || STATE.dbFindings;
+
+    showToast(`📤 [${stage}] 승인 및 전송 완료!`);
     renderAdmReview();
   } catch(e) {
-    showToast('⚠️ 전송 실패: ' + e.message, 'error');
-    btns.forEach(b => { b.textContent = '📤 전송'; b.disabled = false; });
+    showToast('⚠️ 실패: ' + e.message, 'error');
+    btns.forEach(b => { b.textContent = `✓ ${stage} 승인`; b.disabled = false; });
   }
 }
