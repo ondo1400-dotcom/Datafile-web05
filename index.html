@@ -314,24 +314,27 @@
           <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
           청년회 — 전지역 보유현황
         </div>
-        <div class="flt-bar">
-          <div class="flt-group">
+        <div class="flt-bar" style="flex-wrap:wrap;gap:6px;">
+          <div class="flt-group" style="position:relative;">
             <span class="flt-label">지역</span>
-            <select class="top-sel" id="board-region-sel" onchange="renderBoardTable()"><option value="">전체</option></select>
+            <button class="btn" onclick="toggleBoardRegionFilter()" style="font-size:12px;padding:5px 10px;">지역 선택 ▾</button>
+            <div id="board-region-drop" style="display:none;position:absolute;top:100%;left:0;z-index:200;margin-top:4px;"></div>
           </div>
-          <div class="flt-group">
+          <div class="flt-group" style="position:relative;">
             <span class="flt-label">단계</span>
-            <select class="top-sel" id="board-stage-sel" onchange="renderBoardTable()">
-              <option value="">전체</option>
-              <option>찾기</option><option>합자</option><option>육따기</option>
-              <option>영따기</option><option>복음방</option><option>센확</option><option>수신</option>
-            </select>
+            <button class="btn" onclick="toggleBoardStageFilter()" style="font-size:12px;padding:5px 10px;">단계 선택 ▾</button>
+            <div id="board-stage-drop" style="display:none;position:absolute;top:100%;left:0;z-index:200;margin-top:4px;"></div>
           </div>
           <div class="flt-group">
             <span class="flt-label">개강월</span>
             <select class="top-sel" id="board-kaigang-sel" onchange="renderBoardTable()"><option value="">전체</option></select>
           </div>
-          <span id="board-count" style="font-size:11px;color:var(--text3);margin-left:auto;"></span>
+          <div class="flt-group" style="position:relative;">
+            <span class="flt-label">체크항목</span>
+            <button class="btn" onclick="toggleBoardCheckFilter()" style="font-size:12px;padding:5px 10px;">항목 선택 ▾</button>
+            <div id="board-check-drop" style="display:none;position:absolute;top:100%;left:0;z-index:200;margin-top:4px;"></div>
+          </div>
+          <span id="board-count" style="font-size:11px;color:var(--text3);margin-left:auto;align-self:center;"></span>
         </div>
         <div class="p14">
           <div class="tw">
@@ -340,11 +343,10 @@
                 <tr>
                   <th>단계</th><th>실적지역</th><th>인도자</th><th>섭외자</th>
                   <th>목표개강</th><th>목표센터</th>
-                  <th>합자보고</th><th>육따보고</th><th>따기보고</th><th>복음방보고</th>
                 </tr>
               </thead>
               <tbody id="board-body">
-                <tr><td colspan="10" class="loading-box">로딩 중...</td></tr>
+                <tr><td colspan="6" class="loading-box">로딩 중...</td></tr>
               </tbody>
             </table>
           </div>
