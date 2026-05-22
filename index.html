@@ -755,6 +755,61 @@
   </div>
 </div>
 
+<!-- ─── 탈락 모달 ─── -->
+<div class="modal-bg" id="tallag-modal">
+  <div class="modal" style="width:360px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="modal-title" style="margin:0;color:var(--red);">✕ 탈락 처리</div>
+      <button class="btn" onclick="closeTallagModal()">✕</button>
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:13px;">
+      <strong id="tallag-name">—</strong>
+      <span style="color:var(--text3);margin-left:6px;" id="tallag-stage"></span>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">탈락 사유 <span style="color:var(--red);">*</span></div>
+      <textarea id="tallag-reason" rows="3"
+        style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;resize:vertical;"
+        placeholder="탈락 사유를 입력해주세요"></textarea>
+    </div>
+    <button id="tallag-submit-btn" class="btn" onclick="submitTallag()"
+      style="width:100%;padding:12px;font-size:14px;background:var(--red);color:#fff;">탈락 보고</button>
+  </div>
+</div>
+
+<!-- ─── 이월 모달 ─── -->
+<div class="modal-bg" id="iwol-modal">
+  <div class="modal" style="width:380px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="modal-title" style="margin:0;color:var(--amber);">↩ 이월 처리</div>
+      <button class="btn" onclick="closeIwolModal()">✕</button>
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:13px;">
+      <strong id="iwol-name">—</strong>
+      <span style="color:var(--text3);margin-left:6px;" id="iwol-stage"></span>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">현재 개강: <span id="iwol-current-kaigang">—</span></div>
+    </div>
+    <div style="display:grid;gap:10px;margin-bottom:14px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;">이월 목표개강(연도/월) <span style="color:var(--red);">*</span></div>
+        <input id="iwol-new-kaigang" type="text" class="top-sel" style="width:100%;" placeholder="예: 43/09">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;">이월 목표센터</div>
+        <input id="iwol-new-center" type="text" class="top-sel" style="width:100%;" placeholder="센터명">
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;">이월 사유 <span style="color:var(--red);">*</span></div>
+        <textarea id="iwol-reason" rows="2"
+          style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;resize:vertical;"
+          placeholder="이월 사유를 입력해주세요"></textarea>
+      </div>
+    </div>
+    <button id="iwol-submit-btn" class="btn" onclick="submitIwol()"
+      style="width:100%;padding:12px;font-size:14px;background:var(--amber);color:#fff;">이월 보고</button>
+  </div>
+</div>
+
 <!-- ─── 섭외자 상세 수정 모달 ─── -->
 <div class="modal-bg" id="detail-edit-modal">
   <div class="modal" style="width:540px;max-height:85vh;overflow-y:auto;">

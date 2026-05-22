@@ -76,6 +76,8 @@ function renderRegDetail() {
         <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
           <button class="btn" onclick="nav('reg-board')" style="font-size:11px;padding:6px 10px;">← 목록</button>
           <button class="btn reg-pri" onclick="openDetailEditModal()" style="font-size:11px;padding:6px 10px;">✏️ 수정</button>
+          <button class="btn" onclick="openIwolModal()" style="font-size:11px;padding:6px 10px;color:var(--amber);">↩ 이월</button>
+          <button class="btn" onclick="openTallagModal()" style="font-size:11px;padding:6px 10px;color:var(--red);">✕ 탈락</button>
         </div>
       </div>
     </div>
@@ -400,5 +402,100 @@ async function submitDetailEdit() {
   } catch(e) {
     showToast('⚠️ 수정 실패: ' + e.message, 'error');
     if (btn) { btn.textContent = '저장 및 보고'; btn.disabled = false; }
+  }
+}
+
+// ─── 탈락 처리 ───
+function openTallagModal() {
+  if (!_detailRow) return;
+  document.getElementById('tallag-name').textContent = _detailRow['섭외자'] || '—';
+  document.getElementById('tallag-stage').textContent = _detailRow['단계'] || '—';
+  document.getElementById('tallag-reason').value = '';
+  const btn = document.getElementById('tallag-submit-btn');
+  if (btn) { btn.textContent = '탈락 보고'; btn.disabled = false; }
+  document.getElementById('tallag-modal').classList.add('show');
+}
+
+function closeTallagModal() {
+  document.getElementById('tallag-modal').classList.remove('show');
+}
+
+async function submitTallag() {
+  if (!_detailRow) return;
+  const reason = document.getElementById('tallag-reason').value.trim();
+  if (!reason) { showToast('⚠️ 탈락 사유를 입력해주세요', 'error'); return; }
+
+  const btn = document.getElementById('tallag-submit-btn');
+  if (btn) { btn.textContent = '전송 중...'; btn.disabled = true; }
+
+  try {
+    if (USE_SAMPLE) {
+      showToast('✅ 탈락 보고 완료 (샘플)');
+      closeTallagModal();
+      return;
+    }
+    const res = await gasPost({
+      action: 'requestTallag',
+      ..._detailRow,
+      탈락사유: reason,
+    });
+    if (!res.success) throw new Error(res.error);
+    showToast('📤 탈락 보고 전송 완료!');
+    closeTallagModal();
+  } catch(e) {
+    showToast('⚠️ 실패: ' + e.message, 'error');
+    if (btn) { btn.textContent = '탈락 보고'; btn.disabled = false; }
+  }
+}
+
+// ─── 이월 처리 ───
+function openIwolModal() {
+  if (!_detailRow) return;
+  document.getElementById('iwol-name').textContent  = _detailRow['섭외자'] || '—';
+  document.getElementById('iwol-stage').textContent = _detailRow['단계'] || '—';
+  document.getElementById('iwol-current-kaigang').textContent = _detailRow['목표개강(연도/월)'] || '—';
+  document.getElementById('iwol-reason').value       = '';
+  document.getElementById('iwol-new-kaigang').value  = '';
+  document.getElementById('iwol-new-center').value   = _detailRow['목표센터'] || '';
+  const btn = document.getElementById('iwol-submit-btn');
+  if (btn) { btn.textContent = '이월 보고'; btn.disabled = false; }
+  document.getElementById('iwol-modal').classList.add('show');
+}
+
+function closeIwolModal() {
+  document.getElementById('iwol-modal').classList.remove('show');
+}
+
+async function submitIwol() {
+  if (!_detailRow) return;
+  const reason     = document.getElementById('iwol-reason').value.trim();
+  const newKaigang = document.getElementById('iwol-new-kaigang').value.trim();
+  const newCenter  = document.getElementById('iwol-new-center').value.trim();
+
+  if (!reason)     { showToast('⚠️ 이월 사유를 입력해주세요', 'error'); return; }
+  if (!newKaigang) { showToast('⚠️ 이월 목표개강을 입력해주세요', 'error'); return; }
+
+  const btn = document.getElementById('iwol-submit-btn');
+  if (btn) { btn.textContent = '전송 중...'; btn.disabled = true; }
+
+  try {
+    if (USE_SAMPLE) {
+      showToast('✅ 이월 보고 완료 (샘플)');
+      closeIwolModal();
+      return;
+    }
+    const res = await gasPost({
+      action: 'requestIwol',
+      ..._detailRow,
+      이월사유: reason,
+      이월목표개강: newKaigang,
+      이월목표센터: newCenter,
+    });
+    if (!res.success) throw new Error(res.error);
+    showToast('📤 이월 보고 전송 완료!');
+    closeIwolModal();
+  } catch(e) {
+    showToast('⚠️ 실패: ' + e.message, 'error');
+    if (btn) { btn.textContent = '이월 보고'; btn.disabled = false; }
   }
 }
