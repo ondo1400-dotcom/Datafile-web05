@@ -127,6 +127,10 @@ function openHapjaModal(rowIndex) {
     if (el) el.value = _hapjaRow[origKeys[i]] || '';
   });
 
+  // 편입부서 고정값
+  const 편입부서El = document.getElementById('hapja-편입부서');
+  if (편입부서El) { 편입부서El.value = '청년'; 편입부서El.readOnly = true; 편입부서El.style.background = 'var(--surface2)'; }
+
   const btn = document.getElementById('hapja-submit-btn');
   if (btn) { btn.textContent = '텔레그램으로 합자 요청 전송'; btn.disabled = false; }
 
