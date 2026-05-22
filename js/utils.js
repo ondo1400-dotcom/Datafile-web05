@@ -92,7 +92,13 @@ function showToast(msg, type = 'ok') {
 // 필터 셀렉트 채우기
 function populateFilters() {
   const regions       = [...new Set(STATE.nujeok.map(r => r['실적지역']).filter(Boolean))].sort();
-  const kaigangMonths = [...new Set(STATE.nujeok.map(r => r['목표개강(연도/월)']).filter(Boolean))].sort();
+  // 개강 목록: 목표개강 + 이전개강 모두 포함
+  const kaigangSet = new Set();
+  STATE.nujeok.forEach(r => {
+    if (r['목표개강(연도/월)']) kaigangSet.add(r['목표개강(연도/월)']);
+    if (r['이전개강'])          kaigangSet.add(r['이전개강']);
+  });
+  const kaigangMonths = [...kaigangSet].filter(Boolean).sort();
 
   // 지역 셀렉트 (여러 곳)
   ['board-region-sel', 'adm-check-region-sel', 'reg-region-sel', 'reg-check-region-sel', 'meet-region-sel', 'db-region-sel'].forEach(id => {

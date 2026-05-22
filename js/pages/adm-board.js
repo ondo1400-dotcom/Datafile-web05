@@ -12,9 +12,14 @@ function renderBoardTable() {
     .map(r => ({ ...r, '단계': '찾기' }));
 
   const data = [...STATE.nujeok, ...findingRows].filter(r => {
-    if (regionF  && r['실적지역']          !== regionF)  return false;
-    if (stageF   && r['단계']              !== stageF)   return false;
-    if (kaigangF && r['목표개강(연도/월)'] !== kaigangF) return false;
+    if (regionF  && r['실적지역'] !== regionF)  return false;
+    if (stageF   && r['단계']     !== stageF)   return false;
+    if (kaigangF) {
+      // 이전개강도 포함해서 필터링
+      const matchKaigang = r['목표개강(연도/월)'] === kaigangF;
+      const matchPrev    = r['이전개강'] === kaigangF;
+      if (!matchKaigang && !matchPrev) return false;
+    }
     return true;
   });
 

@@ -6,10 +6,13 @@
 let goalFilter = { kaigang: '', center: '' };
 
 function renderAdmGoal() {
-  // 개강 목록 추출 (청년누적에서)
-  const kaigangList = [...new Set(
-    STATE.nujeok.map(r => r['목표개강(연도/월)']).filter(Boolean)
-  )].sort();
+  // 개강 목록 추출 (목표개강 + 이전개강 모두 포함)
+  const kaigangSet = new Set();
+  STATE.nujeok.forEach(r => {
+    if (r['목표개강(연도/월)']) kaigangSet.add(r['목표개강(연도/월)']);
+    if (r['이전개강'])          kaigangSet.add(r['이전개강']);
+  });
+  const kaigangList = [...kaigangSet].filter(Boolean).sort();
   const centerList = [...new Set(
     STATE.nujeok.map(r => r['목표센터']).filter(Boolean)
   )].sort();
@@ -48,10 +51,14 @@ function renderGoalTable(regionListArg) {
 
   const { kaigang, center } = goalFilter;
 
-  // 현재 필터에 해당하는 실적 집계
+  // 현재 필터에 해당하는 실적 집계 (이전개강 포함)
   const actual = {};
   STATE.nujeok
-    .filter(r => r['목표개강(연도/월)'] === kaigang && r['목표센터'] === center && !isTallag(r))
+    .filter(r => {
+      const inKaigang  = r['목표개강(연도/월)'] === kaigang;
+      const inPrevKaigang = r['이전개강'] === kaigang;
+      return (inKaigang || inPrevKaigang) && r['목표센터'] === center && !isTallag(r);
+    })
     .forEach(r => {
       const region = r['실적지역'] || '미입력';
       const stage  = r['단계']     || '미입력';

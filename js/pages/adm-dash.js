@@ -14,11 +14,12 @@ function renderAdmDash() {
   document.getElementById('ds-check-rate').textContent = totalChecks
     ? Math.round(doneChecks / totalChecks * 100) + '%' : '—';
 
-  // 단계별 지역 집계
+  // 단계별 지역 집계 (이월 데이터: 이전개강 컬럼도 포함)
   const byRegion = {};
   const totals   = {};
   STAGE_ORDER.forEach(s => totals[s] = 0);
 
+  // 개강 필터 (대시보드는 전체 집계 - 이전개강 포함)
   active.forEach(r => {
     const region = r['실적지역'] || '미입력';
     const stage  = r['단계']     || '미입력';
