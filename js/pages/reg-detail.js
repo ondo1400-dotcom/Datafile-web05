@@ -75,6 +75,7 @@ function renderRegDetail() {
         <!-- 오른쪽 버튼 -->
         <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
           <button class="btn" onclick="nav('reg-board')" style="font-size:11px;padding:6px 10px;">← 목록</button>
+          <button class="btn reg-pri" onclick="openDetailEditModal()" style="font-size:11px;padding:6px 10px;">✏️ 수정</button>
         </div>
       </div>
     </div>
@@ -291,5 +292,113 @@ async function submitDbEdit() {
   } catch(e) {
     showToast('⚠️ 수정 실패: ' + e.message, 'error');
     if (btn) { btn.textContent = '저장'; btn.disabled = false; }
+  }
+}
+
+// ─── 섭외자 상세 수정 ───
+let _editDetailRow  = null;
+let _editDetailOrig = null; // 수정 전 원본
+
+function openDetailEditModal() {
+  if (!_detailRow) return;
+  _editDetailRow  = { ..._detailRow };
+  _editDetailOrig = { ..._detailRow };
+
+  const stage = _detailRow['단계'] || '찾기';
+
+  // 단계별 편집 필드
+  const fieldMap = {
+    '찾기':   ['실적지역','인도자부서/지역/팀/구역','인도자','목표개강(연도/월)','목표센터','섭외자','전화번호','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적'],
+    '합자':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','변화의지','따기포인트','반응','다음만남일','다음만남시간','다음만남목적'],
+    '육따기': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기주간횟수','따기기간','고정요일','다음만남일','다음만남시간','다음만남목적'],
+    '따기':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기유형','따기단계','첫수업예정일','다음만남일','다음만남시간','다음만남목적'],
+    '복음방': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섬김이부서/지역/팀/구역','섬김이','섭외자','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목'],
+  };
+  const fields = fieldMap[stage] || fieldMap['찾기'];
+
+  const modal = document.getElementById('detail-edit-modal');
+  if (!modal) return;
+
+  document.getElementById('detail-edit-stage').textContent = stage;
+  document.getElementById('detail-edit-name').textContent  = _detailRow['섭외자'] || '—';
+
+  document.getElementById('detail-edit-fields').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      ${fields.map(f => `
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:3px;">${f}</div>
+          <input id="dedit-${f.replace(/[\/\(\)\s]/g,'_')}" type="text" class="top-sel" style="width:100%;"
+            value="${(_detailRow[f]||'').toString().replace(/"/g,'&quot;')}">
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  const btn = document.getElementById('detail-edit-submit-btn');
+  if (btn) { btn.textContent = '저장 및 보고'; btn.disabled = false; }
+
+  modal.classList.add('show');
+}
+
+function closeDetailEditModal() {
+  document.getElementById('detail-edit-modal')?.classList.remove('show');
+  _editDetailRow  = null;
+  _editDetailOrig = null;
+}
+
+async function submitDetailEdit() {
+  if (!_detailRow) return;
+
+  const stage = _detailRow['단계'] || '찾기';
+  const fieldMap = {
+    '찾기':   ['실적지역','인도자부서/지역/팀/구역','인도자','목표개강(연도/월)','목표센터','섭외자','전화번호','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적'],
+    '합자':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','변화의지','따기포인트','반응','다음만남일','다음만남시간','다음만남목적'],
+    '육따기': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기주간횟수','따기기간','고정요일','다음만남일','다음만남시간','다음만남목적'],
+    '따기':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기유형','따기단계','첫수업예정일','다음만남일','다음만남시간','다음만남목적'],
+    '복음방': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섬김이부서/지역/팀/구역','섬김이','섭외자','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목'],
+  };
+  const fields = fieldMap[stage] || fieldMap['찾기'];
+
+  // 수정된 값 수집
+  const payload = { ..._detailRow };
+  const changed = [];
+  fields.forEach(f => {
+    const el = document.getElementById('dedit-' + f.replace(/[\/\(\)\s]/g,'_'));
+    if (!el) return;
+    const newVal = el.value;
+    const oldVal = String(_detailRow[f] || '');
+    payload[f] = newVal;
+    if (newVal !== oldVal) changed.push(f);
+  });
+
+  if (!changed.length) {
+    showToast('변경된 내용이 없어요');
+    return;
+  }
+
+  const btn = document.getElementById('detail-edit-submit-btn');
+  if (btn) { btn.textContent = '저장 중...'; btn.disabled = true; }
+
+  try {
+    if (USE_SAMPLE) {
+      Object.assign(_detailRow, payload);
+      showToast('✅ 수정됨 (샘플 모드)');
+      closeDetailEditModal();
+      renderRegDetail();
+      return;
+    }
+
+    // Datafile-05에 저장
+    const res = await gasPost({ action: 'saveOrUpdateDbFinding', ...payload });
+    if (!res.success) throw new Error(res.error);
+    STATE.dbFindings = res.dbFindings;
+    Object.assign(_detailRow, payload);
+
+    showToast('✅ 수정 완료! 심의요청 탭에서 보고할 수 있어요');
+    closeDetailEditModal();
+    renderRegDetail();
+  } catch(e) {
+    showToast('⚠️ 수정 실패: ' + e.message, 'error');
+    if (btn) { btn.textContent = '저장 및 보고'; btn.disabled = false; }
   }
 }

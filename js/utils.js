@@ -2,6 +2,12 @@
 //  utils.js — 공통 유틸 함수
 // ══════════════════════════════════════════════════════
 
+// 개강 정규화 (43/6 → 43/06)
+function normalizeKaigang(val) {
+  if (!val) return '';
+  return String(val).replace(/^(\d+)\/(\d)$/, '$1/0$2');
+}
+
 // 복합키 생성
 function makeKey(row) {
   return [

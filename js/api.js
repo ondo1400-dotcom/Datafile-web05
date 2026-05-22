@@ -23,8 +23,15 @@ async function loadData(manual = false) {
       if (notice) notice.style.display = 'none';
     }
 
-    STATE.nujeok     = data.nujeok     || [];
-    STATE.tallag     = data.tallag     || [];
+    STATE.nujeok     = (data.nujeok || []).map(r => ({
+      ...r,
+      '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
+      '이전개강': normalizeKaigang(r['이전개강']),
+    }));
+    STATE.tallag     = (data.tallag || []).map(r => ({
+      ...r,
+      '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
+    }));
     STATE.checks     = data.checks     || [];
     STATE.checkItems = data.checkItems || [];
     STATE.goals      = data.goals      || {};

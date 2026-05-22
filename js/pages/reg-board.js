@@ -2,19 +2,21 @@
 //  pages/reg-board.js — 지역 담당자 보유현황
 // ══════════════════════════════════════════════════════
 
-const VALID_STAGES = ['찾기', '합자', '육따기', '영따기', '복음방', '센확', '수신'];
+const VALID_STAGES = ['찾기', '합자', '육따기', '영따기', '따기', '복음방', '센확', '수신'];
+
+// 필터 상태
+let _regBoardStages   = new Set(); // 빈 Set = 전체
+let _regBoardShowTallag = false;
+let _regBoardSortDir  = 'asc'; // asc | desc
 
 function renderRegBoard() {
-  const regionF  = document.getElementById('reg-region-sel')?.value  || '';
   const kaigangF = document.getElementById('reg-kaigang-sel')?.value || '';
   const centerF  = document.getElementById('reg-center-sel')?.value  || '';
-  const stageF   = document.getElementById('reg-stage-sel')?.value   || '';
   const sortVal  = document.getElementById('reg-sort-sel')?.value    || 'stage-asc';
 
-  // 필터 드롭다운 옵션 채우기
   _fillRegBoardSelects();
 
-  // 만남 데이터를 섭외자+인도자 키로 인덱싱
+  // 만남 데이터 인덱싱
   const meetMap = {};
   (STATE.meets || []).forEach(m => {
     const key = (m['섭외자'] || '') + '|' + (m['인도자'] || '');
@@ -28,18 +30,20 @@ function renderRegBoard() {
     .filter(r => r['구분'] === '찾기')
     .map(r => ({ ...r, '단계': '찾기' }));
 
-  let data = [...STATE.nujeok.filter(r => VALID_STAGES.includes(r['단계'])), ...findingRows]
+  // 전체 데이터 (누적 + 탈락 + 찾기)
+  const allNujeok = [...STATE.nujeok, ...STATE.tallag.map(r => ({ ...r, _isTallag: true }))];
+
+  let data = [...allNujeok.filter(r => VALID_STAGES.includes(r['단계'])), ...findingRows]
     .filter(r => {
-      // 지역 권한이면 허용된 지역만
       const allowed = getAllowedRegions();
       if (allowed !== null && !allowed.includes(r['실적지역'])) return false;
       return true;
     })
-    .filter(r => !kaigangF || r['목표개강(연도/월)']  === kaigangF)
-    .filter(r => !centerF  || r['목표센터']           === centerF)
-    .filter(r => !stageF   || r['단계']               === stageF);
+    .filter(r => !kaigangF || r['목표개강(연도/월)'] === kaigangF || r['이전개강'] === kaigangF)
+    .filter(r => !centerF  || r['목표센터'] === centerF)
+    .filter(r => _regBoardStages.size === 0 || _regBoardStages.has(r['단계']))
+    .filter(r => _regBoardShowTallag ? true : !isTallag(r) && !r['_isTallag']);
 
-  // 정렬
   data = _sortRegBoard(data, meetMap, sortVal);
 
   const countEl = document.getElementById('reg-board-count');
@@ -47,20 +51,19 @@ function renderRegBoard() {
 
   const tbody = document.getElementById('reg-board-body');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3);">데이터가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3);">데이터가 없습니다</td></tr>';
     return;
   }
 
   tbody.innerHTML = data.map(r => {
-    const tallag  = isTallag(r);
+    const tallag  = isTallag(r) || r['_isTallag'];
     const style   = tallag ? 'opacity:.5;' : '';
     const ri      = r['__rowIndex'];
     const meetKey = (r['섭외자'] || '') + '|' + (r['인도자'] || '');
     const meet    = meetMap[meetKey];
-    const meetDate = meet?._date ? fmtMD(meet._date) : (meet?.['다음만남일'] || '—');
+    const meetDate    = meet?._date ? fmtMD(meet._date) : (meet?.['다음만남일'] || '—');
     const meetPurpose = meet?.['다음만남목적'] || '—';
 
-    // 심의요청 상태 확인 (DB_찾기에서 찾기)
     const dbRow = (STATE.dbFindings || []).find(d =>
       d['섭외자'] === r['섭외자'] && d['인도자'] === r['인도자']
     );
@@ -90,16 +93,13 @@ function renderRegBoard() {
 
 function _sortRegBoard(data, meetMap, sortVal) {
   const stageIndex = s => STAGE_ORDER.indexOf(s);
-
   return [...data].sort((a, b) => {
     if (sortVal === 'stage-asc')  return stageIndex(a['단계']) - stageIndex(b['단계']);
     if (sortVal === 'stage-desc') return stageIndex(b['단계']) - stageIndex(a['단계']);
-
-    const keyA = (a['섭외자'] || '') + '|' + (a['인도자'] || '');
-    const keyB = (b['섭외자'] || '') + '|' + (b['인도자'] || '');
+    const keyA = (a['섭외자']||'') + '|' + (a['인도자']||'');
+    const keyB = (b['섭외자']||'') + '|' + (b['인도자']||'');
     const dA   = meetMap[keyA]?._date?.getTime() || 0;
     const dB   = meetMap[keyB]?._date?.getTime() || 0;
-
     if (sortVal === 'meet-asc')  return dA - dB;
     if (sortVal === 'meet-desc') return dB - dA;
     return 0;
@@ -108,8 +108,6 @@ function _sortRegBoard(data, meetMap, sortVal) {
 
 function _fillRegBoardSelects() {
   const data = STATE.nujeok.filter(r => VALID_STAGES.includes(r['단계']));
-
-  _fillSelect('reg-region-sel',  [...new Set(data.map(r => r['실적지역']).filter(Boolean))].sort());
   _fillSelect('reg-kaigang-sel', [...new Set(data.map(r => r['목표개강(연도/월)']).filter(Boolean))].sort());
   _fillSelect('reg-center-sel',  [...new Set(data.map(r => r['목표센터']).filter(Boolean))].sort());
 }
@@ -118,24 +116,110 @@ function _fillSelect(id, options) {
   const sel = document.getElementById(id);
   if (!sel) return;
   const cur = sel.value;
-  const opts = ['<option value="">전체</option>',
+  sel.innerHTML = ['<option value="">전체</option>',
     ...options.map(v => `<option${v === cur ? ' selected' : ''}>${v}</option>`)
-  ];
-  sel.innerHTML = opts.join('');
+  ].join('');
+}
+
+// ─── 탈락 토글 ───
+function toggleTallag() {
+  _regBoardShowTallag = !_regBoardShowTallag;
+  const btn = document.getElementById('reg-tallag-toggle');
+  if (btn) {
+    btn.textContent = _regBoardShowTallag ? '탈락 숨기기' : '탈락 보기';
+    btn.style.background = _regBoardShowTallag ? 'var(--red)' : '';
+    btn.style.color      = _regBoardShowTallag ? '#fff' : '';
+  }
+  renderRegBoard();
+}
+
+// ─── 단계 필터 드롭다운 (구글시트 스타일) ───
+let _stageDropOpen = false;
+
+function toggleStageFilter() {
+  _stageDropOpen = !_stageDropOpen;
+  const drop = document.getElementById('stage-filter-drop');
+  if (drop) drop.style.display = _stageDropOpen ? 'block' : 'none';
+}
+
+function closeStageFilter() {
+  _stageDropOpen = false;
+  const drop = document.getElementById('stage-filter-drop');
+  if (drop) drop.style.display = 'none';
+}
+
+function buildStageFilterUI() {
+  const container = document.getElementById('stage-filter-drop');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="padding:8px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:160px;">
+      <div style="display:flex;gap:6px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('asc')">
+          ▲ 단계 오름차순
+        </button>
+        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('desc')">
+          ▼ 단계 내림차순
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">단계 선택 (복수 가능)</div>
+      <label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;cursor:pointer;">
+        <input type="checkbox" ${_regBoardStages.size===0?'checked':''} onchange="toggleAllStages(this)"> 전체
+      </label>
+      ${VALID_STAGES.map(s => {
+        const sc = STAGE_COLORS[s] || {bg:'#f0f0f0',c:'#555'};
+        return `<label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;cursor:pointer;">
+          <input type="checkbox" value="${s}" ${_regBoardStages.has(s)||_regBoardStages.size===0?'checked':''}
+            onchange="toggleStageItem('${s}',this)">
+          <span style="background:${sc.bg};color:${sc.c};padding:1px 6px;border-radius:8px;font-weight:700;">${s}</span>
+        </label>`;
+      }).join('')}
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+        <button class="btn reg-pri" style="width:100%;font-size:12px;" onclick="closeStageFilter();renderRegBoard()">적용</button>
+      </div>
+    </div>
+  `;
+}
+
+function toggleAllStages(cb) {
+  if (cb.checked) {
+    _regBoardStages = new Set();
+    document.querySelectorAll('#stage-filter-drop input[type=checkbox][value]').forEach(c => c.checked = true);
+  }
+}
+
+function toggleStageItem(stage, cb) {
+  if (cb.checked) {
+    _regBoardStages.add(stage);
+  } else {
+    _regBoardStages.delete(stage);
+  }
+  // 전체 체크박스 업데이트
+  const allCb = document.querySelector('#stage-filter-drop input[type=checkbox]:not([value])');
+  if (allCb) allCb.checked = _regBoardStages.size === 0;
+}
+
+function setSortDir(dir) {
+  const sortSel = document.getElementById('reg-sort-sel');
+  if (sortSel) sortSel.value = 'stage-' + dir;
+  renderRegBoard();
 }
 
 // ─── 심의요청 모달 ───
 let _reviewRow = null;
 
 function openRequestReviewModal(rowIndex) {
-  _reviewRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex);
+  _reviewRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex)
+    || (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
   if (!_reviewRow) return;
 
-  // 현재 단계로 기본 선택
   const stage = _reviewRow['단계'] || '찾기';
-  document.getElementById('review-stage-sel').value = stage;
-  document.getElementById('review-name').textContent  = _reviewRow['섭외자'] || '—';
-  document.getElementById('review-stage-txt').textContent = stage;
+  const sel = document.getElementById('review-stage-sel');
+  if (sel) sel.value = stage;
+  const nameEl = document.getElementById('review-name');
+  if (nameEl) nameEl.textContent = _reviewRow['섭외자'] || '—';
+  const stageTxt = document.getElementById('review-stage-txt');
+  if (stageTxt) stageTxt.textContent = stage;
   document.getElementById('request-review-modal').classList.add('show');
 }
 
@@ -149,7 +233,6 @@ async function submitRequestReview() {
 
   const stage = document.getElementById('review-stage-sel').value;
 
-  // DB_찾기에서 해당 섭외자 찾기
   let dbRow = (STATE.dbFindings || []).find(d =>
     d['섭외자'] === _reviewRow['섭외자'] && d['인도자'] === _reviewRow['인도자']
   );
@@ -165,14 +248,11 @@ async function submitRequestReview() {
       return;
     }
 
-    // DB_찾기에 없으면 먼저 저장
     if (!dbRow) {
       const saveRes = await gasPost({
         action: 'saveOrUpdateDbFinding',
         구분: _reviewRow['단계'] || '찾기',
-        ...Object.fromEntries(
-          Object.entries(_reviewRow).filter(([k]) => !k.startsWith('__'))
-        ),
+        ...Object.fromEntries(Object.entries(_reviewRow).filter(([k]) => !k.startsWith('__'))),
       });
       STATE.dbFindings = saveRes.dbFindings || STATE.dbFindings;
       dbRow = (STATE.dbFindings || []).find(d =>
