@@ -41,7 +41,10 @@ function renderRegBoard() {
     })
     .filter(r => !kaigangF || r['목표개강(연도/월)'] === kaigangF || r['이전개강'] === kaigangF)
     .filter(r => !centerF  || r['목표센터'] === centerF)
-    .filter(r => _regBoardStages.size === 0 || _regBoardStages.has(r['단계']))
+    .filter(r => {
+      if (_regBoardStages.has('__none__')) return false; // 전체 해제
+      return _regBoardStages.size === 0 || _regBoardStages.has(r['단계']);
+    })
     .filter(r => _regBoardShowTallag ? true : !isTallag(r) && !r['_isTallag']);
 
   data = _sortRegBoard(data, meetMap, sortVal);
@@ -155,16 +158,12 @@ function buildStageFilterUI() {
   container.innerHTML = `
     <div style="padding:8px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:160px;">
       <div style="display:flex;gap:6px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
-        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('asc')">
-          ▲ 단계 오름차순
-        </button>
-        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('desc')">
-          ▼ 단계 내림차순
-        </button>
+        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('asc')">▲ 만남일 오름차순</button>
+        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('desc')">▼ 만남일 내림차순</button>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">단계 선택 (복수 가능)</div>
       <label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;cursor:pointer;">
-        <input type="checkbox" ${_regBoardStages.size===0?'checked':''} onchange="toggleAllStages(this)"> 전체
+        <input type="checkbox" id="stage-all-cb" ${_regBoardStages.size===0?'checked':''} onchange="toggleAllStages(this)"> 전체
       </label>
       ${VALID_STAGES.map(s => {
         const sc = STAGE_COLORS[s] || {bg:'#f0f0f0',c:'#555'};
@@ -183,25 +182,32 @@ function buildStageFilterUI() {
 
 function toggleAllStages(cb) {
   if (cb.checked) {
+    // 전체 선택
     _regBoardStages = new Set();
     document.querySelectorAll('#stage-filter-drop input[type=checkbox][value]').forEach(c => c.checked = true);
+  } else {
+    // 전체 해제 → 아무것도 안 보임 (빈 Set이 아닌 더미값)
+    _regBoardStages = new Set(['__none__']);
+    document.querySelectorAll('#stage-filter-drop input[type=checkbox][value]').forEach(c => c.checked = false);
   }
 }
 
 function toggleStageItem(stage, cb) {
+  // __none__ 제거
+  _regBoardStages.delete('__none__');
   if (cb.checked) {
     _regBoardStages.add(stage);
   } else {
     _regBoardStages.delete(stage);
   }
-  // 전체 체크박스 업데이트
-  const allCb = document.querySelector('#stage-filter-drop input[type=checkbox]:not([value])');
+  // 전체 체크박스 상태
+  const allCb = document.getElementById('stage-all-cb');
   if (allCb) allCb.checked = _regBoardStages.size === 0;
 }
 
 function setSortDir(dir) {
   const sortSel = document.getElementById('reg-sort-sel');
-  if (sortSel) sortSel.value = 'stage-' + dir;
+  if (sortSel) sortSel.value = 'meet-' + dir;
   renderRegBoard();
 }
 
