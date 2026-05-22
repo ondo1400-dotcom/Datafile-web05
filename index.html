@@ -612,17 +612,36 @@
         </div>
         <div class="p14">
           <div class="stat-row c3" style="margin-bottom:14px;">
-            <div class="stat-card base" style="text-align:center;">
+            <div class="stat-card base" style="text-align:center;cursor:pointer;" onclick="document.getElementById('rv-status-sel').value='pending';renderAdmReview()">
               <div class="stat-label">심의 대기</div>
               <div class="stat-val" id="rv-stat-pending" style="font-size:22px;color:var(--amber);">0</div>
             </div>
-            <div class="stat-card adm-c" style="text-align:center;">
+            <div class="stat-card adm-c" style="text-align:center;cursor:pointer;" onclick="document.getElementById('rv-status-sel').value='approved';renderAdmReview()">
               <div class="stat-label">승인완료</div>
               <div class="stat-val adm" id="rv-stat-approved" style="font-size:22px;">0</div>
             </div>
-            <div class="stat-card reg-c" style="text-align:center;">
+            <div class="stat-card reg-c" style="text-align:center;cursor:pointer;" onclick="document.getElementById('rv-status-sel').value='sent';renderAdmReview()">
               <div class="stat-label">전송완료</div>
               <div class="stat-val reg" id="rv-stat-sent" style="font-size:22px;">0</div>
+            </div>
+          </div>
+          <div class="flt-bar" style="margin-bottom:10px;">
+            <div class="flt-group">
+              <span class="flt-label">단계</span>
+              <select class="top-sel" id="rv-stage-sel" onchange="renderAdmReview()">
+                <option value="">전체</option>
+                <option>찾기</option><option>합자</option><option>육따기</option>
+                <option>따기</option><option>복음방</option>
+              </select>
+            </div>
+            <div class="flt-group">
+              <span class="flt-label">상태</span>
+              <select class="top-sel" id="rv-status-sel" onchange="renderAdmReview()">
+                <option value="">전체</option>
+                <option value="pending">심의대기</option>
+                <option value="approved">승인완료</option>
+                <option value="sent">전송완료</option>
+              </select>
             </div>
           </div>
           <div class="tw">
