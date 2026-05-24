@@ -347,6 +347,10 @@ function closeRequestReviewModal() {
   document.getElementById('request-review-modal').classList.remove('show');
   _reviewRow   = null;
   _reviewDbRow = null;
+  const btn = document.getElementById('review-submit-btn');
+  if (btn) { btn.textContent = '심의 요청'; btn.disabled = true; }
+  const fields = document.getElementById('review-form-fields');
+  if (fields) fields.innerHTML = '';
 }
 
 async function submitRequestReview() {
