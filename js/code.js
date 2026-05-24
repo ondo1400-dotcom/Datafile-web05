@@ -110,16 +110,6 @@ function getAllData() {
   return { nujeok, tallag, checks, checkItems: items, goals, meets, dbFindings, tallagKeys: [...tallagKeys], syncedAt: new Date().toISOString() };
 }
 
-function serializeCellValue(header, val) {
-  if (!(val instanceof Date) || isNaN(val)) return val !== undefined && val !== null ? val : '';
-  const tz = 'Asia/Seoul';
-  // 시간 전용 셀: 구글 시트 에포크(1899-12-30) 기준
-  if (val.getFullYear() === 1899) {
-    return Utilities.formatDate(val, tz, 'HH:mm');
-  }
-  return Utilities.formatDate(val, tz, 'M/d');
-}
-
 function readSheetAsObjects(ss, sheetName) {
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return [];
@@ -131,7 +121,7 @@ function readSheetAsObjects(ss, sheetName) {
     const row = data[i];
     if (!row[0] && !row[2]) continue;
     const obj = {};
-    headers.forEach((h, j) => { if (h) obj[h] = serializeCellValue(h, row[j]); });
+    headers.forEach((h, j) => { if (h) obj[h] = row[j] !== undefined ? row[j] : ''; });
     obj['__rowIndex'] = i + 1;
     rows.push(obj);
   }
@@ -330,7 +320,7 @@ function readMeets(ss) {
     const row = data[i];
     if (!row[0] && !row[1]) continue;
     const obj = {};
-    headers.forEach((h, j) => { if (h) obj[h] = serializeCellValue(h, row[j]); });
+    headers.forEach((h, j) => { if (h) obj[h] = row[j] !== undefined ? row[j] : ''; });
     obj['__rowIndex'] = i + 1;
     rows.push(obj);
   }
@@ -530,14 +520,14 @@ function saveDbFinding(payload) {
   return { success: true, dbFindings: readDbFinding(ss) };
 }
 
-// ─── 합자 요청 → 텔레그램 전송 (수정: 청년/ 고정, 편입부서:청년 고정) ───
+// ─── 합자 요청 → 텔레그램 전송 (수정: 청년회/ 고정, 편입부서:청년 고정) ───
 function requestHapja(payload) {
   const ss = SpreadsheetApp.openById(SS_ID);
   const sheet = ss.getSheetByName(SHEET_DB);
   if (!sheet) return { success: false, error: 'DB_찾기 시트 없음' };
 
   const text = `[합자]
-실적부서/지역 : 청년/${payload['실적지역'] || ''}
+실적부서/지역 : 청년회/${payload['실적지역'] || ''}
 인도자부서/지역/팀/구역 : ${payload['인도자부서/지역/팀/구역'] || ''}
 인도자 : ${payload['인도자'] || ''}
 
@@ -678,6 +668,9 @@ function sendReviewTelegram(payload) {
       const setCol   = (col, val) => { const idx=headers.indexOf(col)+1; if(idx>0) sheet.getRange(rowIndex,idx).setValue(val); };
       setCol('전송완료여부', 'Y');
       setCol('전송완료일시', now);
+
+      // 10분 후 심의 컬럼 초기화 예약
+      scheduleReviewReset(rowIndex);
     }
     return { success: true, dbFindings: readDbFinding(SpreadsheetApp.openById(SS_ID)) };
   } catch(e) {
@@ -686,9 +679,29 @@ function sendReviewTelegram(payload) {
 }
 
 function buildReviewText(stage, r) {
-  const v = key => r[key] || '';
+  // 날짜/시간 포맷 변환
+  function fmtD(val) {
+    if (!val) return '';
+    const s = String(val);
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return parseInt(m[2]) + '/' + parseInt(m[3]);
+    return s;
+  }
+  function fmtT(val) {
+    if (!val) return '';
+    const s = String(val);
+    const m = s.match(/T(\d{2}):(\d{2})/);
+    if (m) return m[1] + ':' + m[2];
+    return s;
+  }
+
+  const v  = key => r[key] || '';
+  const vd = key => fmtD(r[key]);
+  const vt = key => fmtT(r[key]);
+  const loc = '청년회/' + v('실적지역'); // 실적부서/지역 고정
+
   if (stage === '찾기') return `[찾기]
-실적부서/지역 : 청년/${v('실적지역')}
+실적부서/지역 : ${loc}
 인도자부서/지역/팀/구역 : ${v('인도자부서/지역/팀/구역')}
 인도자 : ${v('인도자')}
 목표개강(연도/월) : ${v('목표개강(연도/월)')}
@@ -705,36 +718,42 @@ function buildReviewText(stage, r) {
 신앙년수 : ${v('신앙년수')}
 섭외유형 : ${v('섭외유형')}
 2차연결유형 : ${v('2차연결유형')}
-다음만남일 : ${v('다음만남일')}
-다음만남시간 : ${v('다음만남시간')}
+다음만남일 : ${vd('다음만남일')}
+다음만남시간 : ${vt('다음만남시간')}
 다음만남목적 : ${v('다음만남목적')}`;
 
   if (stage === '합자') return `[합자]
-실적부서/지역 : 청년회/${v('실적지역')}
+실적부서/지역 : ${loc}
 인도자부서/지역/팀/구역 : ${v('인도자부서/지역/팀/구역')}
 인도자 : ${v('인도자')}
-
-목표개강(연도/월) : ${v('목표개강(연도/월)')}
-목표센터 : ${v('목표센터')}
-섭외자 : ${v('섭외자')}
-출생연도 : ${v('출생연도')}
-성별 : ${v('성별')}
-사는곳 : ${v('사는곳')}
-하는일 : ${v('하는일')}
-종교 : ${v('종교')}
-신앙년수 : ${v('신앙년수')}
-편입부서 : 청년
-섭외유형 : ${v('섭외유형')}
-2차연결유형 : ${v('2차연결유형')}
-따기예정일 : ${v('따기예정일')}
 교사부서/지역/팀/구역 : ${v('교사부서/지역/팀/구역')}
 교사 : ${v('교사')}
-다음만남일 : ${v('다음만남일')}
-다음만남시간 : ${v('다음만남시간')}
-다음만남목적 : ${v('다음만남목적')}`;
+섭외자 : ${v('섭외자')}
+
+변화의지 : ${v('변화의지')}
+따기포인트 : ${v('따기포인트')}
+반응 : ${v('반응')}
+다음만남일 : ${vd('다음만남일')}
+다음만남시간 : ${vt('다음만남시간')}
+다음만남목적 : ${v('다음만남목적')}
+
+합자체크리스트
+※인성
+1. 정신질환 관련 약 복용 여부 : ${v('체크_정신질환')}
+2. 만남에 특정 목적 여부 : ${v('체크_특정목적')}
+3. 부모 의존도 : ${v('체크_부모의존')}
+※환경
+1. 센터와 1시간 이내 거리 : ${v('체크_거리')}
+2. 타 지역 중복 섭외 이력 확인 : ${v('체크_중복섭외')}
+3. 주 3회 대면 수강 가능 : ${v('체크_수강가능')}
+4. 2주 이상 수강 불가 일정 없음 : ${v('체크_장기부재')}
+※신성
+1. 신의 존재 부정 않음 : ${v('체크_신존재')}
+2. 신천지 부정적 경험 없음 : ${v('체크_신천지')}
+3. 교회 사역/봉사 여부 파악 : ${v('체크_교회사역')}`;
 
   if (stage === '육따기') return `[육따기]
-실적부서/지역 : 청년/${v('실적지역')}
+실적부서/지역 : ${loc}
 인도자부서/지역/팀/구역 : ${v('인도자부서/지역/팀/구역')}
 인도자 : ${v('인도자')}
 교사부서/지역/팀/구역 : ${v('교사부서/지역/팀/구역')}
@@ -744,12 +763,12 @@ function buildReviewText(stage, r) {
 따기주간횟수 : ${v('따기주간횟수')}
 따기기간 : ${v('따기기간')}
 고정요일 : ${v('고정요일')}
-다음만남일 : ${v('다음만남일')}
-다음만남시간 : ${v('다음만남시간')}
+다음만남일 : ${vd('다음만남일')}
+다음만남시간 : ${vt('다음만남시간')}
 다음만남목적 : ${v('다음만남목적')}`;
 
   if (stage === '따기') return `[따기]
-실적부서/지역 : 청년/${v('실적지역')}
+실적부서/지역 : ${loc}
 인도자부서/지역/팀/구역 : ${v('인도자부서/지역/팀/구역')}
 인도자 : ${v('인도자')}
 교사부서/지역/팀/구역 : ${v('교사부서/지역/팀/구역')}
@@ -758,13 +777,13 @@ function buildReviewText(stage, r) {
 
 따기유형 : ${v('따기유형')}
 따기단계 : ${v('따기단계')}
-첫수업예정일 : ${v('첫수업예정일')}
-다음만남일 : ${v('다음만남일')}
-다음만남시간 : ${v('다음만남시간')}
+첫수업예정일 : ${vd('첫수업예정일')}
+다음만남일 : ${vd('다음만남일')}
+다음만남시간 : ${vt('다음만남시간')}
 다음만남목적 : ${v('다음만남목적')}`;
 
   if (stage === '복음방') return `[복음방]
-실적부서/지역 : 청년/${v('실적지역')}
+실적부서/지역 : ${loc}
 인도자부서/지역/팀/구역 : ${v('인도자부서/지역/팀/구역')}
 인도자 : ${v('인도자')}
 교사부서/지역/팀/구역 : ${v('교사부서/지역/팀/구역')}
@@ -775,10 +794,11 @@ function buildReviewText(stage, r) {
 
 마팔수강번호 : ${v('마팔수강번호')}
 복음방수업방식 : ${v('복음방수업방식')}
-첫수업진행일 : ${v('첫수업진행일')}
+첫수업진행일 : ${vd('첫수업진행일')}
 첫수업과목 : ${v('첫수업과목')}`;
 
-  return `[${stage}]\n섭외자: ${v('섭외자')}\n지역: ${v('실적지역')}`;
+  return `[${stage}]\n섭외자: ${v('섭외자')}\n지역: ${loc}`;
+}
 }
 
 // ═══════════════════════════════════════════════════════
@@ -878,7 +898,7 @@ function requestIwol(payload) {
 function buildTallagText(r) {
   const v = key => r[key] || '';
   return `[탈락]
-실적부서/지역 : 청년/${v('실적지역')}
+실적부서/지역 : 청년회/${v('실적지역')}
 인도자부서/지역/팀/구역 : ${v('인도자부서/지역/팀/구역')}
 인도자 : ${v('인도자')}
 섭외자 : ${v('섭외자')}
@@ -890,7 +910,7 @@ function buildTallagText(r) {
 function buildIwolText(r) {
   const v = key => r[key] || '';
   return `[이월]
-실적부서/지역 : 청년/${v('실적지역')}
+실적부서/지역 : 청년회/${v('실적지역')}
 인도자부서/지역/팀/구역 : ${v('인도자부서/지역/팀/구역')}
 인도자 : ${v('인도자')}
 섭외자 : ${v('섭외자')}
@@ -930,5 +950,74 @@ function requestEdit(payload) {
     return { success: data.ok, error: data.ok ? null : data.description };
   } catch(e) {
     return { success: false, error: e.message };
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  심의 완료 후 10분 뒤 자동 초기화 트리거
+// ═══════════════════════════════════════════════════════
+
+// 승인 완료 시 10분 후 초기화 트리거 등록
+function scheduleReviewReset(rowIndex) {
+  // 스크립트 속성에 초기화 대상 저장
+  const props = PropertiesService.getScriptProperties();
+  const key   = 'reset_' + rowIndex;
+  const resetAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  props.setProperty(key, resetAt);
+
+  // 1분마다 체크 트리거 (이미 있으면 스킵)
+  const triggers = ScriptApp.getProjectTriggers();
+  const exists   = triggers.some(t => t.getHandlerFunction() === 'checkReviewReset');
+  if (!exists) {
+    ScriptApp.newTrigger('checkReviewReset').timeBased().everyMinutes(1).create();
+  }
+}
+
+// 1분마다 실행 — 10분 지난 항목 초기화
+function checkReviewReset() {
+  const props = PropertiesService.getScriptProperties();
+  const all   = props.getProperties();
+  const now   = new Date();
+
+  const ss    = SpreadsheetApp.openById(SS_ID);
+  const sheet = ss.getSheetByName(SHEET_DB);
+  if (!sheet) return;
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  Object.entries(all).forEach(([key, val]) => {
+    if (!key.startsWith('reset_')) return;
+    const resetAt = new Date(val);
+    if (now < resetAt) return; // 아직 안 됨
+
+    const rowIndex = parseInt(key.replace('reset_', ''));
+    Logger.log('심의 초기화: 행 ' + rowIndex);
+
+    const setCol = (colName, v) => {
+      const idx = headers.indexOf(colName) + 1;
+      if (idx > 0) sheet.getRange(rowIndex, idx).setValue(v);
+    };
+
+    setCol('심의요청여부', '');
+    setCol('심의요청일시', '');
+    setCol('심의승인여부', '');
+    setCol('심의승인일시', '');
+    setCol('전송완료여부', '');
+    setCol('전송완료일시', '');
+    setCol('심의단계', '');
+
+    props.deleteProperty(key);
+  });
+}
+
+// 트리거 설정 (최초 1회 실행)
+function setupReviewResetTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  const exists   = triggers.some(t => t.getHandlerFunction() === 'checkReviewReset');
+  if (!exists) {
+    ScriptApp.newTrigger('checkReviewReset').timeBased().everyMinutes(1).create();
+    Logger.log('checkReviewReset 트리거 등록 완료');
+  } else {
+    Logger.log('이미 등록됨');
   }
 }
