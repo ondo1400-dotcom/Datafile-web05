@@ -134,7 +134,7 @@ async def forward_to_jd(event):
     if not text:
         return
     text = text.strip()
-    print(f'[행정보고용창] 메시지 수신: {text[:50]}')
+    print(f'[행정보고용창] 메시지 수신: {text}')
 
     # 전달 대상 태그 확인
     matched_tag = next((tag for tag in FORWARD_TAGS if text.startswith(tag)), None)
