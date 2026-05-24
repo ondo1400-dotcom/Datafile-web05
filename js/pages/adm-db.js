@@ -32,9 +32,9 @@ function renderAdmDb() {
 
     return `<tr style="${rowStyle}" class="cr" onclick="openDbDetail(${ri})">
       <td><span class="badge ${typeColor}">${r['구분']||'—'}</span></td>
-      <td>${r['실적지역']||'—'}</td>
+      <td style="max-width:80px;overflow:hidden;text-overflow:ellipsis;">${r['실적지역']||'—'}</td>
       <td><strong>${r['섭외자']||'—'}</strong></td>
-      <td style="font-size:11px;">${r['전화번호']||'—'}</td>
+      <td style="font-size:11px;max-width:110px;overflow:hidden;text-overflow:ellipsis;">${r['전화번호']||'—'}</td>
       <td style="font-size:11px;">${r['인도자']||'—'}</td>
       <td style="font-size:11px;">${r['목표개강(연도/월)']||'—'}</td>
       <td style="font-size:11px;">${r['다음만남일']||'—'}</td>

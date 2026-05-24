@@ -100,10 +100,10 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text1)
 .b-no{background:var(--red-light);color:var(--red);}
 
 /* ─── TABLE ─── */
-.tw{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;}
+.tw{border:1px solid var(--border);border-radius:var(--radius);overflow-x:auto;margin-bottom:14px;}
 .bt{width:100%;border-collapse:collapse;font-size:12px;}
 .bt th{padding:8px 11px;background:var(--surface2);color:var(--text3);font-weight:600;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.04em;}
-.bt td{padding:8px 11px;border-bottom:1px solid var(--border);color:var(--text1);vertical-align:middle;}
+.bt td{padding:8px 11px;border-bottom:1px solid var(--border);color:var(--text1);vertical-align:middle;white-space:nowrap;}
 .bt tr:last-child td{border-bottom:none;}
 .bt tr.cr:hover td{background:var(--surface2);cursor:pointer;}
 .dash-tbl-wrap{overflow:auto;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;}
@@ -151,3 +151,26 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text1)
 .modal-input{width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;outline:none;margin-bottom:12px;}
 .modal-input:focus{border-color:var(--adm2);box-shadow:0 0 0 3px var(--adm-light);}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width:640px){
+  body{padding:6px;font-size:12px;}
+  .shell{border-radius:10px;}
+  .role-bar{padding:8px 10px;gap:6px;}
+  .role-logo{font-size:12px;}
+  .role-btn{font-size:11px;padding:4px 10px;}
+  #user-name{display:none;}
+  .sidebar{width:44px;}
+  .sico{width:34px;height:34px;font-size:8px;gap:1px;}
+  .sico svg{width:13px;height:13px;}
+  .screen{padding:10px;}
+  .p14{padding:8px 10px;}
+  .flt-bar{padding:8px 10px;gap:6px;}
+  .bt th{padding:6px 8px;font-size:9px;}
+  .bt td{padding:6px 8px;font-size:11px;}
+  .stat-row.c4{grid-template-columns:repeat(2,1fr);}
+  .stat-row.c3{grid-template-columns:repeat(3,1fr);}
+  .stat-val{font-size:18px;}
+  .modal{padding:16px;border-radius:var(--radius);}
+  .modal-title{font-size:14px;}
+}
