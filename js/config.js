@@ -14,6 +14,9 @@ const USE_SAMPLE = GAS_URL.includes('YOUR_DEPLOYMENT_ID');
 // 단계 정의
 const STAGE_ORDER = ['찾기', '합자', '육따기', '영따기', '복음방', '센확', '수신'];
 
+// 지역 표시 순서 고정
+const REGION_ORDER = ['화정', '대학', '상암', '명동', '새소망', '새신자', '완성'];
+
 const STAGE_COLORS = {
   '찾기':   { bg: '#e0f2fe', c: '#0369a1' },
   '합자':   { bg: '#ede9fe', c: '#6d28d9' },

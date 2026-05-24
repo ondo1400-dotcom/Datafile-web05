@@ -132,7 +132,11 @@ function canSeeRegion(region) {
 // 허용된 지역 목록
 function getAllowedRegions() {
   if (!USER_AUTH) return [];
-  if (USER_AUTH.role === 'admin') return null; // null = 전체
+  if (USER_AUTH.role === 'admin') {
+    // 관리자가 지역 담당자 탭에서 특정 지역을 선택한 경우
+    if (STATE.role === 'reg' && ADM_VIEW_REGION) return [ADM_VIEW_REGION];
+    return null; // null = 전체
+  }
   if (USER_AUTH.regions.includes('전체')) return null;
   return USER_AUTH.regions;
 }

@@ -29,7 +29,7 @@ function renderAdmDash() {
 
   // 개강 필터 (대시보드용 - 전체 집계이므로 목표는 합산)
   let rows = '';
-  Object.entries(byRegion).sort().forEach(([region, stages]) => {
+  sortRegions(Object.keys(byRegion)).forEach(region => { const stages = byRegion[region];
     let sum = 0;
     let cells = STAGE_ORDER.map(s => {
       const act = stages[s] || 0;
@@ -121,7 +121,7 @@ function renderRegDash() {
     }
   });
 
-  const regions = Object.keys(byRegion).sort();
+  const regions = sortRegions(Object.keys(byRegion));
 
   // 내 지역 하이라이트
   const myRegions = allowed || [];

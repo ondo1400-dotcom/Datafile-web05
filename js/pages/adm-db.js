@@ -217,7 +217,10 @@ async function submitHapja() {
       return;
     }
 
-    const res = await gasPost({ action: 'requestHapja', ...payload });
+    const hapjaFields = ['실적지역','인도자부서/지역/팀/구역','인도자','목표개강(연도/월)','목표센터','섭외자','출생연도','성별','사는곳','하는일','종교','신앙년수','편입부서','섭외유형','2차연결유형','따기예정일','교사부서/지역/팀/구역','교사','다음만남일','다음만남시간','다음만남목적'];
+    const hapjaLabels = { '실적지역': '실적부서/지역' };
+    const messageText = '[합자]\n' + hapjaFields.map(f => `${hapjaLabels[f] || f} : ${payload[f] || ''}`).join('\n');
+    const res = await gasPost({ action: 'requestHapja', messageText, ...payload });
     if (!res.success) throw new Error(res.error || '전송 실패');
 
     const target = (STATE.dbFindings || []).find(d => d['__rowIndex'] === _hapjaRow['__rowIndex']);
@@ -296,6 +299,8 @@ function renderRegDb() {
   const typeFilter = document.getElementById('reg-db-type-sel')?.value || '';
   const data = (STATE.dbFindings || []).filter(r => {
     if (typeFilter && r['구분'] !== typeFilter) return false;
+    // 관리자 지역 보기 모드
+    if (ADM_VIEW_REGION && r['실적지역'] !== ADM_VIEW_REGION) return false;
     return true;
   });
 

@@ -144,6 +144,20 @@ function closeReviewDetail() {
   document.getElementById('rv-detail-modal').classList.remove('show');
 }
 
+// ─── 전송 메시지 텍스트 빌더 ───
+function buildReviewMessageText(stage, data) {
+  const LABELS = { '실적지역': '실적부서/지역' };
+  const fieldMap = {
+    '찾기':   ['실적지역','인도자부서/지역/팀/구역','인도자','목표개강(연도/월)','목표센터','섭외자','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적'],
+    '합자':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','변화의지','따기포인트','반응','다음만남일','다음만남시간','다음만남목적'],
+    '육따기': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기주간횟수','따기기간','고정요일','다음만남일','다음만남시간','다음만남목적'],
+    '따기':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기유형','따기단계','첫수업예정일','다음만남일','다음만남시간','다음만남목적'],
+    '복음방': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섬김이부서/지역/팀/구역','섬김이','섭외자','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목'],
+  };
+  const fields = fieldMap[stage] || [];
+  return `[${stage}]\n` + fields.map(f => `${LABELS[f] || f} : ${data[f] || ''}`).join('\n');
+}
+
 // ─── 승인 + 즉시 전송 ───
 async function approveAndSend(rowIndex, stage) {
   if (!confirm(`[${stage}] 승인하고 바로 전송할까요?`)) return;
@@ -169,7 +183,8 @@ async function approveAndSend(rowIndex, stage) {
     const r = (STATE.dbFindings||[]).find(d => d['__rowIndex'] === rowIndex);
     if (!r) throw new Error('데이터 없음');
 
-    const sendRes = await gasPost({ action: 'sendReviewTelegram', rowIndex, ...r });
+    const messageText = buildReviewMessageText(stage, r);
+    const sendRes = await gasPost({ action: 'sendReviewTelegram', rowIndex, messageText, ...r });
     if (!sendRes.success) throw new Error(sendRes.error);
     STATE.dbFindings = sendRes.dbFindings || STATE.dbFindings;
 

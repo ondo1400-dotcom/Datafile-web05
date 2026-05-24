@@ -2,6 +2,18 @@
 //  utils.js — 공통 유틸 함수
 // ══════════════════════════════════════════════════════
 
+// 지역 고정 순서 정렬 (REGION_ORDER 기준, 미포함 지역은 뒤에 가나다순)
+function sortRegions(arr) {
+  return [...arr].sort((a, b) => {
+    const ia = REGION_ORDER.indexOf(a);
+    const ib = REGION_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+}
+
 // 개강 정규화 (43/6 → 43/06)
 function normalizeKaigang(val) {
   if (!val) return '';
@@ -97,7 +109,7 @@ function showToast(msg, type = 'ok') {
 
 // 필터 셀렉트 채우기
 function populateFilters() {
-  const regions       = [...new Set(STATE.nujeok.map(r => r['실적지역']).filter(Boolean))].sort();
+  const regions       = sortRegions([...new Set(STATE.nujeok.map(r => r['실적지역']).filter(Boolean))]);
   // 개강 목록: 목표개강 + 이전개강 모두 포함
   const kaigangSet = new Set();
   STATE.nujeok.forEach(r => {
@@ -128,6 +140,9 @@ function populateFilters() {
     itemSel.innerHTML = '<option value="">전체</option>'
       + STATE.checkItems.map(i => `<option>${i}</option>`).join('');
   }
+
+  // 관리자 지역 보기 드롭다운 갱신 (데이터 로드 후)
+  if (typeof _fillAdmRegViewSel === 'function') _fillAdmRegViewSel();
 }
 
 // GAS에서 온 날짜 파싱 (api.js에서 사용)

@@ -3,9 +3,10 @@
 //  찾기: 실적지역+섭외자+인도자 기준 중복 체크 후 업데이트
 // ═══════════════════════════════════════════════════════
 
-const SS_ID      = '1T7lt0ZZ2JpQPD26ft9CAnslhxO-7a9Lk1ZF7rzX_624';
-const SHEET      = 'DB_찾기';
-const DB_CHAT_ID = '-1003828748700';
+const SS_ID       = '1T7lt0ZZ2JpQPD26ft9CAnslhxO-7a9Lk1ZF7rzX_624';
+const SHEET       = 'DB_찾기';
+const DB_CHAT_ID  = '-1003828748700';
+const JIPA_CHAT_ID = '-1003943121521';
 
 function getBotToken() {
   return PropertiesService.getScriptProperties().getProperty('BOT_TOKEN');
@@ -66,6 +67,16 @@ function pollMessages() {
       } else {
         sendMessage(DB_CHAT_ID, '⚠️ 찾기 양식을 확인해주세요.\n실적지역과 섭외자는 필수입니다.');
       }
+    } else {
+      Logger.log('포워딩 시도: chatId=' + chatId + ' | text=' + text.substring(0, 80));
+      const token2 = getBotToken();
+      const fwdRes = UrlFetchApp.fetch('https://api.telegram.org/bot' + token2 + '/sendMessage', {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({ chat_id: String(JIPA_CHAT_ID), text: text }),
+        muteHttpExceptions: true,
+      });
+      Logger.log('포워딩 결과: ' + fwdRes.getContentText());
     }
   });
 }

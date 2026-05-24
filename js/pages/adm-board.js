@@ -152,7 +152,7 @@ function toggleBoardRegionFilter() {
 function buildBoardRegionUI() {
   const container = document.getElementById('board-region-drop');
   if (!container) return;
-  const regions = [...new Set(STATE.nujeok.map(r => r['실적지역']).filter(Boolean))].sort();
+  const regions = sortRegions([...new Set(STATE.nujeok.map(r => r['실적지역']).filter(Boolean))]);
   container.innerHTML = `
     <div style="padding:8px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:140px;">
       <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">지역 선택 (복수 가능)</div>

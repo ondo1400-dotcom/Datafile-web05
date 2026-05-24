@@ -36,6 +36,39 @@ function nav(screen) {
   if (renderMap[screen]) renderMap[screen]();
 }
 
+// 관리자 지역 보기 선택
+function setAdmViewRegion(val) {
+  ADM_VIEW_REGION = val;
+
+  // reg-check 드롭다운 동기화
+  const checkSel = document.getElementById('reg-check-region-sel');
+  if (checkSel) checkSel.value = val;
+
+  // 현재 화면 재렌더
+  const renderMap = {
+    'reg-detail': renderRegDetail,
+    'reg-db':     renderRegDb,
+    'reg-dash':   renderRegDash,
+    'reg-board':  renderRegBoard,
+    'reg-meet':   renderRegMeet,
+    'reg-check':  renderRegCheck,
+  };
+  if (renderMap[STATE.currentScreen]) renderMap[STATE.currentScreen]();
+}
+
+// 관리자 지역 보기 드롭다운 채우기
+function _fillAdmRegViewSel() {
+  const sel = document.getElementById('adm-reg-region-sel');
+  if (!sel) return;
+  const regions = [...new Set([
+    ...STATE.nujeok.map(r => r['실적지역']),
+    ...(STATE.meets || []).map(r => r['실적지역']),
+  ].filter(Boolean))].sort();
+  const cur = ADM_VIEW_REGION;
+  sel.innerHTML = '<option value="">전체</option>' +
+    regions.map(r => `<option${r === cur ? ' selected' : ''}>${r}</option>`).join('');
+}
+
 // 역할 전환 (청년회 ↔ 지역 담당자)
 function setRole(role) {
   STATE.role = role;
@@ -72,6 +105,15 @@ function setRole(role) {
     const el = document.getElementById(id);
     if (el) el.style.display = role === 'reg' ? '' : 'none';
   });
+
+  // 관리자 지역 보기 바: 관리자가 지역 탭일 때만 표시
+  const regViewWrap = document.getElementById('adm-reg-view-wrap');
+  if (regViewWrap) {
+    const show = isAdmin && role === 'reg';
+    regViewWrap.style.display = show ? 'flex' : 'none';
+    if (show) _fillAdmRegViewSel();
+    if (role === 'adm') ADM_VIEW_REGION = '';
+  }
 
   nav(role === 'adm' ? 'adm-dash' : 'reg-board');
 }

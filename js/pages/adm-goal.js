@@ -16,9 +16,9 @@ function renderAdmGoal() {
   const centerList = [...new Set(
     STATE.nujeok.map(r => r['목표센터']).filter(Boolean)
   )].sort();
-  const regionList = [...new Set(
+  const regionList = sortRegions([...new Set(
     STATE.nujeok.map(r => r['실적지역']).filter(Boolean)
-  )].sort();
+  )]);
 
   // 필터 초기값
   if (!goalFilter.kaigang && kaigangList.length) goalFilter.kaigang = kaigangList[0];
@@ -42,9 +42,9 @@ function renderAdmGoal() {
 }
 
 function renderGoalTable(regionListArg) {
-  const regionList = regionListArg || [...new Set(
+  const regionList = regionListArg || sortRegions([...new Set(
     STATE.nujeok.map(r => r['실적지역']).filter(Boolean)
-  )].sort();
+  )]);
 
   const tbody = document.getElementById('goal-body');
   if (!tbody) return;

@@ -58,6 +58,12 @@
     </div>
     <button class="role-btn adm on" id="rb-adm" onclick="setRole('adm')">🔵 청년회</button>
     <button class="role-btn reg"     id="rb-reg" onclick="setRole('reg')">🟢 지역 담당자</button>
+    <div id="adm-reg-view-wrap" style="display:none;align-items:center;gap:6px;margin-left:4px;padding-left:12px;border-left:1px solid var(--border);">
+      <span style="font-size:11px;color:var(--text3);font-weight:600;white-space:nowrap;">지역 보기</span>
+      <select id="adm-reg-region-sel" class="top-sel" onchange="setAdmViewRegion(this.value)" style="font-size:12px;">
+        <option value="">전체</option>
+      </select>
+    </div>
     <div class="role-bar-right">
       <span id="sync-status" style="font-size:11px;color:var(--text3);">—</span>
       <button class="btn" onclick="loadData(true)" title="수동 새로고침">

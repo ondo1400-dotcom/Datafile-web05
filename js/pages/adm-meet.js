@@ -17,8 +17,12 @@ function parseMeetDate(raw) {
   const year = new Date().getFullYear();
   const today = new Date(); today.setHours(0,0,0,0);
 
+  // ISO 8601 (GAS 직렬화): "2026-05-21T15:00:00.000Z"
+  let m = str.match(/^(\d{4})-(\d{2})-(\d{2})T[\d:.]+Z?$/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+
   // YYYY-MM-DD or YYYY/MM/DD
-  let m = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+  m = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
   if (m) return new Date(+m[1], +m[2]-1, +m[3]);
 
   // MM-DD or MM/DD or MM.DD
@@ -62,6 +66,37 @@ function dateDiff(date) {
 function fmtMD(date) {
   if (!date) return '';
   return `${date.getMonth()+1}/${date.getDate()}`;
+}
+
+// ─── 시간 포맷 (GAS ISO 시간 직렬화 처리) ───
+// 구글 시트 시간 셀은 GAS에서 "1899-12-30T{UTC시간}Z" 형식으로 직렬화됨 (UTC+9 변환 필요)
+function fmtTime(val) {
+  if (!val) return '';
+  const s = String(val).trim();
+  const m = s.match(/^1899-12-30T(\d{2}):(\d{2}):/);
+  if (m) {
+    const h = (parseInt(m[1]) + 9) % 24;
+    return `${String(h).padStart(2,'0')}:${m[2]}`;
+  }
+  return s;
+}
+
+// ─── 수정 폼 입력값 포맷 (ISO → 사람이 읽기 좋은 형식) ───
+function fmtValForEdit(field, val) {
+  if (!val) return '';
+  const s = String(val).trim();
+  if (field === '다음만남일') {
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+    if (m) return `${parseInt(m[2])}/${parseInt(m[3])}`;
+  }
+  if (field === '다음만남시간') {
+    const m = s.match(/^1899-12-30T(\d{2}):(\d{2}):/);
+    if (m) {
+      const h = (parseInt(m[1]) + 9) % 24;
+      return `${String(h).padStart(2,'0')}:${m[2]}`;
+    }
+  }
+  return val;
 }
 
 const WEEKDAYS = ['일','월','화','수','목','금','토'];
@@ -236,7 +271,7 @@ function openMeetResult(encoded) {
 
   const modal = document.getElementById('meet-result-modal');
   document.getElementById('mr-name').textContent   = r['섭외자'] || '—';
-  document.getElementById('mr-date').textContent   = fmtMD(r._date) + (r['다음만남시간'] ? ' ' + r['다음만남시간'] : '');
+  document.getElementById('mr-date').textContent   = fmtMD(r._date) + (r['다음만남시간'] ? ' ' + fmtTime(r['다음만남시간']) : '');
   document.getElementById('mr-stage').textContent  = r['단계'] || '—';
   document.getElementById('mr-guide').textContent  = r['인도자'] || '—';
   document.getElementById('mr-region').textContent = r['실적지역'] || '—';

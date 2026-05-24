@@ -6,7 +6,8 @@ let _detailRow = null;
 let _detailTab = 'basic'; // basic | history | meets | check
 
 function openPersonDetail(rowIndex) {
-  _detailRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex);
+  _detailRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex)
+             || STATE.tallag.find(r => r['__rowIndex'] === rowIndex);
   if (!_detailRow) return;
   _detailTab = 'basic';
   nav('reg-detail');
@@ -140,7 +141,8 @@ function renderDetailTab() {
             <div>
               <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:3px;">${f}</div>
               <input id="inline-edit-${f.replace(/[\/\(\)\s]/g,'_')}" type="text" class="top-sel" style="width:100%;"
-                value="${String(r[f]||'').replace(/"/g,'&quot;')}">
+                autocomplete="off"
+                value="${fmtValForEdit(f, r[f]).replace(/"/g,'&quot;')}">
             </div>
           `).join('')}
         </div>
@@ -168,7 +170,7 @@ function renderDetailTab() {
         <div class="stat-card base"><div class="stat-label">만남 목적</div><div style="font-size:13px;font-weight:600;">${lastMeet?.['다음만남목적']||'—'}</div></div>
         <div class="stat-card base"><div class="stat-label">만남 결과</div><div style="font-size:15px;">${lastMeet?.['만남결과']||'—'}</div></div>
         <div class="stat-card base"><div class="stat-label">다음 만남일</div><div style="font-size:15px;font-weight:700;color:var(--reg2);">${nextMeet ? fmtMD(nextMeet._date) : '—'}</div></div>
-        <div class="stat-card base"><div class="stat-label">만남 시간</div><div style="font-size:13px;font-weight:600;">${r['다음만남시간']||'—'}</div></div>
+        <div class="stat-card base"><div class="stat-label">만남 시간</div><div style="font-size:13px;font-weight:600;">${fmtTime(r['다음만남시간'])||'—'}</div></div>
         <div class="stat-card base"><div class="stat-label">다음 만남 목적</div><div style="font-size:13px;font-weight:600;">${r['다음만남목적']||'—'}</div></div>
       </div>
 
@@ -218,7 +220,7 @@ function renderDetailTab() {
             ${personMeets.map(m => `
               <tr>
                 <td style="font-weight:700;">${m._date ? fmtMD(m._date) : '—'}</td>
-                <td>${m['다음만남시간']||'—'}</td>
+                <td>${fmtTime(m['다음만남시간'])||'—'}</td>
                 <td>${m['다음만남목적']||'—'}</td>
                 <td style="font-size:16px;">${m['만남결과']||'⬜'}</td>
               </tr>
@@ -418,7 +420,8 @@ function openDetailEditModal() {
         <div>
           <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:3px;">${f}</div>
           <input id="dedit-${f.replace(/[\/\(\)\s]/g,'_')}" type="text" class="top-sel" style="width:100%;"
-            value="${(_detailRow[f]||'').toString().replace(/"/g,'&quot;')}">
+            autocomplete="off"
+            value="${fmtValForEdit(f, _detailRow[f]).replace(/"/g,'&quot;')}">
         </div>
       `).join('')}
     </div>

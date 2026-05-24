@@ -28,7 +28,7 @@ function renderRegBoard() {
   // DB_찾기에서 찾기 단계 데이터 추가
   const findingRows = (STATE.dbFindings || [])
     .filter(r => r['구분'] === '찾기')
-    .map(r => ({ ...r, '단계': '찾기' }));
+    .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));
 
   // 전체 데이터 (누적 + 탈락 + 찾기)
   const allNujeok = [...STATE.nujeok, ...STATE.tallag.map(r => ({ ...r, _isTallag: true }))];
@@ -79,10 +79,12 @@ function renderRegBoard() {
       : `<button class="btn" style="font-size:10px;padding:3px 7px;"
            onclick="event.stopPropagation();openRequestReviewModal(${ri})">심의요청</button>`;
 
-    return `<tr style="${style}cursor:pointer;" class="cr" onclick="openPersonDetail(${ri})">
+    const clickFn = r._isDbFinding ? `openDbDetail(${ri})` : `openPersonDetail(${ri})`;
+    return `<tr style="${style}cursor:pointer;" class="cr" onclick="${clickFn}">
       <td>
         ${stageBadge(r['단계'])}
         ${tallag ? '<span class="badge b-red" style="margin-left:4px;">탈락</span>' : ''}
+        ${r._isDbFinding ? '<span class="badge b-gray" style="margin-left:4px;font-size:9px;">DB</span>' : ''}
       </td>
       <td><strong>${r['섭외자'] || '—'}</strong></td>
       <td style="font-size:12px;">${r['인도자'] || '—'}</td>
