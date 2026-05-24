@@ -214,41 +214,151 @@ function setSortDir(dir) {
 }
 
 // ─── 심의요청 모달 ───
-let _reviewRow = null;
+let _reviewRow   = null;
+let _reviewDbRow = null;
+
+const _REVIEW_COMMON_FIELDS = [
+  { key: '실적지역',                label: '실적지역',                required: true },
+  { key: '인도자부서/지역/팀/구역', label: '인도자부서/지역/팀/구역', required: true, wide: true },
+  { key: '인도자',                  label: '인도자',                  required: true },
+  { key: '교사부서/지역/팀/구역',   label: '교사부서/지역/팀/구역',   required: true, wide: true },
+  { key: '교사',                    label: '교사',                    required: true },
+  { key: '다음만남일',              label: '다음만남일',              type: 'date', required: true },
+  { key: '다음만남시간',            label: '다음만남시간',            type: 'time', required: true },
+  { key: '다음만남목적',            label: '다음만남목적',            required: true, wide: true },
+];
+
+const _REVIEW_STAGE_FIELDS = {
+  '합자':  [],
+  '육따기': [
+    { key: '따기주간횟수', label: '따기주간횟수', required: true },
+    { key: '따기기간',     label: '따기기간',     required: true },
+    { key: '고정요일',     label: '고정요일',     required: true },
+  ],
+  '영따기': [
+    { key: '따기유형',     label: '따기유형',     required: true },
+    { key: '따기단계',     label: '따기단계',     required: true },
+    { key: '첫수업예정일', label: '첫수업예정일', type: 'date', required: true },
+  ],
+  '복음방': [
+    { key: '섬김이부서/지역/팀/구역', label: '섬김이부서/지역/팀/구역', required: true, wide: true },
+    { key: '섬김이',          label: '섬김이',          required: true },
+    { key: '마팔수강번호',    label: '마팔수강번호',    required: true },
+    { key: '복음방수업방식',  label: '복음방수업방식',  required: true },
+    { key: '첫수업진행일',    label: '첫수업진행일',    type: 'date', required: true },
+    { key: '첫수업과목',      label: '첫수업과목',      required: true },
+  ],
+  '지역장': [
+    { key: '복음방총횟수',     label: '복음방총횟수',     required: true },
+    { key: '복음방체크리스트', label: '복음방체크리스트', required: true, wide: true },
+    { key: '개강진면접여부',   label: '개강진면접여부',   required: true },
+    { key: '신천지오픈여부',   label: '신천지오픈여부',   required: true },
+    { key: '센터수강여부',     label: '센터수강여부',     required: true },
+    { key: '재입교자여부',     label: '재입교자여부',     required: true },
+  ],
+};
+
+function _toDateVal(v) {
+  if (!v) return '';
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+}
+
+function _toTimeVal(v) {
+  if (!v) return '';
+  const s = String(v);
+  const m = s.match(/T(\d{2}):(\d{2})/) || s.match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : s;
+}
+
+function renderReviewFormFields(stage) {
+  const container = document.getElementById('review-form-fields');
+  if (!container) return;
+  const data       = _reviewDbRow || {};
+  const stageExtra = _REVIEW_STAGE_FIELDS[stage] || [];
+
+  const renderField = f => {
+    const raw = data[f.key] !== undefined ? data[f.key] : '';
+    const val = f.type === 'date' ? _toDateVal(raw) : f.type === 'time' ? _toTimeVal(raw) : String(raw || '');
+    const esc = val.replace(/"/g, '&quot;');
+    const span = f.wide ? 'grid-column:span 2;' : '';
+    return `<div style="${span}">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:3px;">${f.label}</div>
+      <input data-rv-key="${f.key}" type="${f.type || 'text'}" value="${esc}"
+        class="top-sel" style="width:100%;box-sizing:border-box;" oninput="validateReviewForm()">
+    </div>`;
+  };
+
+  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+    + _REVIEW_COMMON_FIELDS.map(renderField).join('')
+    + '</div>';
+
+  if (stageExtra.length) {
+    html += `<div style="font-size:11px;font-weight:700;color:var(--text2);margin:12px 0 8px;padding-top:10px;border-top:1px solid var(--border);">[${stage}] 추가 정보</div>`;
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+      + stageExtra.map(renderField).join('')
+      + '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function validateReviewForm() {
+  const inputs = document.querySelectorAll('#review-form-fields [data-rv-key]');
+  const allFilled = Array.from(inputs).every(inp => inp.value.trim() !== '');
+  const btn = document.getElementById('review-submit-btn');
+  if (btn) btn.disabled = !allFilled;
+}
+
+function onReviewStageChange() {
+  const stage = document.getElementById('review-stage-sel')?.value;
+  if (!stage) return;
+  renderReviewFormFields(stage);
+  validateReviewForm();
+}
 
 function openRequestReviewModal(rowIndex) {
   _reviewRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex)
     || (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
   if (!_reviewRow) return;
 
-  const curStage = _reviewRow['단계'] || _reviewRow['구분'] || '찾기';
-  const defaultStage = curStage === '찾기' ? '합자' : curStage;
+  _reviewDbRow = (STATE.dbFindings || []).find(d =>
+    d['섭외자'] === _reviewRow['섭외자'] && d['인도자'] === _reviewRow['인도자']
+  ) || _reviewRow;
+
+  const curStage     = _reviewRow['단계'] || _reviewRow['구분'] || '찾기';
+  const defaultStage = _REVIEW_STAGE_FIELDS[curStage] !== undefined ? curStage : '합자';
+
   const sel = document.getElementById('review-stage-sel');
   if (sel) sel.value = defaultStage;
-  const stage = defaultStage;
+
   const nameEl = document.getElementById('review-name');
   if (nameEl) nameEl.textContent = _reviewRow['섭외자'] || '—';
+
   const stageTxt = document.getElementById('review-stage-txt');
-  if (stageTxt) stageTxt.textContent = stage;
+  if (stageTxt) stageTxt.textContent = curStage !== defaultStage ? `${curStage} → ${defaultStage}` : curStage;
+
+  renderReviewFormFields(defaultStage);
+  validateReviewForm();
   document.getElementById('request-review-modal').classList.add('show');
 }
 
 function closeRequestReviewModal() {
   document.getElementById('request-review-modal').classList.remove('show');
-  _reviewRow = null;
+  _reviewRow   = null;
+  _reviewDbRow = null;
 }
 
 async function submitRequestReview() {
   if (!_reviewRow) return;
-
   const stage = document.getElementById('review-stage-sel').value;
-
-  let dbRow = (STATE.dbFindings || []).find(d =>
-    d['섭외자'] === _reviewRow['섭외자'] && d['인도자'] === _reviewRow['인도자']
-  );
-
-  const btn = document.getElementById('review-submit-btn');
+  const btn   = document.getElementById('review-submit-btn');
   if (btn) { btn.textContent = '요청 중...'; btn.disabled = true; }
+
+  const formData = {};
+  document.querySelectorAll('#review-form-fields [data-rv-key]').forEach(inp => {
+    formData[inp.dataset.rvKey] = inp.value.trim();
+  });
 
   try {
     if (USE_SAMPLE) {
@@ -258,24 +368,28 @@ async function submitRequestReview() {
       return;
     }
 
-    if (!dbRow) {
-      const saveRes = await gasPost({
-        action: 'saveOrUpdateDbFinding',
-        구분: _reviewRow['단계'] || '찾기',
-        ...Object.fromEntries(Object.entries(_reviewRow).filter(([k]) => !k.startsWith('__'))),
-      });
-      STATE.dbFindings = saveRes.dbFindings || STATE.dbFindings;
-      dbRow = (STATE.dbFindings || []).find(d =>
-        d['섭외자'] === _reviewRow['섭외자'] && d['인도자'] === _reviewRow['인도자']
-      );
-    }
+    const base = _reviewDbRow || _reviewRow;
+    const savePayload = {
+      action: 'saveOrUpdateDbFinding',
+      구분: _reviewRow['단계'] || _reviewRow['구분'] || '찾기',
+      ...Object.fromEntries(Object.entries(base).filter(([k]) => !k.startsWith('__'))),
+      ...formData,
+    };
+    if (base['__rowIndex']) savePayload['__rowIndex'] = base['__rowIndex'];
+
+    const saveRes = await gasPost(savePayload);
+    if (!saveRes.success) throw new Error(saveRes.error || '저장 실패');
+    STATE.dbFindings = saveRes.dbFindings || STATE.dbFindings;
+
+    const dbRow = (STATE.dbFindings || []).find(d =>
+      d['섭외자'] === _reviewRow['섭외자'] && d['인도자'] === _reviewRow['인도자']
+    );
 
     const res = await gasPost({
       action: 'requestReview',
       __rowIndex: dbRow?.['__rowIndex'],
       심의단계: stage,
     });
-
     if (!res.success) throw new Error(res.error);
     STATE.dbFindings = res.dbFindings;
 

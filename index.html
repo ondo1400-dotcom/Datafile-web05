@@ -829,7 +829,7 @@
 
 <!-- ─── 심의요청 모달 (지역) ─── -->
 <div class="modal-bg" id="request-review-modal">
-  <div class="modal" style="width:340px;">
+  <div class="modal" style="width:480px;max-height:85vh;overflow-y:auto;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
       <div class="modal-title" style="margin:0;">심의 요청</div>
       <button class="btn" onclick="closeRequestReviewModal()">✕</button>
@@ -840,15 +840,16 @@
     </div>
     <div style="margin-bottom:14px;">
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">심의 단계 선택</div>
-      <select id="review-stage-sel" class="top-sel" style="width:100%;">
-        <option>찾기</option>
+      <select id="review-stage-sel" class="top-sel" style="width:100%;" onchange="onReviewStageChange()">
         <option>합자</option>
         <option>육따기</option>
-        <option>따기</option>
+        <option>영따기</option>
         <option>복음방</option>
+        <option>지역장</option>
       </select>
     </div>
-    <button id="review-submit-btn" class="btn reg-pri" style="width:100%;padding:12px;font-size:14px;" onclick="submitRequestReview()">
+    <div id="review-form-fields"></div>
+    <button id="review-submit-btn" class="btn reg-pri" style="width:100%;padding:12px;font-size:14px;margin-top:14px;" onclick="submitRequestReview()" disabled>
       심의 요청
     </button>
   </div>
