@@ -31,7 +31,10 @@ function pollMessages() {
 
   const url = 'https://api.telegram.org/bot' + token + '/getUpdates?offset=' + offset + '&limit=10&timeout=0';
   const res  = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-  const data = JSON.parse(res.getContentText());
+  const raw  = res.getContentText();
+  const data = JSON.parse(raw);
+
+  Logger.log('getUpdates 응답: ' + raw.substring(0, 200));
 
   if (!data.ok || !data.result.length) return;
 

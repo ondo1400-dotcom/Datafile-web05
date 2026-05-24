@@ -25,6 +25,9 @@ DB_CHAT_ID  = int(os.environ.get('DB_CHAT_ID',  '-1003828748700'))  # 찾기/DB 
 ADM_CHAT_ID = int(os.environ.get('ADM_CHAT_ID', '-1003943121521'))  # 행정보고용창
 JD_CHAT_ID  = int(os.environ.get('JD_CHAT_ID',  '-1003983618752'))  # 전도비서창
 
+# 행정보고창에서 전도비서창으로 전달할 양식 태그
+FORWARD_TAGS = ['[찾기]', '[합자]', '[육따기]', '[따기]', '[복음방]', '[탈락]', '[이월]', '[지역장]']
+
 # ── Google Sheets 설정 ────────────────────────────────────
 SS_ID      = os.environ.get('SS_ID', '1T7lt0ZZ2JpQPD26ft9CAnslhxO-7a9Lk1ZF7rzX_624')
 SHEET_NAME = os.environ.get('SHEET_NAME', 'DB_찾기')
@@ -91,7 +94,7 @@ def save_or_update_sheet(data: dict) -> bool:
 
     # ─ 찾기: 중복 체크 후 업데이트
     if data['구분'] == '찾기' and all(c >= 0 for c in [구분_c, 지역_c, 섭외자_c, 인도자_c]):
-        for i, row in enumerate(all_vals[1:], start=2):  # 시트 행 번호 (헤더=1)
+        for i, row in enumerate(all_vals[1:], start=2):
             def get(c):
                 return row[c] if c < len(row) else ''
 
@@ -108,7 +111,7 @@ def save_or_update_sheet(data: dict) -> bool:
                         new_row.append(data.get(h, row[j] if j < len(row) else ''))
 
                 sheet.update(f'A{i}', [new_row])
-                return True  # 업데이트
+                return True
 
     # ─ 새로 추가
     new_row = []
@@ -121,35 +124,31 @@ def save_or_update_sheet(data: dict) -> bool:
             new_row.append(data.get(h, ''))
 
     sheet.append_row(new_row, value_input_option='USER_ENTERED')
-    return False  # 새로 추가
+    return False
 
 
 @client.on(events.NewMessage(chats=ADM_CHAT_ID))
-async def forward_reports(event):
+async def forward_to_jd(event):
+    """행정보고창 메시지를 전도비서창으로 전달"""
     text = event.message.text
     if not text:
         return
-        
     text = text.strip()
     print(f'[행정보고용창] 메시지 수신: {text[:50]}')
-    
-    # 전달할 단계별 키워드 목록 
-    keywords = ('[합자]', '[육따기]', '[영따기]', '[복음방]', '[탈락]', '[이월]')
-    
-    # 메시지가 위 키워드 중 하나로 시작하는지 검사
-    if not text.startswith(keywords):
+
+    # 전달 대상 태그 확인
+    matched_tag = next((tag for tag in FORWARD_TAGS if text.startswith(tag)), None)
+    if not matched_tag:
         return
-        
-    # 터미널 창에 어떤 종류의 메시지인지 출력
-    matched_keyword = next((kw for kw in keywords if text.startswith(kw)), "[알수없음]")
-    
-    print(f'{matched_keyword} 감지 → 전도비서창으로 전달 중...')
+
+    print(f'{matched_tag} 감지 → 전도비서창으로 전달 중...')
     await client.send_message(JD_CHAT_ID, text)
-    print(f'{matched_keyword} 전달 완료')
+    print(f'{matched_tag} 전달 완료')
 
 
 @client.on(events.NewMessage(chats=DB_CHAT_ID))
 async def on_message(event):
+    """DB_찾기 보고창 메시지 처리"""
     text = event.message.text
     if not text:
         return
@@ -185,7 +184,9 @@ async def main():
     await client.start(phone=PHONE)
     me = await client.get_me()
     print(f'[Telethon] 로그인: {me.first_name} (@{me.username})')
-    print(f'[Telethon] 감시 채팅: {DB_CHAT_ID}')
+    print(f'[Telethon] DB보고창 감시: {DB_CHAT_ID}')
+    print(f'[Telethon] 행정보고창 감시: {ADM_CHAT_ID}')
+    print(f'[Telethon] 전달 태그: {FORWARD_TAGS}')
     print('[Telethon] 대기 중 — Ctrl+C 로 종료')
     await client.run_until_disconnected()
 
