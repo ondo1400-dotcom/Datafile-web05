@@ -23,7 +23,7 @@ function renderAdmReview() {
 
   const tbody = document.getElementById('rv-body');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3);">심의 요청 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3);">심의 요청 없음</td></tr>';
     return;
   }
 
@@ -31,24 +31,34 @@ function renderAdmReview() {
     const ri         = r['__rowIndex'];
     const isSent     = r['전송완료여부'] === 'Y';
     const isApproved = r['심의승인여부'] === 'Y';
-    const stage      = r['심의단계'] || r['구분'] || '—';
-    const sc         = STAGE_COLORS[stage] || { bg:'#f0f0f0', c:'#555' };
+    const reqStage   = r['심의단계'] || r['구분'] || '—';
+    const reqSc      = STAGE_COLORS[reqStage] || { bg:'#f0f0f0', c:'#555' };
     const reqDate    = String(r['심의요청일시']||'').substring(0,10);
+
+    // 현 단계: nujeok에서 조회
+    const nujeokRow  = (STATE.nujeok || []).find(n =>
+      n['섭외자'] === r['섭외자'] && n['인도자'] === r['인도자']
+    );
+    const curStage = nujeokRow?.['단계'] || '—';
+    const curSc    = STAGE_COLORS[curStage] || { bg:'#f0f0f0', c:'#555' };
 
     let statusBadge = '';
     if (isSent)          statusBadge = '<span class="badge b-green">전송완료</span>';
     else if (isApproved) statusBadge = '<span class="badge b-adm">승인완료</span>';
     else                 statusBadge = '<span class="badge b-amber">심의대기</span>';
 
-    // 승인 버튼 누르면 바로 전송
     let actionBtn = '';
     if (!isSent) {
       actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
-        onclick="approveAndSend(${ri}, '${stage}')">✓ ${stage} 승인</button>`;
+        onclick="approveAndSend(${ri}, '${reqStage}')">✓ ${reqStage} 승인</button>`;
     }
 
     return `<tr>
-      <td><span style="background:${sc.bg};color:${sc.c};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${stage}</span></td>
+      <td><span style="background:${curSc.bg};color:${curSc.c};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${curStage}</span></td>
+      <td>
+        <span style="font-size:10px;color:var(--text3);margin-right:3px;">→</span>
+        <span style="background:${reqSc.bg};color:${reqSc.c};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${reqStage}</span>
+      </td>
       <td><strong>${r['섭외자']||'—'}</strong></td>
       <td style="font-size:12px;">${r['실적지역']||'—'}</td>
       <td style="font-size:12px;">${r['인도자']||'—'}</td>
