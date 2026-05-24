@@ -125,14 +125,27 @@ def save_or_update_sheet(data: dict) -> bool:
 
 
 @client.on(events.NewMessage(chats=ADM_CHAT_ID))
-async def forward_hapja(event):
+async def forward_reports(event):
     text = event.message.text
-    print(f'[행정보고용창] 메시지 수신: {str(text)[:50]}')
-    if not text or not text.strip().startswith('[합자]'):
+    if not text:
         return
-    print('[합자] 감지 → 전도비서창으로 전달 중...')
-    await client.send_message(JD_CHAT_ID, text.strip())
-    print('[합자] 전달 완료')
+        
+    text = text.strip()
+    print(f'[행정보고용창] 메시지 수신: {text[:50]}')
+    
+    # 전달할 단계별 키워드 목록 
+    keywords = ('[합자]', '[육따기]', '[영따기]', '[복음방]', '[탈락]', '[이월]')
+    
+    # 메시지가 위 키워드 중 하나로 시작하는지 검사
+    if not text.startswith(keywords):
+        return
+        
+    # 터미널 창에 어떤 종류의 메시지인지 출력
+    matched_keyword = next((kw for kw in keywords if text.startswith(kw)), "[알수없음]")
+    
+    print(f'{matched_keyword} 감지 → 전도비서창으로 전달 중...')
+    await client.send_message(JD_CHAT_ID, text)
+    print(f'{matched_keyword} 전달 완료')
 
 
 @client.on(events.NewMessage(chats=DB_CHAT_ID))

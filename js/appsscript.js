@@ -35,6 +35,8 @@ function pollMessages() {
 
   if (!data.ok || !data.result.length) return;
 
+  Logger.log('수신된 메시지 수: ' + data.result.length);
+
   data.result.forEach(update => {
     const updateId = update.update_id;
     const msg      = update.message;
@@ -45,6 +47,8 @@ function pollMessages() {
 
     const chatId = String(msg.chat.id);
     const text   = msg.text.trim();
+
+    Logger.log('chatId=' + chatId + ' | DB_CHAT_ID=' + DB_CHAT_ID + ' | text=' + text.substring(0, 60));
 
     if (chatId !== DB_CHAT_ID) return;
 

@@ -221,9 +221,11 @@ function openRequestReviewModal(rowIndex) {
     || (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
   if (!_reviewRow) return;
 
-  const stage = _reviewRow['단계'] || '찾기';
+  const curStage = _reviewRow['단계'] || _reviewRow['구분'] || '찾기';
+  const defaultStage = curStage === '찾기' ? '합자' : curStage;
   const sel = document.getElementById('review-stage-sel');
-  if (sel) sel.value = stage;
+  if (sel) sel.value = defaultStage;
+  const stage = defaultStage;
   const nameEl = document.getElementById('review-name');
   if (nameEl) nameEl.textContent = _reviewRow['섭외자'] || '—';
   const stageTxt = document.getElementById('review-stage-txt');
@@ -252,7 +254,7 @@ async function submitRequestReview() {
     if (USE_SAMPLE) {
       showToast('✅ 심의 요청 완료 (샘플)');
       closeRequestReviewModal();
-      renderRegBoard();
+      if (STATE.currentScreen === 'adm-db') renderAdmDb(); else renderRegBoard();
       return;
     }
 
@@ -279,7 +281,7 @@ async function submitRequestReview() {
 
     showToast('✅ 심의 요청 완료!');
     closeRequestReviewModal();
-    renderRegBoard();
+    if (STATE.currentScreen === 'adm-db') renderAdmDb(); else renderRegBoard();
   } catch(e) {
     showToast('⚠️ 요청 실패: ' + e.message, 'error');
     if (btn) { btn.textContent = '심의 요청'; btn.disabled = false; }
