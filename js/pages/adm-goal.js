@@ -16,9 +16,9 @@ function renderAdmGoal() {
   const centerList = [...new Set(
     STATE.nujeok.map(r => r['목표센터']).filter(Boolean)
   )].sort();
-  const regionList = sortRegions([...new Set(
-    STATE.nujeok.map(r => r['실적지역']).filter(Boolean)
-  )]);
+  const nujeokRegions = [...new Set(STATE.nujeok.map(r => r['실적지역']).filter(Boolean))];
+  const allRegions = [...new Set([...REGION_ORDER, ...nujeokRegions])];
+  const regionList = sortRegions(allRegions);
 
   // datalist 옵션 채우기 (자동완성용)
   const kaigangDl = document.getElementById('goal-kaigang-list');
@@ -43,7 +43,7 @@ function renderAdmGoal() {
 
 function renderGoalTable(regionListArg) {
   const regionList = regionListArg || sortRegions([...new Set(
-    STATE.nujeok.map(r => r['실적지역']).filter(Boolean)
+    [...REGION_ORDER, ...STATE.nujeok.map(r => r['실적지역']).filter(Boolean)]
   )]);
 
   const tbody = document.getElementById('goal-body');
