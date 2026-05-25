@@ -35,10 +35,13 @@ function renderAdmReview() {
     const reqSc      = STAGE_COLORS[reqStage] || { bg:'#f0f0f0', c:'#555' };
     const reqDate    = String(r['심의요청일시']||'').substring(0,10);
 
-    // 현 단계: nujeok에서 조회
-    const nujeokRow  = (STATE.nujeok || []).find(n =>
+    // 현 단계: nujeok에서 조회 (동일 섭외자+인도자 행이 여러 개면 단계 순서 가장 높은 것 선택)
+    const nujeokMatches = (STATE.nujeok || []).filter(n =>
       n['섭외자'] === r['섭외자'] && n['인도자'] === r['인도자']
     );
+    const nujeokRow = nujeokMatches.sort((a, b) =>
+      stageIndex(b['단계']) - stageIndex(a['단계'])
+    )[0];
     const curStage = nujeokRow?.['단계'] || '—';
     const curSc    = STAGE_COLORS[curStage] || { bg:'#f0f0f0', c:'#555' };
 
