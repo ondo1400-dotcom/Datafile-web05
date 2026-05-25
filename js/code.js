@@ -11,8 +11,9 @@ const SHEET_GOAL    = '목표설정';
 const SHEET_DB      = 'DB_찾기';
 const TG_CHAT_ID     = '-1003943121521';
 const REVIEW_CHAT_ID = '-1003943121521';
-const EDIT_CHAT_ID   = '-1003983618752'; // 지파보고창 청년
-const EDIT_THREAD_ID = 53;              // 수정요청 주제창 (53 또는 59 — 확인 후 변경)
+const EDIT_CHAT_ID          = '-1003983618752'; // 지파보고창 청년
+const EDIT_THREAD_ID        = 53;              // 지파보고창 수정요청 주제
+const REVIEW_EDIT_THREAD_ID = 104;             // 행정보고창 수정요청 주제
 
 // Date 셀 → KST 문자열 변환 (날짜/시간 모두 처리)
 function _cellVal(val) {
@@ -953,31 +954,42 @@ function buildIwolText(r) {
 // ─── 수정 보고 ───
 function requestEdit(payload) {
   const stage = payload['단계'] || '';
-  const text  = buildReviewText(stage, payload); // 기존 단계별 양식 재사용
+  const text  = buildReviewText(stage, payload);
 
   addToQueue('수정', stage, payload, text);
 
   const token = getBotToken();
   try {
-    const res  = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+    // 행정보고창 수정요청 주제 전송
+    const res1 = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+      method: 'post', contentType: 'application/json',
+      payload: JSON.stringify({ chat_id: REVIEW_CHAT_ID, message_thread_id: REVIEW_EDIT_THREAD_ID, text: text }),
+      muteHttpExceptions: true,
+    });
+    const data1 = JSON.parse(res1.getContentText());
+
+    // 지파보고창 수정요청 주제 전송
+    const res2 = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
       method: 'post', contentType: 'application/json',
       payload: JSON.stringify({ chat_id: EDIT_CHAT_ID, message_thread_id: EDIT_THREAD_ID, text: text }),
       muteHttpExceptions: true,
     });
-    const data = JSON.parse(res.getContentText());
+    const data2 = JSON.parse(res2.getContentText());
 
     const ss    = SpreadsheetApp.openById(SS_ID);
     const sheet = ss.getSheetByName(SHEET_QUEUE);
     const last  = sheet.getLastRow();
     const now   = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-    if (data.ok) {
+    const ok    = data1.ok || data2.ok;
+    if (ok) {
       sheet.getRange(last, 7).setValue('전송완료');
       sheet.getRange(last, 9).setValue(now);
     } else {
-      sheet.getRange(last, 7).setValue('전송실패: ' + data.description);
+      sheet.getRange(last, 7).setValue('전송실패: ' + (data1.description || data2.description));
     }
 
-    return { success: data.ok, error: data.ok ? null : data.description };
+    const errors = [!data1.ok && data1.description, !data2.ok && data2.description].filter(Boolean);
+    return { success: ok, error: errors.length ? errors.join(' / ') : null };
   } catch(e) {
     return { success: false, error: e.message };
   }
