@@ -396,11 +396,17 @@
         <div class="flt-bar">
           <div class="flt-group">
             <span class="flt-label">개강</span>
-            <select class="top-sel" id="goal-kaigang-sel" onchange="setGoalFilter('kaigang',this.value)"></select>
+            <input type="text" class="top-sel" id="goal-kaigang-sel" list="goal-kaigang-list"
+              placeholder="예: 2026/06" style="width:120px;"
+              oninput="setGoalFilter('kaigang',this.value)">
+            <datalist id="goal-kaigang-list"></datalist>
           </div>
           <div class="flt-group">
             <span class="flt-label">센터</span>
-            <select class="top-sel" id="goal-center-sel" onchange="setGoalFilter('center',this.value)"></select>
+            <input type="text" class="top-sel" id="goal-center-sel" list="goal-center-list"
+              placeholder="예: 강남센터" style="width:120px;"
+              oninput="setGoalFilter('center',this.value)">
+            <datalist id="goal-center-list"></datalist>
           </div>
           <span id="goal-save-status" style="font-size:11px;color:var(--text3);margin-left:8px;"></span>
         </div>

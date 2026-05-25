@@ -20,22 +20,22 @@ function renderAdmGoal() {
     STATE.nujeok.map(r => r['실적지역']).filter(Boolean)
   )]);
 
-  // 필터 초기값
-  if (!goalFilter.kaigang && kaigangList.length) goalFilter.kaigang = kaigangList[0];
-  if (!goalFilter.center  && centerList.length)  goalFilter.center  = centerList[0];
+  // datalist 옵션 채우기 (자동완성용)
+  const kaigangDl = document.getElementById('goal-kaigang-list');
+  const centerDl  = document.getElementById('goal-center-list');
+  if (kaigangDl) kaigangDl.innerHTML = kaigangList.map(k => `<option value="${k}">`).join('');
+  if (centerDl)  centerDl.innerHTML  = centerList.map(c => `<option value="${c}">`).join('');
 
-  // 필터 셀렉트 렌더
-  const kaigangSel = document.getElementById('goal-kaigang-sel');
-  const centerSel  = document.getElementById('goal-center-sel');
-  if (kaigangSel) {
-    kaigangSel.innerHTML = kaigangList.map(k =>
-      `<option ${k===goalFilter.kaigang?'selected':''}>${k}</option>`
-    ).join('');
+  // 인풋 초기값 설정 (처음 로드 시에만)
+  const kaigangInp = document.getElementById('goal-kaigang-sel');
+  const centerInp  = document.getElementById('goal-center-sel');
+  if (kaigangInp && !kaigangInp.value && kaigangList.length) {
+    kaigangInp.value   = kaigangList[0];
+    goalFilter.kaigang = kaigangList[0];
   }
-  if (centerSel) {
-    centerSel.innerHTML = centerList.map(c =>
-      `<option ${c===goalFilter.center?'selected':''}>${c}</option>`
-    ).join('');
+  if (centerInp && !centerInp.value && centerList.length) {
+    centerInp.value   = centerList[0];
+    goalFilter.center = centerList[0];
   }
 
   renderGoalTable(regionList);
@@ -102,7 +102,12 @@ function renderGoalTable(regionListArg) {
 }
 
 function setGoalFilter(key, val) {
-  goalFilter[key] = val;
+  goalFilter[key] = val.trim();
+  if (!goalFilter.kaigang || !goalFilter.center) {
+    const status = document.getElementById('goal-save-status');
+    if (status) status.textContent = '개강과 센터를 모두 입력해주세요';
+    return;
+  }
   renderGoalTable();
   const status = document.getElementById('goal-save-status');
   if (status) status.textContent = `${goalFilter.kaigang} / ${goalFilter.center} 목표 편집 중`;
