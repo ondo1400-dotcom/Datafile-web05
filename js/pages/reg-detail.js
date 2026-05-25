@@ -6,9 +6,18 @@ let _detailRow = null;
 let _detailTab = 'basic'; // basic | history | meets | check
 
 function openPersonDetail(rowIndex) {
-  _detailRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex)
-             || STATE.tallag.find(r => r['__rowIndex'] === rowIndex);
-  if (!_detailRow) return;
+  const baseRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex)
+                || STATE.tallag.find(r => r['__rowIndex'] === rowIndex);
+  if (!baseRow) return;
+
+  // DB_찾기 데이터 머지 (개인정보 필드 채우기)
+  const dbRow = (STATE.dbFindings || []).find(r =>
+    r['섭외자'] === baseRow['섭외자'] &&
+    r['인도자'] === baseRow['인도자'] &&
+    r['실적지역'] === baseRow['실적지역']
+  );
+  _detailRow = dbRow ? { ...baseRow, ...dbRow } : baseRow;
+
   _detailTab = 'basic';
   nav('reg-detail');
 }

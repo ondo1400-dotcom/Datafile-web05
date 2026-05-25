@@ -9,8 +9,10 @@ const SHEET_ACTIVE  = '개강체크_활성';
 const SHEET_ARCHIVE = '개강체크_탈락';
 const SHEET_GOAL    = '목표설정';
 const SHEET_DB      = 'DB_찾기';
-const TG_CHAT_ID    = '-1003943121521';
+const TG_CHAT_ID     = '-1003943121521';
 const REVIEW_CHAT_ID = '-1003943121521';
+const EDIT_CHAT_ID   = '-1003983618752'; // 지파보고창 청년
+const EDIT_THREAD_ID = 53;              // 수정요청 주제창 (53 또는 59 — 확인 후 변경)
 
 // Date 셀 → KST 문자열 변환 (날짜/시간 모두 처리)
 function _cellVal(val) {
@@ -959,7 +961,7 @@ function requestEdit(payload) {
   try {
     const res  = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
       method: 'post', contentType: 'application/json',
-      payload: JSON.stringify({ chat_id: REVIEW_CHAT_ID, text: text }),
+      payload: JSON.stringify({ chat_id: EDIT_CHAT_ID, message_thread_id: EDIT_THREAD_ID, text: text }),
       muteHttpExceptions: true,
     });
     const data = JSON.parse(res.getContentText());
