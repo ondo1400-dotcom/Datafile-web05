@@ -115,5 +115,5 @@ function setRole(role) {
     if (role === 'adm') ADM_VIEW_REGION = '';
   }
 
-  nav(role === 'adm' ? 'adm-dash' : 'reg-board');
+  nav(role === 'adm' ? 'adm-dash' : 'reg-dash');
 }
