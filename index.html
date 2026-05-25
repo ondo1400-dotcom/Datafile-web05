@@ -228,41 +228,20 @@
             <div class="stat-card base"><div class="stat-label">체크 완료율</div><div class="stat-val" id="ds-check-rate" style="color:var(--amber);">—</div><div class="stat-sub">개강체크 기준</div></div>
           </div>
 
-          <div class="sl">단계별 현황 (청년누적 기준)</div>
-          <div class="dash-tbl-wrap">
-            <table style="width:100%;border-collapse:collapse;font-size:12px;">
-              <thead>
-                <tr>
-                  <th style="padding:8px 12px;background:#bde0f5;color:#0c2d42;border:1px solid var(--border);text-align:center;">지역</th>
-                  <th style="padding:8px 8px;background:#e0f2fe;color:#0369a1;border:1px solid var(--border);text-align:center;">찾기</th>
-                  <th style="padding:8px 8px;background:#ede9fe;color:#6d28d9;border:1px solid var(--border);text-align:center;">합자</th>
-                  <th style="padding:8px 8px;background:#fffbeb;color:#92400e;border:1px solid var(--border);text-align:center;">육따기</th>
-                  <th style="padding:8px 8px;background:#fff7ed;color:#c2410c;border:1px solid var(--border);text-align:center;">영따기</th>
-                  <th style="padding:8px 8px;background:#ecfdf5;color:#065f46;border:1px solid var(--border);text-align:center;">복음방</th>
-                  <th style="padding:8px 8px;background:#eef2ff;color:#3730a3;border:1px solid var(--border);text-align:center;">센확</th>
-                  <th style="padding:8px 8px;background:#FDE8FF;color:#7B00A0;border:1px solid var(--border);text-align:center;">수신</th>
-                  <th style="padding:8px 8px;background:var(--adm-light);color:var(--adm2);border:1px solid var(--border);text-align:center;font-weight:700;">합계</th>
-                </tr>
-              </thead>
-              <tbody id="dash-stage-body">
-                <tr><td colspan="9" class="loading-box">로딩 중...</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="sl">개강 준비 체크 현황</div>
-          <div id="dash-check-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
-
           <!-- LD: 단계별 보유현황 (만남캘린더) -->
-          <div style="display:flex;align-items:center;gap:10px;margin-top:24px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
             <div class="sl" style="margin:0;flex:1;">단계별 보유현황 (만남캘린더)</div>
             <div id="ld-adm-filter-wrap" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
           </div>
-          <div id="ld-adm-stage-wrap" style="margin-top:8px;"><div class="loading-box">만남캘린더 데이터 로딩 중...</div></div>
+          <div id="ld-adm-stage-wrap" style="margin-top:8px;"><div class="loading-box">로딩 중...</div></div>
 
           <!-- LD: 만남 현황 -->
           <div class="sl" style="margin-top:20px;">만남 현황 (단계별 · 오늘/내일/모레/이후)</div>
-          <div id="ld-adm-meet-wrap"><div class="loading-box">만남캘린더 데이터 로딩 중...</div></div>
+          <div id="ld-adm-meet-wrap"><div class="loading-box">로딩 중...</div></div>
+
+          <!-- 체크 현황 -->
+          <div class="sl" style="margin-top:20px;">개강 준비 체크 현황</div>
+          <div id="dash-check-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
         </div>
       </div>
 
