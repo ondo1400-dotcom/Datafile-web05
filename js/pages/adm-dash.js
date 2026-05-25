@@ -8,7 +8,8 @@ function _buildCheckSummaryHtml(checks, activeCount, accentClass) {
     return '<div style="color:var(--text3);font-size:12px;padding:10px;">체크 항목을 설정탭에서 추가해주세요</div>';
   }
   const cols = Math.min(STATE.checkItems.length, 4);
-  return `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:8px;">
+  const colCls = cols === 4 ? 'c4' : cols === 3 ? 'c3' : 'c3';
+  return `<div class="stat-row ${colCls}" style="margin-bottom:0;">
     ${STATE.checkItems.map(item => {
       const doneCount = checks.filter(c => c['항목명'] === item && c['체크여부'] === 'Y').length;
       const pct       = activeCount ? Math.round(doneCount / activeCount * 100) : 0;
@@ -17,7 +18,7 @@ function _buildCheckSummaryHtml(checks, activeCount, accentClass) {
         ? (accentClass === 'reg-c' ? 'var(--reg2)' : 'var(--adm2)')
         : pct >= 50 ? 'var(--amber)' : 'var(--red)';
       return `<div class="stat-card ${cardCls}">
-        <div class="stat-label">${item}</div>
+        <div class="stat-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${item}">${item}</div>
         <div class="stat-val" style="font-size:18px;color:${color};">${doneCount}명</div>
         <div class="stat-sub">${pct}% 완료</div>
       </div>`;
