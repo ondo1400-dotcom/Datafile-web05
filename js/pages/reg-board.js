@@ -160,8 +160,8 @@ function buildStageFilterUI() {
   container.innerHTML = `
     <div style="padding:8px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:160px;">
       <div style="display:flex;gap:6px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
-        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('asc')">▲ 만남일 오름차순</button>
-        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('desc')">▼ 만남일 내림차순</button>
+        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('stage-asc')">▲ 단계 오름차순</button>
+        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('stage-desc')">▼ 단계 내림차순</button>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">단계 선택 (복수 가능)</div>
       <label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;cursor:pointer;">
