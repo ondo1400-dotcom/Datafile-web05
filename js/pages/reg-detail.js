@@ -85,7 +85,7 @@ function renderRegDetail() {
 
     <!-- 탭 -->
     <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;">
-      ${[['basic','기본 정보'],['meets','만남 기록'],['check','개강 준비']].map(([id, label]) => `
+      ${[['basic','기본 정보'],['stage','단계 정보'],['meets','만남 기록'],['check','개강 준비']].map(([id, label]) => `
         <button onclick="switchDetailTab('${id}')" id="dtab-${id}"
           style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;
           border-bottom:${_detailTab===id?'2px solid var(--reg2)':'2px solid transparent'};
@@ -105,7 +105,7 @@ function renderRegDetail() {
 function switchDetailTab(tab) {
   _detailTab = tab;
   // 탭 버튼 스타일 업데이트
-  ['basic','meets','check'].forEach(id => {
+  ['basic','stage','meets','check'].forEach(id => {
     const btn = document.getElementById('dtab-' + id);
     if (!btn) return;
     btn.style.borderBottom = id === tab ? '2px solid var(--reg2)' : '2px solid transparent';
@@ -119,22 +119,17 @@ function renderDetailTab() {
   const el  = document.getElementById('detail-tab-content');
   if (!el || !r) return;
 
-  // 단계별 편집 필드 정의
-  const fieldMap = {
-    '찾기':   ['실적지역','인도자부서/지역/팀/구역','인도자','목표개강(연도/월)','목표센터','섭외자','전화번호','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적'],
-    '합자':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','변화의지','따기포인트','반응','다음만남일','다음만남시간','다음만남목적'],
-    '육따기': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기주간횟수','따기기간','고정요일','다음만남일','다음만남시간','다음만남목적'],
-    '따기':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기유형','따기단계','첫수업예정일','다음만남일','다음만남시간','다음만남목적'],
-    '복음방': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섬김이부서/지역/팀/구역','섬김이','섭외자','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목'],
-  };
-  const editFields = fieldMap[r['단계']] || fieldMap['찾기'];
-
-  if (_detailTab === 'basic') {
+  if (_detailTab === 'basic' || _detailTab === 'stage') {
     if (_isEditMode) {
-      // 수정 모드 — 인풋으로 표시
+      const isStage   = _detailTab === 'stage';
+      const editFields = isStage
+        ? (_STAGE_EDIT_FIELDS[r['단계']] || _STAGE_EDIT_FIELDS['찾기'])
+        : _BASIC_EDIT_FIELDS;
+      const editLabel   = isStage ? `✏️ 단계 정보 수정 — ${r['단계']} 양식으로 보고됩니다` : '✏️ 기본 개인정보 수정';
+      const submitLabel = isStage ? '📤 수정 보고 (텔레그램 전송)' : '💾 저장 (조용히)';
       el.innerHTML = `
         <div style="background:var(--reg-light);border:1px solid var(--reg-mid);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--reg2);font-weight:600;">
-          ✏️ 수정 모드 — ${r['단계']} 양식으로 전송됩니다
+          ${editLabel}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
           ${editFields.map(f => `
@@ -147,12 +142,95 @@ function renderDetailTab() {
           `).join('')}
         </div>
         <button id="inline-edit-submit" class="btn reg-pri" style="width:100%;padding:12px;font-size:14px;"
-          onclick="submitInlineEdit()">📤 수정 완료 및 보고</button>
+          onclick="submitInlineEdit()">${submitLabel}</button>
       `;
       return;
     }
 
-    // 일반 보기 모드
+    if (_detailTab === 'stage') {
+      const stage = r['단계'] || '';
+      const _c3 = (label, val) => `
+        <div class="stat-card base">
+          <div class="stat-label">${label}</div>
+          <div style="font-size:13px;font-weight:600;">${val||'—'}</div>
+        </div>`;
+
+      let stageContent = '';
+      if (['합자','육따기','따기','영따기','복음방','지역장'].includes(stage)) {
+        stageContent += `
+          <div class="sl">담당자</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+            ${_c3('인도자부서/지역/팀/구역', r['인도자부서/지역/팀/구역'])}
+            ${_c3('인도자', r['인도자'])}
+            ${_c3('교사부서/지역/팀/구역', r['교사부서/지역/팀/구역'])}
+            ${_c3('교사', r['교사'])}
+          </div>`;
+      }
+      if (stage === '합자') {
+        stageContent += `
+          <div class="sl">합자 정보</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+            ${_c3('변화의지', r['변화의지'])}
+            ${_c3('따기포인트', r['따기포인트'])}
+            ${_c3('반응', r['반응'])}
+          </div>`;
+      } else if (stage === '육따기') {
+        stageContent += `
+          <div class="sl">따기 기간</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+            ${_c3('따기주간횟수', r['따기주간횟수'])}
+            ${_c3('따기기간', r['따기기간'])}
+            ${_c3('고정요일', r['고정요일'])}
+          </div>`;
+      } else if (stage === '따기' || stage === '영따기') {
+        stageContent += `
+          <div class="sl">따기 정보</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+            ${_c3('따기유형', r['따기유형'])}
+            ${_c3('따기단계', r['따기단계'])}
+            ${_c3('첫수업예정일', r['첫수업예정일'] ? fmtValForEdit('첫수업예정일', r['첫수업예정일']) : '')}
+          </div>`;
+      } else if (stage === '복음방' || stage === '지역장') {
+        stageContent += `
+          <div class="sl">복음방 정보</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+            ${_c3('섬김이부서/지역/팀/구역', r['섬김이부서/지역/팀/구역'])}
+            ${_c3('섬김이', r['섬김이'])}
+            ${_c3('마팔수강번호', r['마팔수강번호'])}
+            ${_c3('복음방수업방식', r['복음방수업방식'])}
+            ${_c3('첫수업진행일', r['첫수업진행일'] ? fmtValForEdit('첫수업진행일', r['첫수업진행일']) : '')}
+            ${_c3('첫수업과목', r['첫수업과목'])}
+          </div>`;
+        if (stage === '지역장') {
+          stageContent += `
+            <div class="sl">지역장 승인 정보</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+              ${_c3('복음방총횟수', r['복음방총횟수'])}
+              ${_c3('복음방체크리스트', r['복음방체크리스트'])}
+              ${_c3('개강진면접여부', r['개강진면접여부'])}
+              ${_c3('신천지오픈여부', r['신천지오픈여부'])}
+              ${_c3('센터수강여부', r['센터수강여부'])}
+              ${_c3('재입교자여부', r['재입교자여부'])}
+            </div>`;
+        }
+      }
+
+      stageContent += `
+        <div class="sl">다음 만남</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+          ${_c3('다음만남일', r['다음만남일'] ? fmtValForEdit('다음만남일', r['다음만남일']) : '')}
+          ${_c3('다음만남시간', fmtTime(r['다음만남시간']))}
+          ${_c3('다음만남목적', r['다음만남목적'])}
+        </div>`;
+
+      if (!stageContent) {
+        stageContent = '<div style="color:var(--text3);padding:20px;text-align:center;">찾기 단계에서는 기본 정보 탭에서 수정하세요</div>';
+      }
+      el.innerHTML = stageContent;
+      return;
+    }
+
+    // basic 탭 일반 보기 모드
     const personMeets = (STATE.meets || []).filter(m =>
       m['섭외자'] === r['섭외자'] && m['인도자'] === r['인도자']
     ).sort((a, b) => (b._date?.getTime()||0) - (a._date?.getTime()||0));
@@ -162,6 +240,12 @@ function renderDetailTab() {
       const diff = m._date ? Math.round((m._date - new Date().setHours(0,0,0,0)) / 86400000) : null;
       return diff !== null && diff >= 0;
     });
+
+    const _card = (label, val) => `
+      <div class="stat-card base">
+        <div class="stat-label">${label}</div>
+        <div style="font-size:13px;font-weight:600;">${val||'—'}</div>
+      </div>`;
 
     el.innerHTML = `
       <div class="sl">만남 현황</div>
@@ -174,15 +258,8 @@ function renderDetailTab() {
         <div class="stat-card base"><div class="stat-label">다음 만남 목적</div><div style="font-size:13px;font-weight:600;">${r['다음만남목적']||'—'}</div></div>
       </div>
 
-      <div class="sl">따기 기간</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
-        <div class="stat-card base"><div class="stat-label">주 횟수</div><div style="font-size:15px;font-weight:700;">${r['따기주간횟수']||'—'}</div></div>
-        <div class="stat-card base"><div class="stat-label">기간</div><div style="font-size:15px;font-weight:700;">${r['따기기간']||'—'}</div></div>
-        <div class="stat-card base"><div class="stat-label">고정 요일</div><div style="font-size:15px;font-weight:700;">${r['고정요일']||'—'}</div></div>
-      </div>
-
       <div class="sl">기본 정보</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
         ${[
           ['출생연도', r['출생연도']],
           ['성별', r['성별']],
@@ -193,12 +270,7 @@ function renderDetailTab() {
           ['섭외유형', r['섭외유형']],
           ['2차연결유형', r['2차연결유형']],
           ['목표센터', r['목표센터']],
-        ].map(([label, val]) => `
-          <div class="stat-card base">
-            <div class="stat-label">${label}</div>
-            <div style="font-size:13px;font-weight:600;">${val||'—'}</div>
-          </div>
-        `).join('')}
+        ].map(([label, val]) => _card(label, val)).join('')}
       </div>
     `;
 
@@ -261,6 +333,19 @@ function fmtMD(date) {
 // ─── 인라인 수정 모드 ───
 let _isEditMode = false;
 
+const _BASIC_EDIT_FIELDS = [
+  '전화번호','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','목표개강(연도/월)','목표센터',
+];
+const _STAGE_EDIT_FIELDS = {
+  '찾기':   ['실적지역','인도자부서/지역/팀/구역','인도자','다음만남일','다음만남시간','다음만남목적'],
+  '합자':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','변화의지','따기포인트','반응','다음만남일','다음만남시간','다음만남목적'],
+  '육따기': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','따기주간횟수','따기기간','고정요일','다음만남일','다음만남시간','다음만남목적'],
+  '따기':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','따기유형','따기단계','첫수업예정일','다음만남일','다음만남시간','다음만남목적'],
+  '영따기': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','따기유형','따기단계','첫수업예정일','다음만남일','다음만남시간','다음만남목적'],
+  '복음방': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섬김이부서/지역/팀/구역','섬김이','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목','다음만남일','다음만남시간','다음만남목적'],
+  '지역장': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섬김이부서/지역/팀/구역','섬김이','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부','다음만남일','다음만남시간','다음만남목적'],
+};
+
 function toggleEditMode() {
   _isEditMode = !_isEditMode;
   const btn = document.getElementById('detail-edit-toggle');
@@ -270,15 +355,11 @@ function toggleEditMode() {
 
 async function submitInlineEdit() {
   if (!_detailRow) return;
-  const stage = _detailRow['단계'] || '찾기';
-  const fieldMap = {
-    '찾기':   ['실적지역','인도자부서/지역/팀/구역','인도자','목표개강(연도/월)','목표센터','섭외자','전화번호','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적'],
-    '합자':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','변화의지','따기포인트','반응','다음만남일','다음만남시간','다음만남목적'],
-    '육따기': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기주간횟수','따기기간','고정요일','다음만남일','다음만남시간','다음만남목적'],
-    '따기':   ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','따기유형','따기단계','첫수업예정일','다음만남일','다음만남시간','다음만남목적'],
-    '복음방': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섬김이부서/지역/팀/구역','섬김이','섭외자','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목'],
-  };
-  const fields = fieldMap[stage] || fieldMap['찾기'];
+  const isStage = _detailTab === 'stage';
+  const stage   = _detailRow['단계'] || '찾기';
+  const fields  = isStage
+    ? (_STAGE_EDIT_FIELDS[stage] || _STAGE_EDIT_FIELDS['찾기'])
+    : _BASIC_EDIT_FIELDS;
 
   const payload = { ..._detailRow };
   const changed = [];
@@ -293,25 +374,33 @@ async function submitInlineEdit() {
   if (!changed.length) { showToast('변경된 내용이 없어요'); return; }
 
   const btn = document.getElementById('inline-edit-submit');
-  if (btn) { btn.textContent = '전송 중...'; btn.disabled = true; }
+  if (btn) { btn.textContent = '저장 중...'; btn.disabled = true; }
 
   try {
     if (USE_SAMPLE) {
       Object.assign(_detailRow, payload);
-      showToast('📤 수정 보고 전송 완료! 잠시 후 동기화 버튼을 눌러주세요');
+      showToast(isStage ? '📤 수정 보고 전송 완료!' : '💾 저장 완료!');
       _isEditMode = false;
       renderRegDetail();
       return;
     }
-    const res = await gasPost({ action: 'requestEdit', ...payload, 단계: stage });
-    if (!res.success) throw new Error(res.error);
+
+    if (isStage) {
+      const res = await gasPost({ action: 'requestEdit', ...payload, 단계: stage });
+      if (!res.success) throw new Error(res.error);
+      showToast('📤 수정 보고 전송 완료!');
+    } else {
+      const res = await gasPost({ action: 'saveOrUpdateDbFinding', ...payload });
+      if (!res.success) throw new Error(res.error);
+      if (res.dbFindings) STATE.dbFindings = res.dbFindings;
+      showToast('💾 기본 정보 저장 완료!');
+    }
     Object.assign(_detailRow, payload);
-    showToast('📤 수정 보고 전송 완료! 잠시 후 동기화 버튼을 눌러주세요');
     _isEditMode = false;
     renderRegDetail();
   } catch(e) {
     showToast('⚠️ 실패: ' + e.message, 'error');
-    if (btn) { btn.textContent = '📤 수정 완료 및 보고'; btn.disabled = false; }
+    if (btn) { btn.textContent = isStage ? '📤 수정 보고 (텔레그램 전송)' : '💾 저장 (조용히)'; btn.disabled = false; }
   }
 }
 
