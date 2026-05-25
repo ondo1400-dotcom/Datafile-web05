@@ -252,6 +252,17 @@
 
           <div class="sl">개강 준비 체크 현황</div>
           <div id="dash-check-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+
+          <!-- LD: 단계별 보유현황 (만남캘린더) -->
+          <div style="display:flex;align-items:center;gap:10px;margin-top:24px;">
+            <div class="sl" style="margin:0;flex:1;">단계별 보유현황 (만남캘린더)</div>
+            <div id="ld-adm-filter-wrap" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+          </div>
+          <div id="ld-adm-stage-wrap" style="margin-top:8px;"><div class="loading-box">만남캘린더 데이터 로딩 중...</div></div>
+
+          <!-- LD: 만남 현황 -->
+          <div class="sl" style="margin-top:20px;">만남 현황 (단계별 · 오늘/내일/모레/이후)</div>
+          <div id="ld-adm-meet-wrap"><div class="loading-box">만남캘린더 데이터 로딩 중...</div></div>
         </div>
       </div>
 
