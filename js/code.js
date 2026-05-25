@@ -12,6 +12,16 @@ const SHEET_DB      = 'DB_찾기';
 const TG_CHAT_ID    = '-1003943121521';
 const REVIEW_CHAT_ID = '-1003943121521';
 
+// Date 셀 → KST 문자열 변환 (날짜/시간 모두 처리)
+function _cellVal(val) {
+  if (!(val instanceof Date) || isNaN(val)) return val;
+  if (val.getFullYear() <= 1899) {
+    // 시간 전용 셀 (1899-12-30 기준)
+    return Utilities.formatDate(val, 'Asia/Seoul', 'HH:mm');
+  }
+  return Utilities.formatDate(val, 'Asia/Seoul', 'yyyy/MM/dd');
+}
+
 function makeKey(row) {
   return [row['실적지역']||'', row['인도자']||'', row['섭외자']||'', row['목표개강(연도/월)']||'', row['목표센터']||''].join('|');
 }
@@ -121,7 +131,7 @@ function readSheetAsObjects(ss, sheetName) {
     const row = data[i];
     if (!row[0] && !row[2]) continue;
     const obj = {};
-    headers.forEach((h, j) => { if (h) obj[h] = row[j] !== undefined ? row[j] : ''; });
+    headers.forEach((h, j) => { if (h) obj[h] = _cellVal(row[j] !== undefined ? row[j] : ''); });
     obj['__rowIndex'] = i + 1;
     rows.push(obj);
   }
@@ -139,7 +149,7 @@ function readCheckSheet(ss) {
     const row = data[i];
     if (!row[0]) continue;
     const obj = {};
-    headers.forEach((h, j) => { if (h) obj[h] = row[j]; });
+    headers.forEach((h, j) => { if (h) obj[h] = _cellVal(row[j]); });
     rows.push(obj);
   }
   return rows;
@@ -320,7 +330,7 @@ function readMeets(ss) {
     const row = data[i];
     if (!row[0] && !row[1]) continue;
     const obj = {};
-    headers.forEach((h, j) => { if (h) obj[h] = row[j] !== undefined ? row[j] : ''; });
+    headers.forEach((h, j) => { if (h) obj[h] = _cellVal(row[j] !== undefined ? row[j] : ''); });
     obj['__rowIndex'] = i + 1;
     rows.push(obj);
   }
@@ -520,7 +530,7 @@ function readDbFinding(ss) {
     const row = data[i];
     if (!row[0] && !row[2]) continue;
     const obj = {};
-    headers.forEach((h, j) => { if (h) obj[h] = row[j] !== undefined ? row[j] : ''; });
+    headers.forEach((h, j) => { if (h) obj[h] = _cellVal(row[j] !== undefined ? row[j] : ''); });
     obj['__rowIndex'] = i + 1;
     rows.push(obj);
   }
