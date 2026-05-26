@@ -43,7 +43,7 @@ function renderAdmDash() {
   document.getElementById('dash-check-summary').innerHTML =
     _buildCheckSummaryHtml(STATE.checks, activePeopleN, 'adm-c');
 
-  _asyncFillLd('ld-adm-stage-wrap', 'ld-adm-meet-wrap', 'ld-adm-filter-wrap', null, null);
+  _asyncFillLd('ld-adm-stage-wrap', 'ld-adm-meet-wrap', 'ld-adm-filter-wrap', null, null, true);
 }
 
 // ─── 지역 종합 현황 ───
@@ -107,7 +107,7 @@ function renderRegDash() {
     ${checkSummaryHtml}
   `;
 
-  _asyncFillLd('ld-reg-stage-wrap', 'ld-reg-meet-wrap', 'ld-reg-filter-wrap', null, myRegions.length ? myRegions : null);
+  _asyncFillLd('ld-reg-stage-wrap', 'ld-reg-meet-wrap', 'ld-reg-filter-wrap', null, myRegions.length ? myRegions : null, false);
 }
 
 // ══════════════════════════════════════════════════════
@@ -118,6 +118,7 @@ const _LD_PUR_ORDER = ['상담', '육따기', '육따기 굳히기', '영따기'
 const _LD_DOW       = ['일', '월', '화', '수', '목', '금', '토'];
 
 let _ldKaigang = '전체';
+let _ldCenter  = '전체';
 
 // 활성 인원 (청년누적 + 찾기) — 전지역
 function _ldAllPeople() {
@@ -130,9 +131,24 @@ function _ldAllPeople() {
 
 function _ldFiltered() {
   return _ldAllPeople().filter(r => {
-    if (_ldKaigang === '전체') return true;
-    return r['목표개강(연도/월)'] === _ldKaigang || r['이전개강'] === _ldKaigang;
+    if (_ldKaigang !== '전체' && r['목표개강(연도/월)'] !== _ldKaigang && r['이전개강'] !== _ldKaigang) return false;
+    if (_ldCenter !== '전체' && r['목표센터'] !== _ldCenter) return false;
+    return true;
   });
+}
+
+function _ldGetGoal(region, stage) {
+  return Object.entries(STATE.goals)
+    .filter(([k]) => {
+      if (!k.endsWith('|' + stage + '|' + region)) return false;
+      if (_ldKaigang !== '전체' && !k.startsWith(_ldKaigang + '|')) return false;
+      if (_ldCenter !== '전체') {
+        const parts = k.split('|');
+        if (parts[1] !== _ldCenter) return false;
+      }
+      return true;
+    })
+    .reduce((acc, [, v]) => acc + v, 0);
 }
 
 function _ldRegions(people) {
@@ -180,15 +196,7 @@ function _buildLdStageHtml(myRegions) {
     totRow.total++;
   });
 
-  function getGoal(region, stage) {
-    return Object.entries(STATE.goals)
-      .filter(([k]) => {
-        if (!k.endsWith('|' + stage + '|' + region)) return false;
-        if (_ldKaigang === '전체') return true;
-        return k.startsWith(_ldKaigang + '|');
-      })
-      .reduce((acc, [, v]) => acc + v, 0);
-  }
+  function getGoal(region, stage) { return _ldGetGoal(region, stage); }
 
   function cumulCount(region, fromStage) {
     const fi = STAGE_ORDER.indexOf(fromStage);
@@ -461,38 +469,171 @@ function _buildLdMeetHtml(myRegions) {
   return sections || '<div style="color:var(--text3);font-size:12px;padding:10px;">만남 데이터가 없습니다</div>';
 }
 
-// ─── 개강 필터 UI ───
-function _buildLdFilterHtml(filterId, stageId, meetId, myRegions) {
+// ─── 개강 + 센터 필터 UI ───
+function _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin) {
   const wrap = document.getElementById(filterId);
   if (!wrap) return;
+
   const kaigangs = ['전체', ...[...new Set(
     STATE.nujeok.map(r => r['목표개강(연도/월)']).filter(Boolean)
   )].sort()];
 
-  wrap.innerHTML = `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-    <span style="font-size:10px;color:var(--text3);font-weight:700;">개강</span>
-    ${kaigangs.map(k =>
-      `<button onclick="_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}',${JSON.stringify(myRegions || null)})"
-        style="padding:3px 10px;border-radius:12px;border:1px solid var(--border);font-size:11px;cursor:pointer;font-family:inherit;
-               background:${_ldKaigang===k?'var(--adm2)':'var(--surface2)'};color:${_ldKaigang===k?'#fff':'var(--text2)'};">${k}</button>`
-    ).join('')}
-  </div>`;
+  const relevantNujeok = _ldKaigang === '전체'
+    ? STATE.nujeok
+    : STATE.nujeok.filter(r => r['목표개강(연도/월)'] === _ldKaigang);
+  const centerSet = [...new Set(relevantNujeok.map(r => r['목표센터']).filter(Boolean))].sort();
+  const centers = centerSet.length > 1 ? ['전체', ...centerSet] : [];
+
+  const btn = (label, active, onclick) =>
+    `<button onclick="${onclick}" style="padding:3px 10px;border-radius:12px;border:1px solid var(--border);font-size:11px;cursor:pointer;font-family:inherit;background:${active?'var(--adm2)':'var(--surface2)'};color:${active?'#fff':'var(--text2)'};">${label}</button>`;
+
+  const mrJson = JSON.stringify(myRegions || null);
+  const kaigangBtns = kaigangs.map(k =>
+    btn(k, _ldKaigang === k, `_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}',${mrJson},${!!isAdmin})`)
+  ).join('');
+
+  const centerRow = centers.length ? `
+    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px;">
+      <span style="font-size:10px;color:var(--text3);font-weight:700;">센터</span>
+      ${centers.map(c => btn(c, _ldCenter === c, `_ldSetCenter('${c}','${filterId}','${stageId}','${meetId}',${mrJson},${!!isAdmin})`)).join('')}
+    </div>` : '';
+
+  const tgBtns = isAdmin ? `
+    <button onclick="sendDashStageTg(event)" style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;margin-left:4px;">📊 단계현황</button>
+    <button onclick="sendDashMeetTg(event)"  style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;">📅 만남현황</button>` : '';
+
+  wrap.innerHTML = `
+    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:10px;color:var(--text3);font-weight:700;">개강</span>
+      ${kaigangBtns}${tgBtns}
+    </div>
+    ${centerRow}
+  `;
 }
 
-function _ldSetKaigang(val, filterId, stageId, meetId, myRegions) {
+function _ldSetKaigang(val, filterId, stageId, meetId, myRegions, isAdmin) {
   _ldKaigang = val;
+  _ldCenter  = '전체';
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, myRegions);
+  _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin);
 }
 
-// ─── 렌더링 진입점 (STATE 기반, 동기) ───
-function _asyncFillLd(stageId, meetId, filterId, _unused, myRegions) {
+function _ldSetCenter(val, filterId, stageId, meetId, myRegions, isAdmin) {
+  _ldCenter = val;
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, myRegions);
+  _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin);
+}
+
+// ─── 렌더링 진입점 ───
+function _asyncFillLd(stageId, meetId, filterId, _unused, myRegions, isAdmin) {
+  const sw = document.getElementById(stageId);
+  const mw = document.getElementById(meetId);
+  if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
+  if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
+  _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin);
+}
+
+// ─── 텔레그램 전송용 텍스트 빌더 ───
+function _buildStageTgText() {
+  const people   = _ldFiltered();
+  const regions  = _ldRegions(people);
+  const label    = (_ldKaigang !== '전체' ? _ldKaigang : '전체 개강') + (_ldCenter !== '전체' ? ' · ' + _ldCenter : '');
+  const RATE_ST  = ['합자', '육따기', '영따기'];
+  const countMap = {}, totRow = { total: 0 };
+  STAGE_ORDER.forEach(s => totRow[s] = 0);
+  regions.forEach(r => { countMap[r] = { total: 0 }; STAGE_ORDER.forEach(s => countMap[r][s] = 0); });
+  people.forEach(r => {
+    const reg = r['실적지역'], stg = r['단계'];
+    if (!reg || !countMap[reg] || !STAGE_ORDER.includes(stg)) return;
+    countMap[reg][stg]++; countMap[reg].total++; totRow[stg]++; totRow.total++;
+  });
+  function cumul(map, fromStage) {
+    const fi = STAGE_ORDER.indexOf(fromStage);
+    return STAGE_ORDER.slice(fi).reduce((s, st) => s + (map[st] || 0), 0);
+  }
+  function rate(cnt, g) { return g ? Math.round(cnt / g * 100) + '%' : '—'; }
+
+  const lines = [`[단계별 보유현황] ${label}`, ''];
+  lines.push('지역 | ' + STAGE_ORDER.join(' | ') + ' | 합계 | 합자% | 육따기% | 영따기%');
+  lines.push('─'.repeat(55));
+  regions.forEach(reg => {
+    const c = countMap[reg];
+    const stages = STAGE_ORDER.map(s => c[s] || 0).join(' | ');
+    const rates  = RATE_ST.map(s => rate(cumul(c, s), _ldGetGoal(reg, s))).join(' | ');
+    lines.push(`${reg} | ${stages} | ${c.total} | ${rates}`);
+  });
+  lines.push('─'.repeat(55));
+  const totStages = STAGE_ORDER.map(s => totRow[s] || 0).join(' | ');
+  const totRates  = RATE_ST.map(s => {
+    const g = regions.reduce((sum, r) => sum + _ldGetGoal(r, s), 0);
+    return rate(cumul(totRow, s), g);
+  }).join(' | ');
+  lines.push(`합계 | ${totStages} | ${totRow.total} | ${totRates}`);
+  return lines.join('\n');
+}
+
+function _buildMeetTgText() {
+  const tod  = new Date(); tod.setHours(0, 0, 0, 0);
+  const DOW  = ['일','월','화','수','목','금','토'];
+  function addD(n) { const d = new Date(tod); d.setDate(d.getDate() + n); return d; }
+  function fmd(d) { return `${d.getMonth()+1}/${d.getDate()}(${DOW[d.getDay()]})`; }
+  const label   = (_ldKaigang !== '전체' ? _ldKaigang : '전체 개강') + (_ldCenter !== '전체' ? ' · ' + _ldCenter : '');
+  const people  = _ldFiltered();
+  const meetMap = _ldMeetMap();
+  function getMeet(r) { return meetMap[(r['섭외자']||'') + '|' + (r['인도자']||'')] || null; }
+  function grpKey(date) {
+    if (!date) return 'none';
+    const d = new Date(date); d.setHours(0,0,0,0);
+    const diff = Math.round((d - tod) / 86400000);
+    if (diff < 0) return 'none';
+    if (diff === 0) return 'today';
+    if (diff === 1) return 'd1';
+    if (diff === 2) return 'd2';
+    return 'after';
+  }
+  const lines = [`[만남 현황] ${label}`, ''];
+  STAGE_ORDER.forEach(stage => {
+    const sp = people.filter(r => r['단계'] === stage);
+    if (!sp.length) return;
+    const buckets = { today: [], d1: [], d2: [], after: [], none: [] };
+    sp.forEach(r => { const gk = grpKey(getMeet(r)?._date); buckets[gk]?.push(r); });
+    lines.push(`◆ ${stage} (${sp.length}명)`);
+    [['today','오늘', addD(0)],['d1','내일', addD(1)],['d2','모레', addD(2)],['after','그이후', null],['none','만남미정', null]].forEach(([key, lbl, d]) => {
+      const list = buckets[key];
+      const dateStr = d ? `(${fmd(d)})` : '';
+      if (!list.length) { lines.push(`• ${lbl}${dateStr}: —`); return; }
+      const names = list.map(r => {
+        let n = r['섭외자'] || '?';
+        if (key === 'after') { const m = getMeet(r); if (m?._date) n += `(${fmd(m._date)})`; }
+        return n;
+      }).join(', ');
+      lines.push(`• ${lbl}${dateStr}: ${names}`);
+    });
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
+async function sendDashStageTg(e) {
+  const btn = e.target; btn.textContent = '전송 중...'; btn.disabled = true;
+  try {
+    const res = await gasPost({ action: 'sendDashTelegram', text: _buildStageTgText() });
+    showToast(res.success ? '📊 단계현황 전송 완료!' : '⚠️ 실패: ' + res.error, res.success ? '' : 'error');
+  } catch(err) { showToast('⚠️ 실패: ' + err.message, 'error'); }
+  btn.textContent = '📊 단계현황'; btn.disabled = false;
+}
+
+async function sendDashMeetTg(e) {
+  const btn = e.target; btn.textContent = '전송 중...'; btn.disabled = true;
+  try {
+    const res = await gasPost({ action: 'sendDashTelegram', text: _buildMeetTgText() });
+    showToast(res.success ? '📅 만남현황 전송 완료!' : '⚠️ 실패: ' + res.error, res.success ? '' : 'error');
+  } catch(err) { showToast('⚠️ 실패: ' + err.message, 'error'); }
+  btn.textContent = '📅 만남현황'; btn.disabled = false;
 }

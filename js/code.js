@@ -64,6 +64,7 @@ function doGet(e) {
       if (action === 'requestTallag')         return setCORS(ContentService.createTextOutput(JSON.stringify(requestTallag(payload))));
       if (action === 'requestIwol')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestIwol(payload))));
       if (action === 'requestEdit')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestEdit(payload))));
+      if (action === 'sendDashTelegram')      return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashTelegram(payload))));
       return setCORS(ContentService.createTextOutput(JSON.stringify({ error: '알 수 없는 action' })));
     }
     const action = e.parameter.action || 'getData';
@@ -102,6 +103,7 @@ function doPost(e) {
     if (action === 'requestTallag')         return setCORS(ContentService.createTextOutput(JSON.stringify(requestTallag(payload))));
     if (action === 'requestIwol')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestIwol(payload))));
     if (action === 'requestEdit')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestEdit(payload))));
+    if (action === 'sendDashTelegram')      return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashTelegram(payload))));
     return setCORS(ContentService.createTextOutput(JSON.stringify({ error: '알 수 없는 action' })));
   } catch (err) {
     return setCORS(ContentService.createTextOutput(JSON.stringify({ error: err.message })));
@@ -1050,6 +1052,22 @@ function checkReviewReset() {
 
     props.deleteProperty(key);
   });
+}
+
+// ─── 대시보드 텔레그램 전송 ───
+function sendDashTelegram(payload) {
+  const token = getBotToken();
+  try {
+    const res  = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+      method: 'post', contentType: 'application/json',
+      payload: JSON.stringify({ chat_id: REVIEW_CHAT_ID, text: payload.text }),
+      muteHttpExceptions: true,
+    });
+    const data = JSON.parse(res.getContentText());
+    return { success: data.ok, error: data.ok ? null : data.description };
+  } catch(e) {
+    return { success: false, error: e.message };
+  }
 }
 
 // 트리거 설정 (최초 1회 실행)
