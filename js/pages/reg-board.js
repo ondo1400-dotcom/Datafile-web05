@@ -4,19 +4,15 @@
 
 const VALID_STAGES = ['찾기', '합자', '육따기', '영따기', '따기', '복음방', '센확', '수신'];
 
-// 필터 상태
-let _regBoardStages   = new Set(); // 빈 Set = 전체
+// 필터/정렬 상태
 let _regBoardShowTallag = false;
-let _regBoardSortDir  = 'asc'; // asc | desc
+let _colFilters   = {};  // { colKey: Set } — 빈 Set = 전체 허용
+let _colSortState = { col: 'stage', dir: 'asc' };
+let _openColDrop  = null;
+let _cfTempSet    = null;
 
-function renderRegBoard() {
-  const kaigangF = document.getElementById('reg-kaigang-sel')?.value || '';
-  const centerF  = document.getElementById('reg-center-sel')?.value  || '';
-  const sortVal  = document.getElementById('reg-sort-sel')?.value    || 'stage-asc';
-
-  _fillRegBoardSelects();
-
-  // 만남 데이터 인덱싱
+// ─── 데이터 빌드 헬퍼 ───
+function _buildMeetMap() {
   const meetMap = {};
   (STATE.meets || []).forEach(m => {
     const key = (m['섭외자'] || '') + '|' + (m['인도자'] || '');
@@ -24,16 +20,17 @@ function renderRegBoard() {
       meetMap[key] = m;
     }
   });
+  return meetMap;
+}
 
-  // DB_찾기에서 찾기 단계 데이터 추가
+function _buildBaseData() {
+  const kaigangF = document.getElementById('reg-kaigang-sel')?.value || '';
+  const centerF  = document.getElementById('reg-center-sel')?.value  || '';
   const findingRows = (STATE.dbFindings || [])
     .filter(r => r['구분'] === '찾기')
     .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));
-
-  // 전체 데이터 (누적 + 탈락 + 찾기)
   const allNujeok = [...STATE.nujeok, ...STATE.tallag.map(r => ({ ...r, _isTallag: true }))];
-
-  let data = [...allNujeok.filter(r => VALID_STAGES.includes(r['단계'])), ...findingRows]
+  return [...allNujeok.filter(r => VALID_STAGES.includes(r['단계'])), ...findingRows]
     .filter(r => {
       const allowed = getAllowedRegions();
       if (allowed !== null && !allowed.includes(r['실적지역'])) return false;
@@ -41,13 +38,67 @@ function renderRegBoard() {
     })
     .filter(r => !kaigangF || r['목표개강(연도/월)'] === kaigangF || r['이전개강'] === kaigangF)
     .filter(r => !centerF  || r['목표센터'] === centerF)
-    .filter(r => {
-      if (_regBoardStages.has('__none__')) return false; // 전체 해제
-      return _regBoardStages.size === 0 || _regBoardStages.has(r['단계']);
-    })
     .filter(r => _regBoardShowTallag ? true : !isTallag(r) && !r['_isTallag']);
+}
 
-  data = _sortRegBoard(data, meetMap, sortVal);
+function _getRowColVal(col, row, meetMap) {
+  if (col === 'stage')   return row['단계'] || '';
+  if (col === 'seobja')  return row['섭외자'] || '';
+  if (col === 'indoja')  return row['인도자'] || '';
+  if (col === 'gyosa')   return row['교사'] || '';
+  if (col === 'meet') {
+    const mk = (row['섭외자']||'') + '|' + (row['인도자']||'');
+    const m  = meetMap[mk];
+    return m?._date ? fmtMD(m._date) : (m?.['다음만남일'] || '—');
+  }
+  if (col === 'purpose') {
+    const mk = (row['섭외자']||'') + '|' + (row['인도자']||'');
+    return meetMap[mk]?.['다음만남목적'] || '—';
+  }
+  return '';
+}
+
+function _applyColFilters(data, meetMap, excludeCol) {
+  return data.filter(r => {
+    for (const [col, filterSet] of Object.entries(_colFilters)) {
+      if (col === excludeCol) continue;
+      if (!filterSet || filterSet.size === 0) continue;
+      if (filterSet.has('__none__')) return false;
+      const val = _getRowColVal(col, r, meetMap);
+      if (!filterSet.has(val)) return false;
+    }
+    return true;
+  });
+}
+
+function hasColFilter(col) {
+  const s = _colFilters[col];
+  return !!(s && s.size > 0);
+}
+
+function _updateColIcons() {
+  ['stage','seobja','indoja','gyosa','meet','purpose'].forEach(col => {
+    const el = document.getElementById('cfi-' + col);
+    if (!el) return;
+    const isSort     = _colSortState.col === col;
+    const isFiltered = hasColFilter(col);
+    if (isSort) {
+      el.textContent = _colSortState.dir === 'asc' ? ' ▲' : ' ▼';
+      el.className   = 'col-sort-icon active';
+    } else {
+      el.textContent = isFiltered ? ' ▼' : ' ⬍';
+      el.className   = isFiltered ? 'col-sort-icon filtered' : 'col-sort-icon';
+    }
+  });
+}
+
+function renderRegBoard() {
+  _fillRegBoardSelects();
+
+  const meetMap = _buildMeetMap();
+  let   data    = _buildBaseData();
+  data          = _applyColFilters(data, meetMap, null);
+  data          = _sortRegBoard(data, meetMap);
 
   const countEl = document.getElementById('reg-board-count');
   if (countEl) countEl.textContent = `${data.length}명`;
@@ -55,6 +106,7 @@ function renderRegBoard() {
   const tbody = document.getElementById('reg-board-body');
   if (!data.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3);">데이터가 없습니다</td></tr>';
+    _updateColIcons();
     return;
   }
 
@@ -79,7 +131,7 @@ function renderRegBoard() {
       : `<button class="btn" style="font-size:10px;padding:3px 7px;"
            onclick="event.stopPropagation();openRequestReviewModal(${ri})">심의요청</button>`;
 
-    const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri})` : `openPersonDetail(${ri})`;
+    const clickFn = r._isDbFinding ? `openDbDetail(${ri})` : `openPersonDetail(${ri})`;
     return `<tr style="${style}cursor:pointer;" class="cr" onclick="${clickFn}">
       <td>
         ${stageBadge(r['단계'])}
@@ -94,20 +146,30 @@ function renderRegBoard() {
       <td onclick="event.stopPropagation()">${reviewStatus}</td>
     </tr>`;
   }).join('');
+
+  _updateColIcons();
 }
 
-function _sortRegBoard(data, meetMap, sortVal) {
-  const stageIndex = s => STAGE_ORDER.indexOf(s);
+function _sortRegBoard(data, meetMap) {
+  const { col, dir } = _colSortState;
+  const mul      = dir === 'asc' ? 1 : -1;
+  const stageIdx = s => STAGE_ORDER.indexOf(s);
   return [...data].sort((a, b) => {
-    if (sortVal === 'stage-asc')  return stageIndex(a['단계']) - stageIndex(b['단계']);
-    if (sortVal === 'stage-desc') return stageIndex(b['단계']) - stageIndex(a['단계']);
-    const keyA = (a['섭외자']||'') + '|' + (a['인도자']||'');
-    const keyB = (b['섭외자']||'') + '|' + (b['인도자']||'');
-    const dA   = meetMap[keyA]?._date?.getTime() || 0;
-    const dB   = meetMap[keyB]?._date?.getTime() || 0;
-    if (sortVal === 'meet-asc')  return dA - dB;
-    if (sortVal === 'meet-desc') return dB - dA;
-    return 0;
+    if (col === 'stage')  return mul * (stageIdx(a['단계']) - stageIdx(b['단계']));
+    if (col === 'seobja') return mul * (a['섭외자']||'').localeCompare(b['섭외자']||'');
+    if (col === 'indoja') return mul * (a['인도자']||'').localeCompare(b['인도자']||'');
+    if (col === 'gyosa')  return mul * (a['교사']||'').localeCompare(b['교사']||'');
+    if (col === 'meet') {
+      const kA = (a['섭외자']||'')+'|'+(a['인도자']||'');
+      const kB = (b['섭외자']||'')+'|'+(b['인도자']||'');
+      return mul * ((meetMap[kA]?._date?.getTime()||0) - (meetMap[kB]?._date?.getTime()||0));
+    }
+    if (col === 'purpose') {
+      const kA = (a['섭외자']||'')+'|'+(a['인도자']||'');
+      const kB = (b['섭외자']||'')+'|'+(b['인도자']||'');
+      return mul * (meetMap[kA]?.['다음만남목적']||'').localeCompare(meetMap[kB]?.['다음만남목적']||'');
+    }
+    return stageIdx(a['단계']) - stageIdx(b['단계']);
   });
 }
 
@@ -138,80 +200,133 @@ function toggleTallag() {
   renderRegBoard();
 }
 
-// ─── 단계 필터 드롭다운 (구글시트 스타일) ───
-let _stageDropOpen = false;
+// ─── 컬럼 헤더 필터 드롭다운 (엑셀 스타일) ───
+function openColFilter(event, col) {
+  event.stopPropagation();
+  if (_openColDrop === col) { closeColFilter(); return; }
+  _openColDrop = col;
 
-function toggleStageFilter() {
-  _stageDropOpen = !_stageDropOpen;
-  const drop = document.getElementById('stage-filter-drop');
-  if (drop) drop.style.display = _stageDropOpen ? 'block' : 'none';
+  const meetMap  = _buildMeetMap();
+  const baseData = _buildBaseData();
+  const filtered = _applyColFilters(baseData, meetMap, col);
+
+  const valSet = new Set();
+  filtered.forEach(r => {
+    const v = _getRowColVal(col, r, meetMap);
+    if (v && v !== '—') valSet.add(v);
+  });
+
+  let values = [...valSet];
+  if (col === 'stage') {
+    values = VALID_STAGES.filter(s => valSet.has(s));
+  } else {
+    values.sort((a, b) => a.localeCompare(b));
+  }
+
+  const curFilter  = _colFilters[col] || new Set();
+  _cfTempSet       = new Set(curFilter);
+  const allChecked = _cfTempSet.size === 0;
+  const sortUp     = _colSortState.col === col && _colSortState.dir === 'asc';
+  const sortDown   = _colSortState.col === col && _colSortState.dir === 'desc';
+
+  const drop = document.getElementById('col-filter-drop');
+  if (!drop) return;
+
+  drop.innerHTML = `<div class="col-filter-panel">
+    <div class="cf-sort-row">
+      <button class="btn${sortUp?' reg-pri':''}" onclick="setColSort('${col}','asc')">▲ 오름차순</button>
+      <button class="btn${sortDown?' reg-pri':''}" onclick="setColSort('${col}','desc')">▼ 내림차순</button>
+    </div>
+    ${values.length > 10 ? `<input type="text" class="cf-search" placeholder="검색..." oninput="filterCfSearch(this.value)">` : ''}
+    <div id="cf-value-list" class="cf-list">
+      <label class="cf-item cf-all-item">
+        <input type="checkbox" id="cf-all-cb" ${allChecked?'checked':''} onchange="toggleCfAll(this)">
+        <strong>전체</strong>
+      </label>
+      ${values.map(v => {
+        const checked = allChecked || _cfTempSet.has(v);
+        const esc = v.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        if (col === 'stage') {
+          const sc = STAGE_COLORS[v] || {bg:'#f0f0f0',c:'#555'};
+          return `<label class="cf-item">
+            <input type="checkbox" class="cf-val-cb" value="${esc}" ${checked?'checked':''} onchange="toggleCfVal(this)">
+            <span class="stage-tag" style="background:${sc.bg};color:${sc.c}">${v}</span>
+          </label>`;
+        }
+        return `<label class="cf-item">
+          <input type="checkbox" class="cf-val-cb" value="${esc}" ${checked?'checked':''} onchange="toggleCfVal(this)">
+          <span class="cf-val-text">${v}</span>
+        </label>`;
+      }).join('')}
+    </div>
+    <div class="cf-actions">
+      <button class="btn" onclick="resetCfCol('${col}')">초기화</button>
+      <button class="btn reg-pri" onclick="applyCfCol('${col}')">적용</button>
+    </div>
+  </div>`;
+
+  const rect = event.currentTarget.getBoundingClientRect();
+  drop.style.display = 'block';
+  drop.style.top  = (rect.bottom + 4) + 'px';
+  drop.style.left = Math.min(rect.left, window.innerWidth - 260) + 'px';
 }
 
-function closeStageFilter() {
-  _stageDropOpen = false;
-  const drop = document.getElementById('stage-filter-drop');
+function closeColFilter() {
+  _openColDrop = null;
+  _cfTempSet   = null;
+  const drop = document.getElementById('col-filter-drop');
   if (drop) drop.style.display = 'none';
 }
 
-function buildStageFilterUI() {
-  const container = document.getElementById('stage-filter-drop');
-  if (!container) return;
-
-  container.innerHTML = `
-    <div style="padding:8px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:160px;">
-      <div style="display:flex;gap:6px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
-        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('stage-asc')">▲ 단계 오름차순</button>
-        <button class="btn" style="flex:1;font-size:11px;padding:4px;" onclick="setSortDir('stage-desc')">▼ 단계 내림차순</button>
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">단계 선택 (복수 가능)</div>
-      <label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;cursor:pointer;">
-        <input type="checkbox" id="stage-all-cb" ${_regBoardStages.size===0?'checked':''} onchange="toggleAllStages(this)"> 전체
-      </label>
-      ${VALID_STAGES.map(s => {
-        const sc = STAGE_COLORS[s] || {bg:'#f0f0f0',c:'#555'};
-        return `<label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;cursor:pointer;">
-          <input type="checkbox" value="${s}" ${_regBoardStages.has(s)||_regBoardStages.size===0?'checked':''}
-            onchange="toggleStageItem('${s}',this)">
-          <span style="background:${sc.bg};color:${sc.c};padding:1px 6px;border-radius:8px;font-weight:700;">${s}</span>
-        </label>`;
-      }).join('')}
-      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
-        <button class="btn reg-pri" style="width:100%;font-size:12px;" onclick="closeStageFilter();renderRegBoard()">적용</button>
-      </div>
-    </div>
-  `;
+function filterCfSearch(val) {
+  const q = (val || '').toLowerCase();
+  document.querySelectorAll('#cf-value-list .cf-val-cb').forEach(cb => {
+    const label = cb.closest('label');
+    if (label) label.style.display = cb.value.toLowerCase().includes(q) ? '' : 'none';
+  });
 }
 
-function toggleAllStages(cb) {
+function toggleCfAll(cb) {
   if (cb.checked) {
-    // 전체 선택
-    _regBoardStages = new Set();
-    document.querySelectorAll('#stage-filter-drop input[type=checkbox][value]').forEach(c => c.checked = true);
+    _cfTempSet = new Set();
+    document.querySelectorAll('#cf-value-list .cf-val-cb').forEach(c => c.checked = true);
   } else {
-    // 전체 해제 → 아무것도 안 보임 (빈 Set이 아닌 더미값)
-    _regBoardStages = new Set(['__none__']);
-    document.querySelectorAll('#stage-filter-drop input[type=checkbox][value]').forEach(c => c.checked = false);
+    _cfTempSet = new Set(['__none__']);
+    document.querySelectorAll('#cf-value-list .cf-val-cb').forEach(c => c.checked = false);
   }
 }
 
-function toggleStageItem(stage, cb) {
-  // __none__ 제거
-  _regBoardStages.delete('__none__');
-  if (cb.checked) {
-    _regBoardStages.add(stage);
-  } else {
-    _regBoardStages.delete(stage);
-  }
-  // 전체 체크박스 상태
-  const allCb = document.getElementById('stage-all-cb');
-  if (allCb) allCb.checked = _regBoardStages.size === 0;
+function toggleCfVal(cb) {
+  if (_cfTempSet.has('__none__')) _cfTempSet = new Set();
+  if (cb.checked) _cfTempSet.add(cb.value); else _cfTempSet.delete(cb.value);
+  const allCbs     = document.querySelectorAll('#cf-value-list .cf-val-cb');
+  const allChecked = Array.from(allCbs).every(c => c.checked);
+  if (allChecked) _cfTempSet = new Set();
+  const allCb = document.getElementById('cf-all-cb');
+  if (allCb) allCb.checked = allChecked;
 }
 
-function setSortDir(dir) {
-  const sortSel = document.getElementById('reg-sort-sel');
-  if (sortSel) sortSel.value = dir; closeStageFilter();
+function resetCfCol(col) {
+  _colFilters[col] = new Set();
+  closeColFilter();
   renderRegBoard();
 }
+
+function applyCfCol(col) {
+  if (_cfTempSet !== null) _colFilters[col] = new Set(_cfTempSet);
+  closeColFilter();
+  renderRegBoard();
+}
+
+function setColSort(col, dir) {
+  _colSortState = { col, dir };
+  applyCfCol(col);
+}
+
+document.addEventListener('click', e => {
+  const drop = document.getElementById('col-filter-drop');
+  if (_openColDrop && drop && !drop.contains(e.target)) closeColFilter();
+});
 
 // ─── 심의요청 모달 ───
 let _reviewRow   = null;

@@ -525,24 +525,6 @@
             <span class="flt-label">센터</span>
             <select class="top-sel" id="reg-center-sel" onchange="renderRegBoard()"><option value="">전체</option></select>
           </div>
-          <div class="flt-group" style="position:relative;">
-            <span class="flt-label">단계</span>
-            <button class="btn" id="stage-filter-btn"
-              onclick="buildStageFilterUI();toggleStageFilter()"
-              style="font-size:12px;padding:5px 10px;min-width:80px;">
-              단계 선택 ▾
-            </button>
-            <div id="stage-filter-drop" style="display:none;position:absolute;top:100%;left:0;z-index:200;margin-top:4px;"></div>
-          </div>
-          <div class="flt-group">
-            <span class="flt-label">정렬</span>
-            <select class="top-sel" id="reg-sort-sel" onchange="renderRegBoard()">
-              <option value="stage-asc">단계 오름차순</option>
-              <option value="stage-desc">단계 내림차순</option>
-              <option value="meet-asc">만남일 오름차순</option>
-              <option value="meet-desc">만남일 내림차순</option>
-            </select>
-          </div>
           <button id="reg-tallag-toggle" class="btn" onclick="toggleTallag()"
             style="font-size:12px;padding:5px 10px;">탈락 보기</button>
           <span id="reg-board-count" style="font-size:11px;color:var(--text3);margin-left:auto;align-self:center;"></span>
@@ -552,8 +534,13 @@
             <table class="bt">
               <thead>
                 <tr>
-                  <th>단계</th><th>섭외자</th><th>인도자</th><th>교사</th>
-                  <th>다음만남일</th><th>만남목적</th><th>심의</th>
+                  <th class="th-filter" onclick="openColFilter(event,'stage')">단계<span id="cfi-stage" class="col-sort-icon"> ⬍</span></th>
+                  <th class="th-filter" onclick="openColFilter(event,'seobja')">섭외자<span id="cfi-seobja" class="col-sort-icon"> ⬍</span></th>
+                  <th class="th-filter" onclick="openColFilter(event,'indoja')">인도자<span id="cfi-indoja" class="col-sort-icon"> ⬍</span></th>
+                  <th class="th-filter" onclick="openColFilter(event,'gyosa')">교사<span id="cfi-gyosa" class="col-sort-icon"> ⬍</span></th>
+                  <th class="th-filter" onclick="openColFilter(event,'meet')">다음만남일<span id="cfi-meet" class="col-sort-icon"> ⬍</span></th>
+                  <th class="th-filter" onclick="openColFilter(event,'purpose')">만남목적<span id="cfi-purpose" class="col-sort-icon"> ⬍</span></th>
+                  <th>심의</th>
                 </tr>
               </thead>
               <tbody id="reg-board-body">
@@ -937,5 +924,6 @@
   // 5분마다 자동 갱신
   setInterval(() => { if (USER_AUTH) loadData(); }, AUTO_REFRESH_MS);
 </script>
+<div id="col-filter-drop" style="display:none;position:fixed;z-index:9999;"></div>
 </body>
 </html>
