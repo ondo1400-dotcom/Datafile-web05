@@ -62,7 +62,9 @@ function _fillAdmRegViewSel() {
   if (!sel) return;
   const regions = [...new Set([
     ...STATE.nujeok.map(r => r['실적지역']),
+    ...(STATE.tallag || []).map(r => r['실적지역']),
     ...(STATE.meets || []).map(r => r['실적지역']),
+    ...(STATE.dbFindings || []).map(r => r['실적지역']),
   ].filter(Boolean))].sort();
   const cur = ADM_VIEW_REGION;
   sel.innerHTML = '<option value="">전체</option>' +
