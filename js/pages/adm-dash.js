@@ -538,44 +538,60 @@ function _asyncFillLd(stageId, meetId, filterId, _unused, myRegions, isAdmin) {
   _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin);
 }
 
-// ─── 텔레그램 전송용 요약 텍스트 빌더 ───
+// ─── 텔레그램 전송용 표 텍스트 빌더 ───
 function _buildDashSummaryText() {
-  const now     = new Date();
-  const today   = new Date(now); today.setHours(0, 0, 0, 0);
   const people  = _ldFiltered();
-  const meetMap = _ldMeetMap();
-  function getMeet(r) { return meetMap[(r['섭외자']||'') + '|' + (r['인도자']||'')] || null; }
-  function grpKey(date) {
-    if (!date) return 'none';
-    const d = new Date(date); d.setHours(0, 0, 0, 0);
-    const diff = Math.round((d - today) / 86400000);
-    if (diff < 0) return 'none';
-    if (diff === 0) return 'today';
-    if (diff === 1) return 'd1';
-    if (diff === 2) return 'd2';
-    return 'after';
-  }
-  const dateStr  = now.toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' })
-                      .replace(/\. /g, '-').replace('.', '')
-    + ' ' + now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', hour12: false });
-  const kLabel  = _ldKaigang !== '전체' ? _ldKaigang : '';
-  const cLabel  = _ldCenter !== '전체' ? _ldCenter : '청년';
-  const ABBR    = { '육따기':'육따', '영따기':'영따', '지역장':'지역장', '복음방':'복음방', '찾기':'찾기', '합자':'합자', '센확':'센확', '수신':'수신' };
+  const regions = _ldRegions(people);
+  const now     = new Date();
+  const dateStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const kLabel  = _ldKaigang !== '전체' ? _ldKaigang : '전체';
+  const cLabel  = _ldCenter  !== '전체' ? _ldCenter  : '청년';
 
-  let text = `📊 보유데이터 현황 ${dateStr}\n\n`;
-  text += `📈 단계별 보유현황 (${kLabel}${kLabel?'/':''}${cLabel})\n`;
-  text += `📌 총 인원: ${people.length}명`;
-
-  STAGE_ORDER.forEach(stage => {
-    const sp = people.filter(r => r['단계'] === stage);
-    const buckets = { today: 0, d1: 0, d2: 0, after: 0, none: 0 };
-    sp.forEach(r => { const gk = grpKey(getMeet(r)?._date); if (gk in buckets) buckets[gk]++; });
-    const nm = ABBR[stage] || stage;
-    text += `\n\n■${nm} : ${sp.length}명\n`;
-    text += `오늘 ${buckets.today} | 내일 ${buckets.d1} | 모레 ${buckets.d2}\n`;
-    text += `이후 ${buckets.after} | 미정 ${buckets.none}`;
+  const countMap = {}, totRow = { total: 0 };
+  STAGE_ORDER.forEach(s => totRow[s] = 0);
+  regions.forEach(r => { countMap[r] = { total: 0 }; STAGE_ORDER.forEach(s => countMap[r][s] = 0); });
+  people.forEach(p => {
+    const reg = p['실적지역'], stg = p['단계'];
+    if (!reg || !countMap[reg] || !STAGE_ORDER.includes(stg)) return;
+    countMap[reg][stg]++; countMap[reg].total++;
+    totRow[stg]++;        totRow.total++;
   });
-  return text;
+
+  const RATE_STAGES = ['합자', '육따기', '영따기'];
+  const cumul    = (region, stage) => { const fi = STAGE_ORDER.indexOf(stage); return STAGE_ORDER.slice(fi).reduce((s, st) => s + (countMap[region]?.[st]||0), 0); };
+  const cumulTot = stage           => { const fi = STAGE_ORDER.indexOf(stage); return STAGE_ORDER.slice(fi).reduce((s, st) => s + (totRow[st]||0), 0); };
+  const goalSum  = s => regions.reduce((sum, r) => sum + _ldGetGoal(r, s), 0);
+  const pct      = (cnt, goal) => goal ? Math.round(cnt / goal * 100) + '%' : '—';
+  const totGoals = RATE_STAGES.map(goalSum);
+
+  const ABBR = ['찾', '합', '육', '영', '복', '센', '수'];
+  const SEP  = '────────────────────────────────────';
+
+  const hdr = `지역 | ${ABBR.join('│')} | 합 | 합%│육%│영%`;
+
+  const mkRow = (label, c, cumulFn) => {
+    const sv = STAGE_ORDER.map(s => c[s] || 0).join('│');
+    const rs = RATE_STAGES.map(s => pct(cumulFn(s), goalSum(s))).join('│');
+    return `${label} | ${sv} | ${c.total || 0} | ${rs}`;
+  };
+
+  const regionRows = regions.map(r => mkRow(r, countMap[r], s => cumul(r, s)));
+  const totLine    = (() => {
+    const sv = STAGE_ORDER.map(s => totRow[s] || 0).join('│');
+    return `합계 | ${sv} | ${totRow.total} | ${RATE_STAGES.map(s => pct(cumulTot(s), goalSum(s))).join('│')}`;
+  })();
+
+  return [
+    `📊 단계별 보유현황 (${kLabel} · ${cLabel})`,
+    `📅 ${dateStr}`,
+    `목표 합자:${totGoals[0]} | 육따기:${totGoals[1]} | 영따기:${totGoals[2]}`,
+    '',
+    hdr,
+    SEP,
+    ...regionRows,
+    SEP,
+    totLine,
+  ].join('\n');
 }
 
 // ─── 단계현황 + 만남현황 이미지 + 텍스트 동시 전송 ───
