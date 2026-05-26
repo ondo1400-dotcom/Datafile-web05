@@ -9,6 +9,7 @@ const DB_CHAT_ID  = '-1003828748700';
 const JIPA_CHAT_ID = '-1003943121521';
 const REVIEW_CHAT_ID       = '-1003943121521'; // 행정보고창
 const REVIEW_EDIT_THREAD_ID = 104;             // 행정보고창 수정요청 주제
+const JIPA_EDIT_THREAD_ID   = 53;              // 지파보고창 수정요청 주제
 
 function getBotToken() {
   return PropertiesService.getScriptProperties().getProperty('BOT_TOKEN');
@@ -230,31 +231,35 @@ function pollMessages() {
 
     if (!msg || !msg.text) return;
 
-    const chatId = String(msg.chat.id);
-    const text   = msg.text.trim();
+    const chatId   = String(msg.chat.id);
+    const threadId = msg.message_thread_id || null;
+    const text     = msg.text.trim();
 
-    Logger.log('chatId=' + chatId + ' | DB_CHAT_ID=' + DB_CHAT_ID + ' | text=' + text.substring(0, 60));
+    Logger.log('chatId=' + chatId + ' | DB_CHAT_ID=' + DB_CHAT_ID + ' | threadId=' + threadId + ' | text=' + text.substring(0, 60));
 
     if (chatId !== DB_CHAT_ID) return;
+
+    // threadId가 있으면 같은 주제로, 없으면 general로 답장
+    const reply = (t) => threadId ? sendMessageToThread(DB_CHAT_ID, threadId, t) : sendMessage(DB_CHAT_ID, t);
 
     if (text.startsWith('[DB]')) {
       const parsed = parseForm(text, 'DB');
       if (parsed) {
         saveOrUpdateSheet(parsed);
-        sendMessage(DB_CHAT_ID, '✅ DB - ' + (parsed['섭외자']||'—') + ' - 정상적으로 기록되었습니다.\n지역: ' + (parsed['실적지역']||'—'));
+        reply('✅ DB - ' + (parsed['섭외자']||'—') + ' - 정상적으로 기록되었습니다.\n지역: ' + (parsed['실적지역']||'—'));
       } else {
-        sendMessage(DB_CHAT_ID, '⚠️ DB 양식을 확인해주세요.\n실적지역과 섭외자는 필수입니다.');
+        reply('⚠️ DB 양식을 확인해주세요.\n실적지역과 섭외자는 필수입니다.');
       }
     } else if (text.startsWith('[찾기]')) {
       const parsed = parseForm(text, '찾기');
       if (parsed) {
         const isUpdate = saveOrUpdateSheet(parsed);
-        sendMessage(DB_CHAT_ID,
+        reply(
           (isUpdate ? '🔄 찾기 수정' : '✅ 찾기 등록') +
           ' - ' + (parsed['섭외자']||'—') + ' - 정상적으로 기록되었습니다.\n지역: ' + (parsed['실적지역']||'—') + ' | 인도자: ' + (parsed['인도자']||'—')
         );
       } else {
-        sendMessage(DB_CHAT_ID, '⚠️ 찾기 양식을 확인해주세요.\n실적지역과 섭외자는 필수입니다.');
+        reply('⚠️ 찾기 양식을 확인해주세요.\n실적지역과 섭외자는 필수입니다.');
       }
     } else if (text.startsWith('[정보 업데이트]')) {
       const parsed = parseForm(text, '정보업데이트');
@@ -263,27 +268,26 @@ function pollMessages() {
         if (result.found) {
           const stageText = buildStageText(result.stage, result.rowData);
           sendMessageToThread(REVIEW_CHAT_ID, REVIEW_EDIT_THREAD_ID, stageText);
-          sendMessage(DB_CHAT_ID,
+          reply(
             '✅ 정보 업데이트 - ' + (parsed['섭외자']||'—') + ' - 수정 완료\n' +
             '지역: ' + (parsed['실적지역']||'—') + ' | 인도자: ' + (parsed['인도자']||'—') + '\n' +
             '행정보고창 수정요청 주제로 전송되었습니다.'
           );
         } else {
-          sendMessage(DB_CHAT_ID,
+          reply(
             '⚠️ 해당 인물을 찾을 수 없습니다. 찾기 보고가 먼저 필요합니다.\n' +
             '섭외자: ' + (parsed['섭외자']||'—') + ' | 실적지역: ' + (parsed['실적지역']||'—')
           );
         }
       } else {
-        sendMessage(DB_CHAT_ID, '⚠️ 정보 업데이트 양식을 확인해주세요.\n실적지역, 섭외자, 인도자는 필수입니다.');
+        reply('⚠️ 정보 업데이트 양식을 확인해주세요.\n실적지역, 섭외자, 인도자는 필수입니다.');
       }
     } else {
       Logger.log('포워딩 시도: chatId=' + chatId + ' | text=' + text.substring(0, 80));
-      const token2 = getBotToken();
-      const fwdRes = UrlFetchApp.fetch('https://api.telegram.org/bot' + token2 + '/sendMessage', {
+      const fwdRes = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
         method: 'post',
         contentType: 'application/json',
-        payload: JSON.stringify({ chat_id: String(JIPA_CHAT_ID), text: text }),
+        payload: JSON.stringify({ chat_id: String(JIPA_CHAT_ID), message_thread_id: JIPA_EDIT_THREAD_ID, text: text }),
         muteHttpExceptions: true,
       });
       Logger.log('포워딩 결과: ' + fwdRes.getContentText());
