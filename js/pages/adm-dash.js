@@ -499,8 +499,7 @@ function _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin) {
     </div>` : '';
 
   const tgBtns = isAdmin ? `
-    <button onclick="sendDashStageTg(event)" style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;margin-left:4px;">📊 단계현황</button>
-    <button onclick="sendDashMeetTg(event)"  style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;">📅 만남현황</button>` : '';
+    <button onclick="sendDashTg(event)" style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;margin-left:4px;">📊 현황 전송</button>` : '';
 
   wrap.innerHTML = `
     <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
@@ -539,101 +538,89 @@ function _asyncFillLd(stageId, meetId, filterId, _unused, myRegions, isAdmin) {
   _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin);
 }
 
-// ─── 텔레그램 전송용 텍스트 빌더 ───
-function _buildStageTgText() {
-  const people   = _ldFiltered();
-  const regions  = _ldRegions(people);
-  const label    = (_ldKaigang !== '전체' ? _ldKaigang : '전체 개강') + (_ldCenter !== '전체' ? ' · ' + _ldCenter : '');
-  const RATE_ST  = ['합자', '육따기', '영따기'];
-  const countMap = {}, totRow = { total: 0 };
-  STAGE_ORDER.forEach(s => totRow[s] = 0);
-  regions.forEach(r => { countMap[r] = { total: 0 }; STAGE_ORDER.forEach(s => countMap[r][s] = 0); });
-  people.forEach(r => {
-    const reg = r['실적지역'], stg = r['단계'];
-    if (!reg || !countMap[reg] || !STAGE_ORDER.includes(stg)) return;
-    countMap[reg][stg]++; countMap[reg].total++; totRow[stg]++; totRow.total++;
-  });
-  function cumul(map, fromStage) {
-    const fi = STAGE_ORDER.indexOf(fromStage);
-    return STAGE_ORDER.slice(fi).reduce((s, st) => s + (map[st] || 0), 0);
-  }
-  function rate(cnt, g) { return g ? Math.round(cnt / g * 100) + '%' : '—'; }
-
-  const lines = [`[단계별 보유현황] ${label}`, ''];
-  lines.push('지역 | ' + STAGE_ORDER.join(' | ') + ' | 합계 | 합자% | 육따기% | 영따기%');
-  lines.push('─'.repeat(55));
-  regions.forEach(reg => {
-    const c = countMap[reg];
-    const stages = STAGE_ORDER.map(s => c[s] || 0).join(' | ');
-    const rates  = RATE_ST.map(s => rate(cumul(c, s), _ldGetGoal(reg, s))).join(' | ');
-    lines.push(`${reg} | ${stages} | ${c.total} | ${rates}`);
-  });
-  lines.push('─'.repeat(55));
-  const totStages = STAGE_ORDER.map(s => totRow[s] || 0).join(' | ');
-  const totRates  = RATE_ST.map(s => {
-    const g = regions.reduce((sum, r) => sum + _ldGetGoal(r, s), 0);
-    return rate(cumul(totRow, s), g);
-  }).join(' | ');
-  lines.push(`합계 | ${totStages} | ${totRow.total} | ${totRates}`);
-  return lines.join('\n');
-}
-
-function _buildMeetTgText() {
-  const tod  = new Date(); tod.setHours(0, 0, 0, 0);
-  const DOW  = ['일','월','화','수','목','금','토'];
-  function addD(n) { const d = new Date(tod); d.setDate(d.getDate() + n); return d; }
-  function fmd(d) { return `${d.getMonth()+1}/${d.getDate()}(${DOW[d.getDay()]})`; }
-  const label   = (_ldKaigang !== '전체' ? _ldKaigang : '전체 개강') + (_ldCenter !== '전체' ? ' · ' + _ldCenter : '');
+// ─── 텔레그램 전송용 요약 텍스트 빌더 ───
+function _buildDashSummaryText() {
+  const now     = new Date();
+  const today   = new Date(now); today.setHours(0, 0, 0, 0);
   const people  = _ldFiltered();
   const meetMap = _ldMeetMap();
   function getMeet(r) { return meetMap[(r['섭외자']||'') + '|' + (r['인도자']||'')] || null; }
   function grpKey(date) {
     if (!date) return 'none';
-    const d = new Date(date); d.setHours(0,0,0,0);
-    const diff = Math.round((d - tod) / 86400000);
+    const d = new Date(date); d.setHours(0, 0, 0, 0);
+    const diff = Math.round((d - today) / 86400000);
     if (diff < 0) return 'none';
     if (diff === 0) return 'today';
     if (diff === 1) return 'd1';
     if (diff === 2) return 'd2';
     return 'after';
   }
-  const lines = [`[만남 현황] ${label}`, ''];
+  const dateStr  = now.toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' })
+                      .replace(/\. /g, '-').replace('.', '')
+    + ' ' + now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', hour12: false });
+  const kLabel  = _ldKaigang !== '전체' ? _ldKaigang : '';
+  const cLabel  = _ldCenter !== '전체' ? _ldCenter : '청년';
+  const ABBR    = { '육따기':'육따', '영따기':'영따', '지역장':'지역장', '복음방':'복음방', '찾기':'찾기', '합자':'합자', '센확':'센확', '수신':'수신' };
+
+  let text = `📊 보유데이터 현황 ${dateStr}\n\n`;
+  text += `📈 단계별 보유현황 (${kLabel}${kLabel?'/':''}${cLabel})\n`;
+  text += `📌 총 인원: ${people.length}명`;
+
   STAGE_ORDER.forEach(stage => {
     const sp = people.filter(r => r['단계'] === stage);
-    if (!sp.length) return;
-    const buckets = { today: [], d1: [], d2: [], after: [], none: [] };
-    sp.forEach(r => { const gk = grpKey(getMeet(r)?._date); buckets[gk]?.push(r); });
-    lines.push(`◆ ${stage} (${sp.length}명)`);
-    [['today','오늘', addD(0)],['d1','내일', addD(1)],['d2','모레', addD(2)],['after','그이후', null],['none','만남미정', null]].forEach(([key, lbl, d]) => {
-      const list = buckets[key];
-      const dateStr = d ? `(${fmd(d)})` : '';
-      if (!list.length) { lines.push(`• ${lbl}${dateStr}: —`); return; }
-      const names = list.map(r => {
-        let n = r['섭외자'] || '?';
-        if (key === 'after') { const m = getMeet(r); if (m?._date) n += `(${fmd(m._date)})`; }
-        return n;
-      }).join(', ');
-      lines.push(`• ${lbl}${dateStr}: ${names}`);
-    });
-    lines.push('');
+    const buckets = { today: 0, d1: 0, d2: 0, after: 0, none: 0 };
+    sp.forEach(r => { const gk = grpKey(getMeet(r)?._date); if (gk in buckets) buckets[gk]++; });
+    const nm = ABBR[stage] || stage;
+    text += `\n\n■${nm} : ${sp.length}명\n`;
+    text += `오늘 ${buckets.today} | 내일 ${buckets.d1} | 모레 ${buckets.d2}\n`;
+    text += `이후 ${buckets.after} | 미정 ${buckets.none}`;
   });
-  return lines.join('\n');
+  return text;
 }
 
-async function sendDashStageTg(e) {
-  const btn = e.target; btn.textContent = '전송 중...'; btn.disabled = true;
-  try {
-    const res = await gasPost({ action: 'sendDashTelegram', text: _buildStageTgText() });
-    showToast(res.success ? '📊 단계현황 전송 완료!' : '⚠️ 실패: ' + res.error, res.success ? '' : 'error');
-  } catch(err) { showToast('⚠️ 실패: ' + err.message, 'error'); }
-  btn.textContent = '📊 단계현황'; btn.disabled = false;
-}
+// ─── 단계현황 + 만남현황 이미지 + 텍스트 동시 전송 ───
+async function sendDashTg(e) {
+  const btn = e.target;
+  const origText = btn.textContent;
+  btn.disabled = true;
 
-async function sendDashMeetTg(e) {
-  const btn = e.target; btn.textContent = '전송 중...'; btn.disabled = true;
   try {
-    const res = await gasPost({ action: 'sendDashTelegram', text: _buildMeetTgText() });
-    showToast(res.success ? '📅 만남현황 전송 완료!' : '⚠️ 실패: ' + res.error, res.success ? '' : 'error');
-  } catch(err) { showToast('⚠️ 실패: ' + err.message, 'error'); }
-  btn.textContent = '📅 만남현황'; btn.disabled = false;
+    if (typeof html2canvas === 'undefined') throw new Error('html2canvas 라이브러리 로드 실패');
+
+    btn.textContent = '캡처 중...';
+    const stageEl = document.getElementById('ld-adm-stage-wrap');
+    const meetEl  = document.getElementById('ld-adm-meet-wrap');
+    if (!stageEl || !meetEl) throw new Error('캡처 대상 요소 없음');
+
+    const opts = { scale: 1.5, backgroundColor: '#ffffff', useCORS: true, logging: false };
+    const [c1, c2] = await Promise.all([html2canvas(stageEl, opts), html2canvas(meetEl, opts)]);
+
+    const pad = 16;
+    const combined = document.createElement('canvas');
+    combined.width  = Math.max(c1.width, c2.width) + pad * 2;
+    combined.height = c1.height + c2.height + pad * 3;
+    const ctx = combined.getContext('2d');
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, combined.width, combined.height);
+    ctx.drawImage(c1, pad, pad);
+    ctx.drawImage(c2, pad, pad + c1.height + pad);
+
+    const base64  = combined.toDataURL('image/jpeg', 0.85).split(',')[1];
+    const caption = _buildDashSummaryText();
+
+    btn.textContent = '전송 중...';
+    // POST with text/plain Content-Type → 브라우저가 preflight 생략
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'sendDashPhoto', base64, caption }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    showToast(data.success ? '📊 현황 전송 완료!' : '⚠️ 실패: ' + data.error, data.success ? '' : 'error');
+  } catch(err) {
+    showToast('⚠️ 실패: ' + err.message, 'error');
+  }
+  btn.textContent = origText;
+  btn.disabled = false;
 }

@@ -65,6 +65,7 @@ function doGet(e) {
       if (action === 'requestIwol')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestIwol(payload))));
       if (action === 'requestEdit')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestEdit(payload))));
       if (action === 'sendDashTelegram')      return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashTelegram(payload))));
+      if (action === 'sendDashPhoto')         return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashPhoto(payload))));
       return setCORS(ContentService.createTextOutput(JSON.stringify({ error: '알 수 없는 action' })));
     }
     const action = e.parameter.action || 'getData';
@@ -104,6 +105,7 @@ function doPost(e) {
     if (action === 'requestIwol')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestIwol(payload))));
     if (action === 'requestEdit')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestEdit(payload))));
     if (action === 'sendDashTelegram')      return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashTelegram(payload))));
+    if (action === 'sendDashPhoto')         return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashPhoto(payload))));
     return setCORS(ContentService.createTextOutput(JSON.stringify({ error: '알 수 없는 action' })));
   } catch (err) {
     return setCORS(ContentService.createTextOutput(JSON.stringify({ error: err.message })));
@@ -1054,7 +1056,29 @@ function checkReviewReset() {
   });
 }
 
-// ─── 대시보드 텔레그램 전송 ───
+// ─── 대시보드 이미지 + 텍스트 텔레그램 전송 ───
+function sendDashPhoto(payload) {
+  const token    = getBotToken();
+  const imgBytes = Utilities.base64Decode(payload.base64);
+  const blob     = Utilities.newBlob(imgBytes, 'image/jpeg', 'dashboard.jpg');
+  try {
+    const res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendPhoto', {
+      method: 'post',
+      payload: {
+        chat_id: REVIEW_CHAT_ID,
+        photo:   blob,
+        caption: (payload.caption || '').substring(0, 1024),
+      },
+      muteHttpExceptions: true,
+    });
+    const data = JSON.parse(res.getContentText());
+    return { success: data.ok, error: data.ok ? null : data.description };
+  } catch(e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── 대시보드 텍스트 텔레그램 전송 ───
 function sendDashTelegram(payload) {
   const token = getBotToken();
   try {
