@@ -43,6 +43,7 @@ function _buildBaseData() {
 
 function _getRowColVal(col, row, meetMap) {
   if (col === 'stage')   return row['단계'] || '';
+  if (col === 'region')  return row['실적지역'] || '';
   if (col === 'seobja')  return row['섭외자'] || '';
   if (col === 'indoja')  return row['인도자'] || '';
   if (col === 'gyosa')   return row['교사'] || '';
@@ -77,7 +78,7 @@ function hasColFilter(col) {
 }
 
 function _updateColIcons() {
-  ['stage','seobja','indoja','gyosa','meet','purpose'].forEach(col => {
+  ['stage','region','seobja','indoja','gyosa','meet','purpose'].forEach(col => {
     const el = document.getElementById('cfi-' + col);
     if (!el) return;
     const isSort     = _colSortState.col === col;
@@ -105,7 +106,7 @@ function renderRegBoard() {
 
   const tbody = document.getElementById('reg-board-body');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3);">데이터가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3);">데이터가 없습니다</td></tr>';
     _updateColIcons();
     return;
   }
@@ -131,13 +132,14 @@ function renderRegBoard() {
       : `<button class="btn" style="font-size:10px;padding:3px 7px;"
            onclick="event.stopPropagation();openRequestReviewModal(${ri})">심의요청</button>`;
 
-    const clickFn = r._isDbFinding ? `openDbDetail(${ri})` : `openPersonDetail(${ri})`;
+    const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri})` : `openPersonDetail(${ri})`;
     return `<tr style="${style}cursor:pointer;" class="cr" onclick="${clickFn}">
       <td>
         ${stageBadge(r['단계'])}
         ${tallag ? '<span class="badge b-red" style="margin-left:4px;">탈락</span>' : ''}
         ${r._isDbFinding ? '<span class="badge b-gray" style="margin-left:4px;font-size:9px;">DB</span>' : ''}
       </td>
+      <td style="font-size:12px;">${r['실적지역'] || '—'}</td>
       <td><strong>${r['섭외자'] || '—'}</strong></td>
       <td style="font-size:12px;">${r['인도자'] || '—'}</td>
       <td style="font-size:12px;">${r['교사'] || '—'}</td>
@@ -156,6 +158,7 @@ function _sortRegBoard(data, meetMap) {
   const stageIdx = s => STAGE_ORDER.indexOf(s);
   return [...data].sort((a, b) => {
     if (col === 'stage')  return mul * (stageIdx(a['단계']) - stageIdx(b['단계']));
+    if (col === 'region') return mul * (a['실적지역']||'').localeCompare(b['실적지역']||'');
     if (col === 'seobja') return mul * (a['섭외자']||'').localeCompare(b['섭외자']||'');
     if (col === 'indoja') return mul * (a['인도자']||'').localeCompare(b['인도자']||'');
     if (col === 'gyosa')  return mul * (a['교사']||'').localeCompare(b['교사']||'');
@@ -344,6 +347,7 @@ const _REVIEW_COMMON_FIELDS = [
 ];
 
 const _REVIEW_STAGE_FIELDS = {
+  '찾기': [],
   '합자':  [
     { key: '따기예정일', label: '따기예정일', type: 'date', required: true },
   ],
@@ -410,7 +414,7 @@ function renderReviewFormFields(stage) {
     + _REVIEW_COMMON_FIELDS.map(renderField).join('')
     + '</div>';
 
-  if (stage === '합자') {
+  if (stage === '합자' || stage === '찾기') {
     const baseKeys = ['목표개강(연도/월)','목표센터','섭외자','출생연도','성별','사는곳','하는일','종교','신앙년수','편입부서','섭외유형','2차연결유형'];
     const baseDisplay = { ...data, '편입부서': '청년' };
     html += `<div style="font-size:11px;font-weight:700;color:var(--text2);margin:12px 0 8px;padding-top:10px;border-top:1px solid var(--border);">찾기 기본 정보 확인</div>`;
