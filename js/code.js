@@ -14,6 +14,7 @@ const REVIEW_CHAT_ID = '-1003943121521';
 const EDIT_CHAT_ID          = '-1003983618752'; // 지파보고창 청년
 const EDIT_THREAD_ID        = 53;              // 지파보고창 수정요청 주제
 const REVIEW_EDIT_THREAD_ID = 104;             // 행정보고창 수정요청 주제
+const DASH_THREAD_ID        = 107;             // 행정보고창 현황보고 주제
 
 // Date 셀 → KST 문자열 변환 (날짜/시간 모두 처리)
 function _cellVal(val) {
@@ -502,7 +503,7 @@ function ensureAuthSheets(ss) {
 function ensureDbSheet(ss) {
   if (!ss.getSheetByName(SHEET_DB)) {
     const s = ss.insertSheet(SHEET_DB);
-    const h = ['구분','등록일시','실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','목표개강(연도/월)','목표센터','섭외자','전화번호','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','따기주간횟수','따기기간','고정요일','따기유형','따기단계','첫수업예정일','섬김이부서/지역/팀/구역','섬김이','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부','다음만남일','다음만남시간','다음만남목적','합자요청여부','합자요청일시','심의요청여부','심의요청일시','심의승인여부','심의승인일시','전송완료여부','전송완료일시','심의단계'];
+    const h = ['구분','등록일시','실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','목표개강(연도/월)','목표센터','섭외자','전화번호','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','따기예정일','따기주간횟수','따기기간','고정요일','따기유형','따기단계','첫수업예정일','섬김이부서/지역/팀/구역','섬김이','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부','다음만남일','다음만남시간','다음만남목적','합자요청여부','합자요청일시','심의요청여부','심의요청일시','심의승인여부','심의승인일시','전송완료여부','전송완료일시','심의단계'];
     s.appendRow(h); s.setFrozenRows(1);
     s.getRange(1,1,1,h.length).setBackground('#1A3A8F').setFontColor('#fff').setFontWeight('bold');
   } else {
@@ -514,7 +515,7 @@ function ensureDbColumns(ss) {
   const sheet = ss.getSheetByName(SHEET_DB);
   if (!sheet) return;
   const existing = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const needed = ['교사부서/지역/팀/구역','교사','따기주간횟수','따기기간','고정요일','따기유형','따기단계','첫수업예정일','섬김이부서/지역/팀/구역','섬김이','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부'];
+  const needed = ['교사부서/지역/팀/구역','교사','따기예정일','따기주간횟수','따기기간','고정요일','따기유형','따기단계','첫수업예정일','섬김이부서/지역/팀/구역','섬김이','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부'];
   needed.forEach(col => {
     if (!existing.includes(col)) {
       const newCol = sheet.getLastColumn() + 1;
@@ -623,8 +624,10 @@ function saveOrUpdateDbFinding(payload) {
   const 인도자Col = headers.indexOf('인도자');
 
   const preservedCols = ['등록일시','합자요청여부','합자요청일시','심의요청여부','심의요청일시','심의승인여부','심의승인일시','전송완료여부','전송완료일시','심의단계'];
+  const inputStage = payload['구분'] || '';
 
-  if (payload['구분'] === '찾기') {
+  // ── 찾기: 동일 인물 있으면 수정, 없으면 신규 추가 ──
+  if (inputStage === '찾기') {
     for (let i = 1; i < allData.length; i++) {
       const row = allData[i];
       if (row[구분Col]==='찾기' && row[지역Col]===(payload['실적지역']||'') && row[섭외자Col]===(payload['섭외자']||'') && row[인도자Col]===(payload['인도자']||'')) {
@@ -633,8 +636,41 @@ function saveOrUpdateDbFinding(payload) {
         return { success: true, updated: true, dbFindings: readDbFinding(ss) };
       }
     }
+    const newRow = headers.map(h => {
+      if (h==='등록일시') return now;
+      if (preservedCols.includes(h)) return '';
+      return payload[h]!==undefined ? payload[h] : '';
+    });
+    sheet.appendRow(newRow);
+    return { success: true, updated: false, dbFindings: readDbFinding(ss) };
   }
 
+  // ── 합자 이상: 기존 인물 찾아서 해당 단계 정보만 추가, 구분(단계)은 보존 ──
+  if (inputStage) {
+    let sheetRow = payload['__rowIndex'] || 0;
+    if (!sheetRow) {
+      for (let i = 1; i < allData.length; i++) {
+        if (allData[i][지역Col]===(payload['실적지역']||'') && allData[i][섭외자Col]===(payload['섭외자']||'') && allData[i][인도자Col]===(payload['인도자']||'')) {
+          sheetRow = i + 1;
+          break;
+        }
+      }
+    }
+    if (!sheetRow) {
+      return {
+        success: false,
+        notFound: true,
+        error: `⚠️ 미보고 데이터가 있습니다. (${inputStage} - ${payload['섭외자']||''})`
+      };
+    }
+    const existingRow = allData[sheetRow - 1];
+    const stagePreserved = [...preservedCols, '구분'];
+    const newRow = headers.map((h, j) => stagePreserved.includes(h) ? existingRow[j] : (payload[h]!==undefined ? payload[h] : existingRow[j]));
+    sheet.getRange(sheetRow,1,1,headers.length).setValues([newRow]);
+    return { success: true, updated: true, dbFindings: readDbFinding(ss) };
+  }
+
+  // ── 구분 없이 rowIndex로 직접 수정 ──
   if (payload['__rowIndex']) {
     const rowIdx = payload['__rowIndex'];
     const newRow = headers.map((h, j) => preservedCols.includes(h) ? allData[rowIdx-1][j] : (payload[h]!==undefined ? payload[h] : allData[rowIdx-1][j]));
@@ -642,6 +678,7 @@ function saveOrUpdateDbFinding(payload) {
     return { success: true, updated: true, dbFindings: readDbFinding(ss) };
   }
 
+  // ── 구분/rowIndex 없으면 신규 추가 ──
   const newRow = headers.map(h => {
     if (h==='등록일시') return now;
     if (preservedCols.includes(h)) return '';
@@ -760,9 +797,22 @@ function buildReviewText(stage, r) {
 실적부서/지역 : ${loc}
 인도자부서/지역/팀/구역 : ${v('인도자부서/지역/팀/구역')}
 인도자 : ${v('인도자')}
+
+목표개강(연도/월) : ${v('목표개강(연도/월)')}
+목표센터 : ${v('목표센터')}
+섭외자 : ${v('섭외자')}
+출생연도 : ${v('출생연도')}
+성별 : ${v('성별')}
+사는곳 : ${v('사는곳')}
+하는일 : ${v('하는일')}
+종교 : ${v('종교')}
+신앙년수 : ${v('신앙년수')}
+편입부서 : 청년
+섭외유형 : ${v('섭외유형')}
+2차연결유형 : ${v('2차연결유형')}
+따기예정일 : ${vd('따기예정일')}
 교사부서/지역/팀/구역 : ${v('교사부서/지역/팀/구역')}
 교사 : ${v('교사')}
-섭외자 : ${v('섭외자')}
 다음만남일 : ${vd('다음만남일')}
 다음만남시간 : ${vt('다음만남시간')}
 다음만남목적 : ${v('다음만남목적')}`;
@@ -1065,9 +1115,10 @@ function sendDashPhoto(payload) {
     const res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendPhoto', {
       method: 'post',
       payload: {
-        chat_id: REVIEW_CHAT_ID,
-        photo:   blob,
-        caption: (payload.caption || '').substring(0, 1024),
+        chat_id:           REVIEW_CHAT_ID,
+        message_thread_id: DASH_THREAD_ID,
+        photo:             blob,
+        caption:           (payload.caption || '').substring(0, 1024),
       },
       muteHttpExceptions: true,
     });
@@ -1104,4 +1155,87 @@ function setupReviewResetTrigger() {
   } else {
     Logger.log('이미 등록됨');
   }
+}
+
+// ═══════════════════════════════════════════════════════
+//  자동 현황 보고 (매일 0시 / 1시 KST)
+// ═══════════════════════════════════════════════════════
+
+const _DASH_STAGE_ORDER = ['찾기','합자','육따기','영따기','복음방','지역장','센확','수신'];
+const _DASH_STAGE_ABBR  = { '육따기':'육따', '영따기':'영따' };
+
+function _dashTodayKST() {
+  return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy/MM/dd');
+}
+
+function _dashGrpKey(meetDateStr) {
+  if (!meetDateStr) return 'none';
+  const s = String(meetDateStr);
+  const today = _dashTodayKST();
+  if (s < today) return 'none';
+  if (s === today) return 'today';
+  const addDay = (base, n) => {
+    const m = base.match(/(\d{4})\/(\d{2})\/(\d{2})/);
+    if (!m) return null;
+    const d = new Date(+m[1], +m[2]-1, +m[3]);
+    d.setDate(d.getDate() + n);
+    return Utilities.formatDate(d, 'UTC', 'yyyy/MM/dd');
+  };
+  if (s === addDay(today, 1)) return 'd1';
+  if (s === addDay(today, 2)) return 'd2';
+  return 'after';
+}
+
+function autoDashReport() {
+  const ss     = SpreadsheetApp.openById(SS_ID);
+  const ssRead = SpreadsheetApp.openById(SS_READ_ID);
+
+  const nujeok    = readSheetAsObjects(ssRead, '청년누적');
+  const tallag    = readSheetAsObjects(ssRead, '청년탈락');
+  const tallagSet = new Set(tallag.map(r => makeKey(r)));
+  const active    = nujeok.filter(r => !tallagSet.has(makeKey(r)));
+
+  // DB_찾기 '찾기' 단계 포함
+  const finds = readDbFinding(ss).filter(r => r['구분'] === '찾기').map(r => ({ ...r, '단계': '찾기' }));
+  const people = [...active, ...finds];
+
+  // 만남 맵 (섭외자|인도자 → 최신 다음만남일)
+  const meets  = readMeets(ssRead);
+  const meetMap = {};
+  meets.forEach(m => {
+    const key = (m['섭외자']||'') + '|' + (m['인도자']||'');
+    const ds  = m['다음만남일'] || '';
+    if (!meetMap[key] || ds > meetMap[key]) meetMap[key] = ds;
+  });
+
+  const dateStr = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm');
+  let text = `📊 보유데이터 현황 ${dateStr}\n\n📈 단계별 보유현황 (청년)\n📌 총 인원: ${people.length}명`;
+
+  _DASH_STAGE_ORDER.forEach(stage => {
+    const sp = people.filter(r => r['단계'] === stage);
+    const b  = { today: 0, d1: 0, d2: 0, after: 0, none: 0 };
+    sp.forEach(r => {
+      const gk = _dashGrpKey(meetMap[(r['섭외자']||'') + '|' + (r['인도자']||'')]);
+      if (gk in b) b[gk]++;
+    });
+    const nm = _DASH_STAGE_ABBR[stage] || stage;
+    text += `\n\n■${nm} : ${sp.length}명\n오늘 ${b.today} | 내일 ${b.d1} | 모레 ${b.d2}\n이후 ${b.after} | 미정 ${b.none}`;
+  });
+
+  const token = getBotToken();
+  UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+    method: 'post', contentType: 'application/json',
+    payload: JSON.stringify({ chat_id: REVIEW_CHAT_ID, message_thread_id: DASH_THREAD_ID, text }),
+    muteHttpExceptions: true,
+  });
+}
+
+// 최초 1회 실행 → 매일 0시/1시 트리거 등록
+function setupDashTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'autoDashReport') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('autoDashReport').timeBased().everyDays(1).atHour(0).create();
+  ScriptApp.newTrigger('autoDashReport').timeBased().everyDays(1).atHour(1).create();
+  Logger.log('현황 보고 트리거 등록 완료 (매일 0시, 1시 KST)');
 }
