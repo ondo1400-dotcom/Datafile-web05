@@ -229,7 +229,9 @@ const _REVIEW_COMMON_FIELDS = [
 ];
 
 const _REVIEW_STAGE_FIELDS = {
-  '합자':  [],
+  '합자':  [
+    { key: '따기예정일', label: '따기예정일', type: 'date', required: true },
+  ],
   '육따기': [
     { key: '따기주간횟수', label: '따기주간횟수', required: true },
     { key: '따기기간',     label: '따기기간',     required: true },
@@ -292,6 +294,17 @@ function renderReviewFormFields(stage) {
   let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
     + _REVIEW_COMMON_FIELDS.map(renderField).join('')
     + '</div>';
+
+  if (stage === '합자') {
+    const baseKeys = ['목표개강(연도/월)','목표센터','섭외자','출생연도','성별','사는곳','하는일','종교','신앙년수','편입부서','섭외유형','2차연결유형'];
+    const baseDisplay = { ...data, '편입부서': '청년' };
+    html += `<div style="font-size:11px;font-weight:700;color:var(--text2);margin:12px 0 8px;padding-top:10px;border-top:1px solid var(--border);">찾기 기본 정보 확인</div>`;
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg2,#f5f5f5);padding:10px;border-radius:6px;margin-bottom:4px;">';
+    baseKeys.forEach(k => {
+      html += `<div><div style="font-size:10px;color:var(--text3);margin-bottom:2px;">${k}</div><div style="font-size:12px;font-weight:600;">${baseDisplay[k] || '—'}</div></div>`;
+    });
+    html += '</div>';
+  }
 
   if (stageExtra.length) {
     html += `<div style="font-size:11px;font-weight:700;color:var(--text2);margin:12px 0 8px;padding-top:10px;border-top:1px solid var(--border);">[${stage}] 추가 정보</div>`;
