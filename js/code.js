@@ -65,8 +65,10 @@ function doGet(e) {
       if (action === 'requestTallag')         return setCORS(ContentService.createTextOutput(JSON.stringify(requestTallag(payload))));
       if (action === 'requestIwol')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestIwol(payload))));
       if (action === 'requestEdit')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestEdit(payload))));
-      if (action === 'sendDashTelegram')      return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashTelegram(payload))));
-      if (action === 'sendDashPhoto')         return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashPhoto(payload))));
+      if (action === 'sendDashTelegram')         return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashTelegram(payload))));
+      if (action === 'sendDashPhoto')            return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashPhoto(payload))));
+      if (action === 'getPersonChecklist')       return setCORS(ContentService.createTextOutput(JSON.stringify(getPersonChecklist(payload))));
+      if (action === 'savePersonChecklistItem')  return setCORS(ContentService.createTextOutput(JSON.stringify(savePersonChecklistItem(payload))));
       return setCORS(ContentService.createTextOutput(JSON.stringify({ error: '알 수 없는 action' })));
     }
     const action = e.parameter.action || 'getData';
@@ -105,8 +107,10 @@ function doPost(e) {
     if (action === 'requestTallag')         return setCORS(ContentService.createTextOutput(JSON.stringify(requestTallag(payload))));
     if (action === 'requestIwol')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestIwol(payload))));
     if (action === 'requestEdit')           return setCORS(ContentService.createTextOutput(JSON.stringify(requestEdit(payload))));
-    if (action === 'sendDashTelegram')      return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashTelegram(payload))));
-    if (action === 'sendDashPhoto')         return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashPhoto(payload))));
+    if (action === 'sendDashTelegram')         return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashTelegram(payload))));
+    if (action === 'sendDashPhoto')            return setCORS(ContentService.createTextOutput(JSON.stringify(sendDashPhoto(payload))));
+    if (action === 'getPersonChecklist')       return setCORS(ContentService.createTextOutput(JSON.stringify(getPersonChecklist(payload))));
+    if (action === 'savePersonChecklistItem')  return setCORS(ContentService.createTextOutput(JSON.stringify(savePersonChecklistItem(payload))));
     return setCORS(ContentService.createTextOutput(JSON.stringify({ error: '알 수 없는 action' })));
   } catch (err) {
     return setCORS(ContentService.createTextOutput(JSON.stringify({ error: err.message })));
@@ -626,12 +630,13 @@ function saveOrUpdateDbFinding(payload) {
   const preservedCols = ['등록일시','합자요청여부','합자요청일시','심의요청여부','심의요청일시','심의승인여부','심의승인일시','전송완료여부','전송완료일시','심의단계'];
   const inputStage = payload['구분'] || '';
 
-  // ── 찾기: 동일 인물 있으면 수정, 없으면 신규 추가 ──
+  // ── 찾기: 동일 인물 있으면 수정 (단계 무관), 없으면 신규 추가 ──
   if (inputStage === '찾기') {
     for (let i = 1; i < allData.length; i++) {
       const row = allData[i];
-      if (row[구분Col]==='찾기' && row[지역Col]===(payload['실적지역']||'') && row[섭외자Col]===(payload['섭외자']||'') && row[인도자Col]===(payload['인도자']||'')) {
-        const newRow = headers.map((h, j) => preservedCols.includes(h) ? row[j] : (payload[h]!==undefined ? payload[h] : row[j]));
+      if (row[지역Col]===(payload['실적지역']||'') && row[섭외자Col]===(payload['섭외자']||'') && row[인도자Col]===(payload['인도자']||'')) {
+        const findingPreserved = [...preservedCols, '구분']; // 진행 단계 보존
+        const newRow = headers.map((h, j) => findingPreserved.includes(h) ? row[j] : (payload[h]!==undefined ? payload[h] : row[j]));
         sheet.getRange(i+1,1,1,headers.length).setValues([newRow]);
         return { success: true, updated: true, dbFindings: readDbFinding(ss) };
       }
@@ -1143,6 +1148,87 @@ function sendDashTelegram(payload) {
   } catch(e) {
     return { success: false, error: e.message };
   }
+}
+
+// ═══════════════════════════════════════════════════════
+//  인물 체크리스트 (합체리/따체리/복체리)
+// ═══════════════════════════════════════════════════════
+
+const SHEET_PCLIST = '인물체크리스트';
+
+function ensurePersonChecklistSheet(ss) {
+  if (!ss.getSheetByName(SHEET_PCLIST)) {
+    const s = ss.insertSheet(SHEET_PCLIST);
+    const h = ['실적지역','섭외자','인도자','체크종류','항목코드','예아니오','체크자','체크일시'];
+    s.appendRow(h); s.setFrozenRows(1);
+    s.getRange(1,1,1,h.length).setBackground('#1A3A8F').setFontColor('#fff').setFontWeight('bold');
+  }
+}
+
+function getPersonChecklist(payload) {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  ensurePersonChecklistSheet(ss);
+  const sheet   = ss.getSheetByName(SHEET_PCLIST);
+  const data    = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: true, items: [] };
+  const headers  = data[0];
+  const 지역Col  = headers.indexOf('실적지역');
+  const 섭외자Col = headers.indexOf('섭외자');
+  const 인도자Col = headers.indexOf('인도자');
+  const items = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[지역Col]===(payload['실적지역']||'') &&
+        row[섭외자Col]===(payload['섭외자']||'') &&
+        row[인도자Col]===(payload['인도자']||'')) {
+      const obj = {};
+      headers.forEach((h, j) => { if (h) obj[h] = row[j]; });
+      items.push(obj);
+    }
+  }
+  return { success: true, items };
+}
+
+function savePersonChecklistItem(payload) {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  ensurePersonChecklistSheet(ss);
+  const sheet   = ss.getSheetByName(SHEET_PCLIST);
+  const data    = sheet.getDataRange().getValues();
+  const headers  = data[0];
+  const 지역Col  = headers.indexOf('실적지역');
+  const 섭외자Col = headers.indexOf('섭외자');
+  const 인도자Col = headers.indexOf('인도자');
+  const 종류Col  = headers.indexOf('체크종류');
+  const 코드Col  = headers.indexOf('항목코드');
+  const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[지역Col]===(payload['실적지역']||'') &&
+        row[섭외자Col]===(payload['섭외자']||'') &&
+        row[인도자Col]===(payload['인도자']||'') &&
+        row[종류Col]===(payload['체크종류']||'') &&
+        row[코드Col]===(payload['항목코드']||'')) {
+      sheet.getRange(i+1,1,1,headers.length).setValues([headers.map((h,j) => {
+        if (h==='예아니오') return payload['예아니오']||'';
+        if (h==='체크자')   return payload['체크자']||'';
+        if (h==='체크일시') return now;
+        return row[j];
+      })]);
+      return { success: true };
+    }
+  }
+  sheet.appendRow(headers.map(h => {
+    if (h==='실적지역') return payload['실적지역']||'';
+    if (h==='섭외자')   return payload['섭외자']||'';
+    if (h==='인도자')   return payload['인도자']||'';
+    if (h==='체크종류') return payload['체크종류']||'';
+    if (h==='항목코드') return payload['항목코드']||'';
+    if (h==='예아니오') return payload['예아니오']||'';
+    if (h==='체크자')   return payload['체크자']||'';
+    if (h==='체크일시') return now;
+    return '';
+  }));
+  return { success: true };
 }
 
 // 트리거 설정 (최초 1회 실행)

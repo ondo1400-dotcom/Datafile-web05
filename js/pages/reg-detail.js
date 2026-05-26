@@ -10,7 +10,6 @@ function openPersonDetail(rowIndex) {
                 || STATE.tallag.find(r => r['__rowIndex'] === rowIndex);
   if (!baseRow) return;
 
-  // DB_찾기 데이터 머지 (개인정보 필드 채우기)
   const dbRow = (STATE.dbFindings || []).find(r =>
     r['섭외자'] === baseRow['섭외자'] &&
     r['인도자'] === baseRow['인도자'] &&
@@ -18,6 +17,14 @@ function openPersonDetail(rowIndex) {
   );
   _detailRow = dbRow ? { ...baseRow, ...dbRow } : baseRow;
 
+  _detailTab = 'basic';
+  nav('reg-detail');
+}
+
+function openDbFindingDetail(rowIndex) {
+  const row = (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
+  if (!row) return;
+  _detailRow = { ...row, 단계: row['단계'] || row['구분'] || '찾기' };
   _detailTab = 'basic';
   nav('reg-detail');
 }
@@ -94,7 +101,7 @@ function renderRegDetail() {
 
     <!-- 탭 -->
     <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;">
-      ${[['basic','기본 정보'],['stage','단계 정보'],['meets','만남 기록'],['check','개강 준비']].map(([id, label]) => `
+      ${[['basic','기본 정보'],['stage','단계 정보'],['meets','만남 기록'],['check','개강 준비'],['clist','C_list']].map(([id, label]) => `
         <button onclick="switchDetailTab('${id}')" id="dtab-${id}"
           style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;
           border-bottom:${_detailTab===id?'2px solid var(--reg2)':'2px solid transparent'};
@@ -114,7 +121,7 @@ function renderRegDetail() {
 function switchDetailTab(tab) {
   _detailTab = tab;
   // 탭 버튼 스타일 업데이트
-  ['basic','stage','meets','check'].forEach(id => {
+  ['basic','stage','meets','check','clist'].forEach(id => {
     const btn = document.getElementById('dtab-' + id);
     if (!btn) return;
     btn.style.borderBottom = id === tab ? '2px solid var(--reg2)' : '2px solid transparent';
@@ -330,6 +337,8 @@ function renderDetailTab() {
         `;
       }).join('')}
     `;
+  } else if (_detailTab === 'clist') {
+    _renderClistTab(el);
   }
 }
 
@@ -686,5 +695,173 @@ async function submitIwol() {
   } catch(e) {
     showToast('⚠️ 실패: ' + e.message, 'error');
     if (btn) { btn.textContent = '이월 보고'; btn.disabled = false; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  C_list 탭 — 합체리 / 따체리 / 복체리
+// ═══════════════════════════════════════════════════════
+
+const _CLIST_ITEMS = {
+  합체리: [
+    { section: '인성', items: [
+      { code: 'h_in_1', text: '정신질환 관련 약을 복용중이지 않은가? (우울증, 공황장애, ADHD, 조울증)' },
+      { code: 'h_in_2', text: '만남에 특정 목적을 띄고 있지 않은가? (이성, 다단계, 보험권유 등)' },
+      { code: 'h_in_3', text: '부모에게 지나치게 의존적이지 않는가? (통금, 외출 제약 등)' },
+    ]},
+    { section: '신성', items: [
+      { code: 'h_sp_1', text: '신의 존재(보이지 않는 존재)를 부정하지않고 믿거나 있기를 소망하는가?' },
+      { code: 'h_sp_2', text: '신천지에 대한 직·간접적인 부정적인 경험이 없는가?' },
+      { code: 'h_sp_3', text: '현재 다니는 교회에서 사역 혹은 봉사활동 여부가 파악되었는가?' },
+    ]},
+    { section: '환경', items: [
+      { code: 'h_ev_1', text: '사는 곳이 센터와 1시간 이내 거리인가?' },
+      { code: 'h_ev_2', text: '타 지역 중복 섭외 이력을 확인하였는가?' },
+      { code: 'h_ev_3', text: '주 3회 대면 센터수강 시간이 가능한가? (평일 10시, 19시반)' },
+      { code: 'h_ev_4', text: '센터기간(6개월) 내에 2주 이상의 센터수강 불가 일정이 없는가?' },
+    ]},
+  ],
+  따체리: [
+    { section: '교사와의 신뢰', items: [
+      { code: 'd_tr_1', text: '교사의 말을 30분 이상 경청하는 자세를 가지며 배려심 있고 공손하다.' },
+      { code: 'd_tr_2', text: '교사에게 자신의 이야기를 잘 털어놓는다. (가정사, 고민, 이성친구 등)' },
+      { code: 'd_tr_3', text: '교사가 무료로 상담을 하는 이유에 대해 메리트있게 소개가 되었다.' },
+      { code: 'd_tr_4', text: '교사와의 식사 등으로 친교와 마음사기가 되어 친밀감이 형성되었다.' },
+    ]},
+    { section: '정보파악', items: [
+      { code: 'd_in_1', text: '필수 정보 파악이 되었다: 직장, 대략적인 주소, 생일 등' },
+      { code: 'd_in_2', text: '영적 정보 파악이 되었다: 이단경계심, 종교 거부감, 침요소, 핍박요소 등' },
+    ]},
+    { section: '동기부여', items: [
+      { code: 'd_mo_1', text: '내면이 변화해야하는 이유를 구체적으로 인식하고 표현한다.' },
+      { code: 'd_mo_2', text: '영따기 프로그램에 대한 사전 안내가 1차적으로 되어 수강생이 궁금해하고 기대하는 마음이 있다.' },
+    ]},
+    { section: '침방지/입막음', items: [
+      { code: 'd_sc_1', text: '보안서약서를 작성했는가?' },
+      { code: 'd_sc_2', text: '상담을 받으러 나올때 주위에 뭐라고 하고 나오는지 확인이 되었는가?' },
+    ]},
+  ],
+  복체리: [
+    { section: '동기부여', items: [
+      { code: 'b_mo_1', text: '건강한 미래를 위해 이 상담이 반드시 필요하다는 것을 받아들였는가?' },
+      { code: 'b_mo_2', text: '자신의 현 상태를 인지하여 변화가 반드시 필요함을 인정하는가?' },
+      { code: 'b_mo_3', text: '자신의 일정이 생겼을때 조율하려고 하는 의지가 있는가?' },
+    ]},
+    { section: '교사신뢰', items: [
+      { code: 'b_tr_1', text: '교사가 나를 변화시켜줄 수 있는 존재임을 인정하는가? (고민을 이야기함/교사의 조언, 미션을 수행하는지)' },
+      { code: 'b_tr_2', text: '교사와 원활하게 연락이 되고 있으며 늦거나 사정이 있을경우 사전에 양해를 구하는가?' },
+    ]},
+    { section: '종교거부감', items: [
+      { code: 'b_re_1', text: '종교 거부감이 없거나 상담을 통해 충분히 해소 되었다.' },
+      { code: 'b_re_2', text: '이단경계심이 상담을 통해서 해소되었다.' },
+      { code: 'b_re_3', text: '성경 말씀을 변화/성장하기 위한 지침서로 인정한다.' },
+      { code: 'b_re_4', text: '성경에 대해 열린 마음이다.' },
+    ]},
+    { section: '침방지/입막음', items: [
+      { code: 'b_sc_1', text: '상담/교육에 대해 외부에 이야기 하지 않도록 스스로 인지하고, 말하지 않는다.' },
+      { code: 'b_sc_2', text: '침을 맞을 우려가 적은 개인 맞춤 모략을 사용하고 있다.' },
+    ]},
+    { section: '섬김이', items: [
+      { code: 'b_se_1', text: '열매의 고민/관심사에 맞는 간증 잎사귀가 투입되어 간증을 공유했다.' },
+      { code: 'b_se_2', text: '열매에게 맞는 예정된 섬김이가 매칭 되어있다.' },
+      { code: 'b_se_3', text: '섬김이와 열매가 친교만남을 가지며 마음열기가 되었다.' },
+    ]},
+    { section: '개강진 연결', items: [
+      { code: 'b_ab_1', text: '센터 교육기관에 대해 목적/수익구조 등 멘트대로 잘 설명이 되었다.' },
+      { code: 'b_ab_2', text: '자신의 간증을 넣은 멘트로 개강진 ABC가 진행되었다.' },
+      { code: 'b_ab_3', text: '개강진 특강이 진행되었다.' },
+    ]},
+    { section: '수강환경', items: [
+      { code: 'b_en_1', text: '센터요일에 맞춰 주3회 실참이 가능한 스케줄인가?' },
+    ]},
+  ],
+};
+
+const _clistCache = {};
+
+function _renderClistHtml(el, state) {
+  el.innerHTML = Object.entries(_CLIST_ITEMS).map(([typeName, sections]) => {
+    const typeTotal = sections.reduce((s, sec) => s + sec.items.length, 0);
+    const typeDone  = sections.reduce((s, sec) =>
+      s + sec.items.filter(it => state[typeName + '|' + it.code] === '예').length, 0);
+    return `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;color:var(--reg2);margin:0 0 10px;padding:8px 12px;background:var(--reg-light);border-radius:8px;border:1px solid var(--reg-mid);">
+          ■ ${typeName} &nbsp;<span style="font-size:11px;font-weight:400;">(${typeDone}/${typeTotal} 완료)</span>
+        </div>
+        ${sections.map(sec => `
+          <div style="margin-bottom:10px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:4px;padding:3px 8px;background:var(--bg2,#f5f5f5);border-radius:4px;">※${sec.section}</div>
+            ${sec.items.map((item, idx) => {
+              const key = typeName + '|' + item.code;
+              const ans = state[key];
+              return `
+                <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);">
+                  <span style="font-size:11px;color:var(--text3);min-width:18px;padding-top:1px;">${idx+1}.</span>
+                  <span style="flex:1;font-size:12px;line-height:1.5;">${item.text}</span>
+                  <div style="display:flex;gap:4px;flex-shrink:0;">
+                    <button onclick="saveClistItem('${typeName}','${item.code}','예')"
+                      style="padding:3px 10px;border-radius:12px;border:1px solid ${ans==='예'?'var(--green)':'var(--border)'};background:${ans==='예'?'var(--green)':'#fff'};color:${ans==='예'?'#fff':'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">예</button>
+                    <button onclick="saveClistItem('${typeName}','${item.code}','아니오')"
+                      style="padding:3px 10px;border-radius:12px;border:1px solid ${ans==='아니오'?'var(--red)':'var(--border)'};background:${ans==='아니오'?'var(--red)':'#fff'};color:${ans==='아니오'?'#fff':'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">아니오</button>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        `).join('')}
+      </div>`;
+  }).join('');
+}
+
+function _renderClistTab(el) {
+  const r = _detailRow;
+  const cacheKey = (r['실적지역']||'') + '|' + (r['섭외자']||'') + '|' + (r['인도자']||'');
+
+  if (_clistCache[cacheKey] !== undefined) {
+    _renderClistHtml(el, _clistCache[cacheKey]);
+    return;
+  }
+
+  el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);">로딩 중...</div>';
+
+  if (USE_SAMPLE) {
+    _clistCache[cacheKey] = {};
+    _renderClistHtml(el, {});
+    return;
+  }
+
+  gasPost({ action: 'getPersonChecklist', 실적지역: r['실적지역'], 섭외자: r['섭외자'], 인도자: r['인도자'] })
+    .then(res => {
+      const map = {};
+      (res.items || []).forEach(item => { map[item['체크종류'] + '|' + item['항목코드']] = item['예아니오']; });
+      _clistCache[cacheKey] = map;
+      if (_detailTab === 'clist') _renderClistHtml(el, map);
+    })
+    .catch(() => {
+      _clistCache[cacheKey] = {};
+      if (_detailTab === 'clist') _renderClistHtml(el, {});
+    });
+}
+
+async function saveClistItem(typeName, code, val) {
+  const r = _detailRow;
+  const cacheKey = (r['실적지역']||'') + '|' + (r['섭외자']||'') + '|' + (r['인도자']||'');
+  if (!_clistCache[cacheKey]) _clistCache[cacheKey] = {};
+  _clistCache[cacheKey][typeName + '|' + code] = val;
+
+  const el = document.getElementById('detail-tab-content');
+  if (el && _detailTab === 'clist') _renderClistHtml(el, _clistCache[cacheKey]);
+
+  if (USE_SAMPLE) return;
+
+  try {
+    await gasPost({
+      action: 'savePersonChecklistItem',
+      실적지역: r['실적지역'], 섭외자: r['섭외자'], 인도자: r['인도자'],
+      체크종류: typeName, 항목코드: code, 예아니오: val,
+      체크자: USER_AUTH?.name || USER_AUTH?.email || '',
+    });
+  } catch(e) {
+    showToast('⚠️ 저장 실패: ' + e.message, 'error');
   }
 }

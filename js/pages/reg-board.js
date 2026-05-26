@@ -79,7 +79,7 @@ function renderRegBoard() {
       : `<button class="btn" style="font-size:10px;padding:3px 7px;"
            onclick="event.stopPropagation();openRequestReviewModal(${ri})">심의요청</button>`;
 
-    const clickFn = r._isDbFinding ? `openDbDetail(${ri})` : `openPersonDetail(${ri})`;
+    const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri})` : `openPersonDetail(${ri})`;
     return `<tr style="${style}cursor:pointer;" class="cr" onclick="${clickFn}">
       <td>
         ${stageBadge(r['단계'])}
