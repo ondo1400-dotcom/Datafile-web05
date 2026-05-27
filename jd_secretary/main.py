@@ -744,14 +744,15 @@ def _livedata_person_line(row: dict) -> str:
 
 
 def fetch_livedata(개강: str, 센터: str) -> list[dict]:
+    # 컬럼명 특수문자(괄호) 문제로 개강은 Python에서 필터링
     res = (
         supa.table('db_findings')
         .select('*')
-        .eq('목표개강(연도/월)', 개강)
-        .ilike('목표센터', f'%{센터}%')
+        .ilike('실적지역', f'%{센터}%')
         .execute()
     )
-    return res.data or []
+    rows = res.data or []
+    return [r for r in rows if str(r.get('목표개강(연도/월)') or '') == 개강]
 
 
 def build_livedata_message(개강: str, 센터: str, rows: list[dict]) -> str:
