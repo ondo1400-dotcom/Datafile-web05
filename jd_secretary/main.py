@@ -93,7 +93,7 @@ def parse_meeting_report(text: str) -> dict | None:
 def save_meeting_report(data: dict) -> int:
     """db_meetings에 저장 후 해당 섭외자 누적 횟수 반환."""
     row = {
-        '실적지역':  data.get('부서', ''),
+        '실적지역':  data.get('지역', data.get('부서', '')),
         '섭외자':    data['섭외자'],
         '인도자':    data.get('인도자', ''),
         '교사':      data.get('교사', ''),
