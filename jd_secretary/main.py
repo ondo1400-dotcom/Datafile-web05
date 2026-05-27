@@ -632,29 +632,27 @@ def _clist_save(섭외자: str, 지역: str, type_key: str, state: dict):
 
 
 def _clist_render(type_key: str, 섭외자: str, 지역: str, state: dict) -> tuple[str, InlineKeyboardMarkup]:
-    """메시지에 질문 목록, 버튼은 번호+이모지로 소형화."""
+    """질문 전체 텍스트 + 아래 Y/N 버튼. 선택 시 질문 앞에 ✅/❌ 표시."""
     done_count = sum(1 for v in state.values() if v in ('Y', 'N'))
     total = len(CLIST_ORDER[type_key])
+    header = f'[{type_key}체크리스트] {섭외자} | {지역} ({done_count}/{total})'
 
-    lines = [f'[{type_key}체크리스트] {섭외자} | {지역} ({done_count}/{total})']
     buttons = []
-    idx = 1
-
     for sec in CLIST_ITEMS[type_key]:
-        lines.append(f'\n▸ {sec["section"]}')
+        buttons.append([InlineKeyboardButton(f'▸ {sec["section"]}', callback_data='cl_noop')])
         for item in sec['items']:
             val = state.get(item['code'], '-')
-            lines.append(f'{idx}. {item["text"]}')
-            y_label = f'{idx}. ✅' if val == 'Y' else f'{idx}. Y'
-            n_label = f'{idx}. ❌' if val == 'N' else f'{idx}. N'
+            prefix = '✅ ' if val == 'Y' else '❌ ' if val == 'N' else ''
+            buttons.append([InlineKeyboardButton(prefix + item['text'], callback_data='cl_noop')])
+            y_label = '✅ Y' if val == 'Y' else 'Y'
+            n_label = '❌ N' if val == 'N' else 'N'
             buttons.append([
                 InlineKeyboardButton(y_label, callback_data=f'cl|{type_key}|{item["code"]}|Y'),
                 InlineKeyboardButton(n_label, callback_data=f'cl|{type_key}|{item["code"]}|N'),
             ])
-            idx += 1
 
     buttons.append([InlineKeyboardButton('💾 완료', callback_data='cl_done')])
-    return '\n'.join(lines), InlineKeyboardMarkup(buttons)
+    return header, InlineKeyboardMarkup(buttons)
 
 
 # ── 체크리스트 요청 핸들러 ────────────────────────────────
