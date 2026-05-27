@@ -775,16 +775,41 @@ def _livedata_person_line(row: dict) -> str:
 
 
 def fetch_livedata(개강: str, 센터: str, 지역: str) -> list[dict]:
-    # 컬럼명 특수문자(괄호) 문제로 개강은 Python에서 필터링
-    res = (
+    # db_findings: 찾기/DB 단계
+    res1 = (
         supa.table('db_findings')
         .select('*')
         .ilike('실적지역', f'%{지역}%')
         .ilike('목표센터', f'%{센터}%')
         .execute()
     )
-    rows = res.data or []
-    return [r for r in rows if str(r.get('목표개강(연도/월)') or '') == 개강]
+    findings = [r for r in (res1.data or []) if str(r.get('목표개강(연도/월)') or '') == 개강]
+
+    # nujeok: 합자 이상 단계 — 단계 필드를 구분으로 매핑
+    res2 = (
+        supa.table('nujeok')
+        .select('*')
+        .ilike('실적지역', f'%{지역}%')
+        .ilike('목표센터', f'%{센터}%')
+        .execute()
+    )
+    nujeok_rows = [r for r in (res2.data or []) if str(r.get('목표개강(연도/월)') or '') == 개강]
+    log.info(f'[livedata] nujeok 조회: 전체 {len(res2.data or [])}건 → 개강필터 후 {len(nujeok_rows)}건')
+    for r in nujeok_rows:
+        r['구분'] = r.get('단계', '')
+
+    # nujeok에 있는 인물은 db_findings에서 제외 (중복 방지)
+    nujeok_keys = {
+        f"{r.get('실적지역', '')}|{r.get('섭외자', '')}|{r.get('인도자', '')}"
+        for r in nujeok_rows
+    }
+    findings = [
+        r for r in findings
+        if f"{r.get('실적지역', '')}|{r.get('섭외자', '')}|{r.get('인도자', '')}" not in nujeok_keys
+    ]
+
+    log.info(f'[livedata] 최종: findings {len(findings)}건 + nujeok {len(nujeok_rows)}건 = {len(findings) + len(nujeok_rows)}건')
+    return findings + nujeok_rows
 
 
 def build_livedata_message(개강: str, 센터: str, 지역: str, rows: list[dict]) -> str:
@@ -868,6 +893,10 @@ async def handle_livedata(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     개강 = args[0]
+    # 43/6 → 43/06 정규화
+    if '/' in 개강:
+        y, m = 개강.split('/', 1)
+        개강 = f'{y}/{m.zfill(2)}'
     센터 = ' '.join(args[1:])
     지역 = _get_topic(msg.chat.id, msg.message_thread_id)
 
