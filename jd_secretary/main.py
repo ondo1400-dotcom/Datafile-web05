@@ -89,6 +89,29 @@ def parse_meeting_report(text: str) -> dict | None:
     return data if data.get('섭외자') else None
 
 
+# ── 만남보고 db_findings 검증 ────────────────────────────
+def verify_meeting_target(지역: str, 섭외자: str, 인도자: str) -> str | None:
+    """
+    db_findings에서 실적지역+섭외자+인도자 조합 확인.
+    반환값: 'OK' | '데이터없음' | '인도자불일치:실제인도자' | '지역불일치:실제지역'
+    """
+    res = supa.table('db_findings') \
+        .select('실적지역,인도자') \
+        .eq('섭외자', 섭외자) \
+        .execute()
+    rows = res.data or []
+    if not rows:
+        return '데이터없음'
+    for row in rows:
+        if row.get('실적지역') == 지역 and row.get('인도자') == 인도자:
+            return 'OK'
+    # 섭외자는 있지만 조합이 틀린 경우 — 첫 번째 행 기준으로 안내
+    first = rows[0]
+    if first.get('실적지역') != 지역:
+        return f'지역불일치:{first.get("실적지역", "")}'
+    return f'인도자불일치:{first.get("인도자", "")}'
+
+
 # ── 만남보고 Supabase 저장 ───────────────────────────────
 def save_meeting_report(data: dict) -> int:
     """db_meetings에 저장 후 해당 섭외자 누적 횟수 반환."""
@@ -352,6 +375,35 @@ async def handle_meeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text('⚠️ 만남보고 양식을 확인해주세요.\n섭외자는 필수입니다.')
         return
 
+    지역 = parsed.get('지역', parsed.get('부서', ''))
+    섭외자 = parsed['섭외자']
+    인도자 = parsed.get('인도자', '')
+    verify = await asyncio.to_thread(verify_meeting_target, 지역, 섭외자, 인도자)
+
+    if verify != 'OK':
+        if verify == '데이터없음':
+            msg_text = (
+                f'⚠️ [{섭외자}] DB에 등록되지 않은 데이터입니다.\n'
+                f'[DB] 또는 [찾기] 보고 후 다시 만남보고해주세요.'
+            )
+        elif verify.startswith('지역불일치:'):
+            실제지역 = verify.split(':', 1)[1]
+            msg_text = (
+                f'⚠️ [{섭외자}] 지역이 맞지 않습니다.\n'
+                f'입력: {지역}  →  실제: {실제지역}\n'
+                f'지역 확인 후 다시 만남보고해주세요.'
+            )
+        else:
+            실제인도자 = verify.split(':', 1)[1]
+            msg_text = (
+                f'⚠️ [{섭외자}] 인도자가 맞지 않습니다.\n'
+                f'입력: {인도자}  →  실제: {실제인도자}\n'
+                f'인도자 확인 후 다시 만남보고해주세요.'
+            )
+        await msg.reply_text(msg_text)
+        log.info(f'[만남보고] 검증 실패({verify}): {섭외자}')
+        return
+
     count = await asyncio.to_thread(save_meeting_report, parsed)
 
     next_date = parsed.get('다음 만남일', '')
@@ -579,6 +631,7 @@ async def handle_clist_request(update: Update, context: ContextTypes.DEFAULT_TYP
     msg = update.message
     if not msg or not msg.text:
         return
+    log.info(f'[체크리스트?] chat_id={msg.chat.id} MEETING={MEETING_CHAT_ID} text={msg.text[:30]}')
     if MEETING_CHAT_ID == 0 or msg.chat.id != MEETING_CHAT_ID:
         return
 
@@ -586,6 +639,7 @@ async def handle_clist_request(update: Update, context: ContextTypes.DEFAULT_TYP
     if not text.startswith('[체크리스트]'):
         return
 
+    log.info(f'[체크리스트] 수신: {text[:60]}')
     data = {}
     for line in text.split('\n'):
         kv = _split_key_val(line.strip())
@@ -603,9 +657,13 @@ async def handle_clist_request(update: Update, context: ContextTypes.DEFAULT_TYP
         await msg.reply_text('⚠️ 섭외자를 입력해주세요.')
         return
 
-    state = await asyncio.to_thread(_clist_load, 섭외자, 지역, type_key)
-    text_body, keyboard = _clist_render(type_key, 섭외자, 지역, state)
-    await msg.reply_text(text_body, reply_markup=keyboard)
+    try:
+        state = await asyncio.to_thread(_clist_load, 섭외자, 지역, type_key)
+        text_body, keyboard = _clist_render(type_key, 섭외자, 지역, state)
+        await msg.reply_text(text_body, reply_markup=keyboard)
+    except Exception as e:
+        log.error(f'[체크리스트] 오류: {e}')
+        await msg.reply_text(f'⚠️ 오류: {e}')
 
 
 # ── 체크리스트 버튼 콜백 ─────────────────────────────────
