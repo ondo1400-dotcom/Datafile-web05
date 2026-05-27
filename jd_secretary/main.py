@@ -767,17 +767,6 @@ def build_livedata_message(개강: str, 센터: str, rows: list[dict]) -> str:
         for db_vals, label, _ in _SUMMARY_STAGES
     )
 
-    # 전체 목록 (낮은 단계 → 높은 단계 순)
-    all_lines = []
-    for db_vals, _, _ in _SUMMARY_STAGES:
-        for row in group(db_vals):
-            all_lines.append(_livedata_person_line(row))
-    # 분류 안 된 나머지
-    known = {v for db_vals, _, _ in _LIVEDATA_STAGES for v in db_vals}
-    for row in rows:
-        if str(row.get('구분') or '') not in known:
-            all_lines.append(_livedata_person_line(row))
-
     lines = [
         f'전체☀️{월}월개강 보유데이터',
         f'개강 | {개강} {센터}센터',
@@ -791,7 +780,6 @@ def build_livedata_message(개강: str, 센터: str, rows: list[dict]) -> str:
         '',
         '◼️양식',
         '섭외유형/팀/섭외자-인도자-교사/다음만남목적/다음만남일',
-        *all_lines,
         '',
     ]
 
