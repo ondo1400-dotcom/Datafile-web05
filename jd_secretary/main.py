@@ -695,9 +695,9 @@ async def handle_clist_callback(update: Update, context: ContextTypes.DEFAULT_TY
 # ── 실행 ─────────────────────────────────────────────────
 async def _run():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_meeting))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_clist_request))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_meeting),       group=0)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_clist_request), group=1)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),       group=2)
     app.add_handler(CallbackQueryHandler(handle_clist_callback, pattern=r'^cl\|'))
     log.info(f'[jd-secretary] 시작 — DB보고창: {DB_CHAT_ID} | 만남보고창: {MEETING_CHAT_ID}')
     await app.initialize()
