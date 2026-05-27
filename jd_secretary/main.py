@@ -219,6 +219,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     if not msg or not msg.text:
         return
+    log.info(f'메시지 수신 chat_id={msg.chat.id} (기대값={DB_CHAT_ID}) text={msg.text[:40]}')
     if msg.chat.id != DB_CHAT_ID:
         return
 
