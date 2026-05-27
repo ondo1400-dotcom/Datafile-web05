@@ -25,7 +25,7 @@ DB_CHAT_ID  = int(os.environ.get('DB_CHAT_ID',  '-1003828748700'))  # 찾기/DB 
 ADM_CHAT_ID = int(os.environ.get('ADM_CHAT_ID', '-1003943121521'))  # 행정보고용창
 JD_CHAT_ID  = int(os.environ.get('JD_CHAT_ID',  '-1003983618752'))  # 전도비서창
 
-FORWARD_TAGS = ['[찾기]', '[합자]', '[육따기]', '[따기]', '[복음방]', '[탈락]', '[이월]', '[지역장]']
+FORWARD_TAGS = ['[합자]', '[육따기]', '[따기]', '[복음방]', '[탈락]', '[이월]', '[지역장]']
 
 SUJUNG_TOPIC_ADM = 104
 SUJUNG_TOPIC_JD  = 53
