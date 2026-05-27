@@ -13,7 +13,7 @@ import pytz
 from dotenv import load_dotenv
 from supabase import create_client
 from telethon import TelegramClient, events
-from telethon.tl.types import InputReplyToMessage
+from telethon.tl import functions, types
 
 load_dotenv()
 
@@ -104,7 +104,12 @@ async def forward_to_jd(event):
     top_id = getattr(reply_to, 'reply_to_top_id', None) or getattr(reply_to, 'reply_to_msg_id', None)
     print(f'  reply_to={reply_to}, top_id={top_id}, SUJUNG_TOPIC_ADM={SUJUNG_TOPIC_ADM}')
     if top_id == SUJUNG_TOPIC_ADM:
-        await client.send_message(JD_CHAT_ID, text, reply_to=InputReplyToMessage(reply_to_msg_id=SUJUNG_TOPIC_JD, top_msg_id=SUJUNG_TOPIC_JD))
+        await client(functions.messages.SendMessageRequest(
+            peer=await client.get_input_entity(JD_CHAT_ID),
+            message=text,
+            reply_to=types.InputReplyToMessage(reply_to_msg_id=SUJUNG_TOPIC_JD, top_msg_id=SUJUNG_TOPIC_JD),
+            no_webpage=True,
+        ))
         print('[수정요청] 지파전도비서창으로 전달 완료')
         return
 
