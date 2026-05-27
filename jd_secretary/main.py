@@ -267,10 +267,14 @@ async def _run():
     await app.start()
     await app.updater.start_polling(drop_pending_updates=True)
     log.info('[jd-secretary] 대기 중 — Ctrl+C 로 종료')
-    await app.updater.idle()
-    await app.updater.stop()
-    await app.stop()
-    await app.shutdown()
+    try:
+        await asyncio.Event().wait()
+    except asyncio.CancelledError:
+        pass
+    finally:
+        await app.updater.stop()
+        await app.stop()
+        await app.shutdown()
 
 
 if __name__ == '__main__':
