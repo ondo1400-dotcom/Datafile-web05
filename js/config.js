@@ -2,14 +2,24 @@
 //  config.js — 설정값 (여기서만 수정)
 // ══════════════════════════════════════════════════════
 
-// ⚠️ Apps Script 배포 URL
+// ⚠️ Supabase
+const SUPABASE_URL      = 'https://chxixthkinagqfjwhoar.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoeGl4dGhraW5hZ3Fmandob2FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMzIxNDAsImV4cCI6MjA5MzgwODE0MH0.UcTa83Mi_KuUkezCj09GCqkLjL82A66X_EHp4sZScik';
+
+// Supabase 클라이언트 (index.html에서 CDN 로드 후 초기화)
+let SUPA = null;
+function initSupabase() {
+  SUPA = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+// ⚠️ Apps Script 배포 URL (GAS sync용으로 유지)
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx94rAb6olhwRaHds6EZsTzFS56dUq1xbeFpxv5ZOO7EhoS0ckavlKUYmkNM-p8AY7Y/exec';
 
 // ⚠️ Google OAuth 클라이언트 ID
 const GOOGLE_CLIENT_ID = '930451155946-8ov88buetjcsql33qtl0v17aenfmkeru.apps.googleusercontent.com';
 
 // 샘플 모드 여부
-const USE_SAMPLE = GAS_URL.includes('YOUR_DEPLOYMENT_ID');
+const USE_SAMPLE = false;
 
 // 단계 정의
 const STAGE_ORDER = ['찾기', '합자', '육따기', '영따기', '복음방', '센확', '수신'];

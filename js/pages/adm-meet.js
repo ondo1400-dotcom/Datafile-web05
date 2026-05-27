@@ -313,11 +313,9 @@ async function saveMeetResult(emoji) {
   }
 
   try {
-    await gasPost({
-      action:    'saveMeetResult',
-      rowIndex:  _currentMeetRow['__rowIndex'],
-      result:    emoji,
-    });
+    const rowId = _currentMeetRow['id'] || _currentMeetRow['__rowIndex'];
+    const { error } = await SUPA.from('meets').update({ '만남결과': emoji }).eq('id', rowId);
+    if (error) throw new Error(error.message);
     showToast(emoji + ' 결과 저장됨');
     renderCalendar();
     renderMeetSummary();

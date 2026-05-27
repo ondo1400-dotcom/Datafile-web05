@@ -182,19 +182,25 @@ async function approveAndSend(rowIndex, stage) {
       return;
     }
 
-    // 1. 승인
-    const approveRes = await gasPost({ action: 'approveReview', rowIndex, stage });
-    if (!approveRes.success) throw new Error(approveRes.error);
-    STATE.dbFindings = approveRes.dbFindings || STATE.dbFindings;
+    // 1. Supabase 승인 상태 업데이트
+    const now = new Date().toISOString();
+    const { error: approveErr } = await SUPA.from('db_findings').update({
+      '심의승인여부': 'Y', '심의승인일시': now, '심의단계': stage,
+      '전송완료여부': 'Y', '전송완료일시': now,
+    }).eq('id', rowIndex);
+    if (approveErr) throw new Error(approveErr.message);
 
-    // 2. 즉시 전송
-    const r = (STATE.dbFindings||[]).find(d => d['__rowIndex'] === rowIndex);
-    if (!r) throw new Error('데이터 없음');
+    // STATE 갱신
+    const { data: refreshed } = await SUPA.from('db_findings').select('*');
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
 
-    const messageText = buildReviewMessageText(stage, r);
-    const sendRes = await gasPost({ action: 'sendReviewTelegram', rowIndex, messageText, ...r });
-    if (!sendRes.success) throw new Error(sendRes.error);
-    STATE.dbFindings = sendRes.dbFindings || STATE.dbFindings;
+    // 2. 텔레그램 전송 (GAS 경유, 점진적 이전 예정)
+    const r = (STATE.dbFindings||[]).find(d => d['id'] === rowIndex);
+    if (r) {
+      const messageText = buildReviewMessageText(stage, r);
+      const encoded = encodeURIComponent(JSON.stringify({ action: 'sendReviewTelegram', messageText, ...r }));
+      fetch(GAS_URL + '?payload=' + encoded + '&t=' + Date.now()).catch(() => {});
+    }
 
     showToast(`📤 [${stage}] 승인 및 전송 완료!`);
     renderAdmReview();

@@ -130,7 +130,7 @@ function renderRegBoard() {
             ? '<span class="badge b-adm" style="font-size:10px;">승인완료</span>'
             : '<span class="badge b-amber" style="font-size:10px;">심의대기</span>')
       : `<button class="btn" style="font-size:10px;padding:3px 7px;"
-           onclick="event.stopPropagation();openRequestReviewModal(${ri})">심의요청</button>`;
+           onclick="event.stopPropagation();openRequestReviewModal(${ri},'${r._isDbFinding ? 'db' : 'nujeok'}')">심의요청</button>`;
 
     const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri})` : `openPersonDetail(${ri})`;
     return `<tr style="${style}cursor:pointer;" class="cr" onclick="${clickFn}">
@@ -449,13 +449,20 @@ function onReviewStageChange() {
   validateReviewForm();
 }
 
-function openRequestReviewModal(rowIndex) {
-  _reviewRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex)
-    || (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
+function openRequestReviewModal(rowIndex, source) {
+  if (source === 'db') {
+    _reviewRow = (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
+  } else if (source === 'nujeok') {
+    _reviewRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex);
+  } else {
+    _reviewRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex)
+      || (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
+  }
   if (!_reviewRow) return;
 
   _reviewDbRow = (STATE.dbFindings || []).find(d =>
     d['섭외자'] === _reviewRow['섭외자'] && d['인도자'] === _reviewRow['인도자']
+    && d['실적지역'] === _reviewRow['실적지역']
   ) || _reviewRow;
 
   const curStage     = _reviewRow['단계'] || _reviewRow['구분'] || '찾기';
@@ -505,29 +512,31 @@ async function submitRequestReview() {
     }
 
     const base = _reviewDbRow || _reviewRow;
-    const savePayload = {
-      action: 'saveOrUpdateDbFinding',
-      구분: _reviewRow['단계'] || _reviewRow['구분'] || '찾기',
-      ...Object.fromEntries(Object.entries(base).filter(([k]) => !k.startsWith('__'))),
+    const upsertData = {
+      '구분': _reviewRow['단계'] || _reviewRow['구분'] || '찾기',
+      ...Object.fromEntries(Object.entries(base).filter(([k]) => !k.startsWith('__') && k !== 'id' && k !== 'synced_at')),
       ...formData,
     };
-    if (base['__rowIndex']) savePayload['__rowIndex'] = base['__rowIndex'];
 
-    const saveRes = await gasPost(savePayload);
-    if (!saveRes.success) throw new Error(saveRes.error || '저장 실패');
-    STATE.dbFindings = saveRes.dbFindings || STATE.dbFindings;
+    // db_findings upsert (실적지역+섭외자+인도자 기준)
+    const { data: saved, error: saveErr } = await SUPA
+      .from('db_findings')
+      .upsert(upsertData, { onConflict: '실적지역,섭외자,인도자' })
+      .select()
+      .single();
+    if (saveErr) throw new Error(saveErr.message);
 
-    const dbRow = (STATE.dbFindings || []).find(d =>
-      d['섭외자'] === _reviewRow['섭외자'] && d['인도자'] === _reviewRow['인도자']
-    );
+    // 심의요청 상태 업데이트
+    const now = new Date().toISOString();
+    const { error: reviewErr } = await SUPA
+      .from('db_findings')
+      .update({ '심의요청여부': 'Y', '심의요청일시': now, '심의단계': stage })
+      .eq('id', saved.id);
+    if (reviewErr) throw new Error(reviewErr.message);
 
-    const res = await gasPost({
-      action: 'requestReview',
-      __rowIndex: dbRow?.['__rowIndex'],
-      심의단계: stage,
-    });
-    if (!res.success) throw new Error(res.error);
-    STATE.dbFindings = res.dbFindings;
+    // STATE 갱신
+    const { data: refreshed } = await SUPA.from('db_findings').select('*');
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
 
     showToast('✅ 심의 요청 완료!');
     closeRequestReviewModal();

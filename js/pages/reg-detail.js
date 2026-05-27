@@ -404,13 +404,24 @@ async function submitInlineEdit() {
     }
 
     if (isStage) {
-      const res = await gasPost({ action: 'requestEdit', ...payload, 단계: stage });
-      if (!res.success) throw new Error(res.error);
-      showToast('📤 수정 보고 전송 완료!');
+      // pending_updates에 저장 + GAS로 텔레그램 전송
+      await SUPA.from('pending_updates').insert({
+        '섭외자':    payload['섭외자']    || '',
+        '인도자':    payload['인도자']    || '',
+        '실적지역':  payload['실적지역']  || '',
+        changes:     payload,
+        source:      'app',
+        requested_by: USER_AUTH?.email || '',
+      });
+      const encoded = encodeURIComponent(JSON.stringify({ action: 'requestEdit', ...payload, 단계: stage }));
+      fetch(GAS_URL + '?payload=' + encoded + '&t=' + Date.now()).catch(() => {});
+      showToast('📤 수정 요청 전송 완료!');
     } else {
-      const res = await gasPost({ action: 'saveOrUpdateDbFinding', ...payload });
-      if (!res.success) throw new Error(res.error);
-      if (res.dbFindings) STATE.dbFindings = res.dbFindings;
+      const clean = Object.fromEntries(Object.entries(payload).filter(([k]) => !k.startsWith('__') && k !== 'id' && k !== 'synced_at'));
+      const { error } = await SUPA.from('db_findings').upsert(clean, { onConflict: '실적지역,섭외자,인도자' });
+      if (error) throw new Error(error.message);
+      const { data: refreshed } = await SUPA.from('db_findings').select('*');
+      STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
       showToast('💾 기본 정보 저장 완료!');
     }
     Object.assign(_detailRow, payload);
@@ -483,9 +494,11 @@ async function submitDbEdit() {
       return;
     }
 
-    const res = await gasPost({ action: 'saveOrUpdateDbFinding', ...payload });
-    if (!res.success) throw new Error(res.error);
-    STATE.dbFindings = res.dbFindings;
+    const clean = Object.fromEntries(Object.entries(payload).filter(([k]) => !k.startsWith('__') && k !== 'id' && k !== 'synced_at'));
+    const { error } = await SUPA.from('db_findings').upsert(clean, { onConflict: '실적지역,섭외자,인도자' });
+    if (error) throw new Error(error.message);
+    const { data: refreshed } = await SUPA.from('db_findings').select('*');
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
     showToast('✅ 수정 완료');
     closeDbEditModal();
   } catch(e) {
@@ -588,10 +601,11 @@ async function submitDetailEdit() {
       return;
     }
 
-    // Datafile-05에 저장
-    const res = await gasPost({ action: 'saveOrUpdateDbFinding', ...payload });
-    if (!res.success) throw new Error(res.error);
-    STATE.dbFindings = res.dbFindings;
+    const clean = Object.fromEntries(Object.entries(payload).filter(([k]) => !k.startsWith('__') && k !== 'id' && k !== 'synced_at'));
+    const { error } = await SUPA.from('db_findings').upsert(clean, { onConflict: '실적지역,섭외자,인도자' });
+    if (error) throw new Error(error.message);
+    const { data: refreshed } = await SUPA.from('db_findings').select('*');
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
     Object.assign(_detailRow, payload);
 
     showToast('✅ 수정 완료! 심의요청 탭에서 보고할 수 있어요');
@@ -813,9 +827,25 @@ function _renderClistHtml(el, state) {
   }).join('');
 }
 
+function _hcDecodeToMap(str) {
+  const order = _CLIST_ITEMS.합체리.flatMap(sec => sec.items.map(it => it.code));
+  const map = {};
+  order.forEach((code, i) => {
+    const c = (str || '')[i];
+    if (c === 'Y') map['합체리|' + code] = '예';
+    else if (c === 'N') map['합체리|' + code] = '아니오';
+  });
+  return map;
+}
+
 function _renderClistTab(el) {
   const r = _detailRow;
   const cacheKey = (r['실적지역']||'') + '|' + (r['섭외자']||'') + '|' + (r['인도자']||'');
+
+  // 합체리는 DB_찾기 행에서 직접 decode (별도 GAS 호출 불필요)
+  if (_clistCache[cacheKey] === undefined && '합체리' in r) {
+    _clistCache[cacheKey] = _hcDecodeToMap(r['합체리'] || '');
+  }
 
   if (_clistCache[cacheKey] !== undefined) {
     _renderClistHtml(el, _clistCache[cacheKey]);
@@ -848,6 +878,17 @@ async function saveClistItem(typeName, code, val) {
   const cacheKey = (r['실적지역']||'') + '|' + (r['섭외자']||'') + '|' + (r['인도자']||'');
   if (!_clistCache[cacheKey]) _clistCache[cacheKey] = {};
   _clistCache[cacheKey][typeName + '|' + code] = val;
+
+  // 합체리는 _detailRow['합체리'] 문자열도 함께 업데이트
+  if (typeName === '합체리' && '합체리' in r) {
+    const order = _CLIST_ITEMS.합체리.flatMap(sec => sec.items.map(it => it.code));
+    const cur = (r['합체리'] || '-'.repeat(10)).padEnd(10, '-').split('');
+    const pos = order.indexOf(code);
+    if (pos >= 0) {
+      cur[pos] = val === '예' ? 'Y' : val === '아니오' ? 'N' : '-';
+      r['합체리'] = cur.join('');
+    }
+  }
 
   const el = document.getElementById('detail-tab-content');
   if (el && _detailTab === 'clist') _renderClistHtml(el, _clistCache[cacheKey]);

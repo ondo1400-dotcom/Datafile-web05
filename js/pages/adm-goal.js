@@ -127,8 +127,11 @@ async function updateGoal(kaigang, center, stage, region, value) {
   }
 
   try {
-    const res = await gasPost({ action: 'saveGoal', kaigang, center, stage, region, count });
-    STATE.goals = res.goals;
+    const { error } = await SUPA.from('goals').upsert(
+      { '목표개강(연도/월)': kaigang, '목표센터': center, '단계': stage, '실적지역': region, target_count: count },
+      { onConflict: '목표개강(연도/월),목표센터,단계,실적지역' }
+    );
+    if (error) throw new Error(error.message);
     showToast('✅ 목표 저장됨');
   } catch (e) {
     showToast('⚠️ 저장 실패: ' + e.message, 'error');

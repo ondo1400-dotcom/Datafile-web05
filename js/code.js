@@ -507,7 +507,7 @@ function ensureAuthSheets(ss) {
 function ensureDbSheet(ss) {
   if (!ss.getSheetByName(SHEET_DB)) {
     const s = ss.insertSheet(SHEET_DB);
-    const h = ['구분','등록일시','실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','목표개강(연도/월)','목표센터','섭외자','전화번호','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','따기예정일','따기주간횟수','따기기간','고정요일','따기유형','따기단계','첫수업예정일','섬김이부서/지역/팀/구역','섬김이','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부','다음만남일','다음만남시간','다음만남목적','합자요청여부','합자요청일시','심의요청여부','심의요청일시','심의승인여부','심의승인일시','전송완료여부','전송완료일시','심의단계'];
+    const h = ['구분','등록일시','실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','목표개강(연도/월)','목표센터','섭외자','전화번호','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','합체리','따기예정일','따기주간횟수','따기기간','고정요일','따기유형','따기단계','첫수업예정일','섬김이부서/지역/팀/구역','섬김이','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부','다음만남일','다음만남시간','다음만남목적','합자요청여부','합자요청일시','심의요청여부','심의요청일시','심의승인여부','심의승인일시','전송완료여부','전송완료일시','심의단계'];
     s.appendRow(h); s.setFrozenRows(1);
     s.getRange(1,1,1,h.length).setBackground('#1A3A8F').setFontColor('#fff').setFontWeight('bold');
   } else {
@@ -519,7 +519,7 @@ function ensureDbColumns(ss) {
   const sheet = ss.getSheetByName(SHEET_DB);
   if (!sheet) return;
   const existing = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const needed = ['교사부서/지역/팀/구역','교사','따기예정일','따기주간횟수','따기기간','고정요일','따기유형','따기단계','첫수업예정일','섬김이부서/지역/팀/구역','섬김이','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부'];
+  const needed = ['교사부서/지역/팀/구역','교사','합체리','따기예정일','따기주간횟수','따기기간','고정요일','따기유형','따기단계','첫수업예정일','섬김이부서/지역/팀/구역','섬김이','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부'];
   needed.forEach(col => {
     if (!existing.includes(col)) {
       const newCol = sheet.getLastColumn() + 1;
@@ -755,6 +755,56 @@ function sendReviewTelegram(payload) {
   }
 }
 
+// ─── 합체리 인코딩 (Y=예, N=아니오, -=미체크, 10자리 고정) ───
+const _HC_ORDER = ['h_in_1','h_in_2','h_in_3','h_sp_1','h_sp_2','h_sp_3','h_ev_1','h_ev_2','h_ev_3','h_ev_4'];
+const _HC_LABELS = {
+  h_in_1: '정신질환 관련 약을 복용중이지 않은가? (우울증, 공황장애, ADHD, 조울증)',
+  h_in_2: '만남에 특정 목적을 띄고 있지 않은가? (이성, 다단계, 보험권유 등)',
+  h_in_3: '부모에게 지나치게 의존적이지 않는가? (통금, 외출 제약 등)',
+  h_sp_1: '신의 존재(보이지 않는 존재)를 부정하지않고 믿거나 있기를 소망하는가?',
+  h_sp_2: '신천지에 대한 직·간접적인 부정적인 경험이 없는가?',
+  h_sp_3: '현재 다니는 교회에서 사역 혹은 봉사활동 여부가 파악되었는가?',
+  h_ev_1: '사는 곳이 센터와 1시간 이내 거리인가?',
+  h_ev_2: '타 지역 중복 섭외 이력을 확인하였는가?',
+  h_ev_3: '주 3회 대면 센터수강 시간이 가능한가? (평일 10시, 19시반)',
+  h_ev_4: '센터기간(6개월) 내에 2주 이상의 센터수강 불가 일정이 없는가?',
+};
+const _HC_SECTIONS = [
+  { label: '인성', codes: ['h_in_1','h_in_2','h_in_3'] },
+  { label: '신성', codes: ['h_sp_1','h_sp_2','h_sp_3'] },
+  { label: '환경', codes: ['h_ev_1','h_ev_2','h_ev_3','h_ev_4'] },
+];
+
+function _hcEncode(map) {
+  return _HC_ORDER.map(function(code) {
+    var v = map[code];
+    return v === '예' ? 'Y' : v === '아니오' ? 'N' : '-';
+  }).join('');
+}
+function _hcDecode(str) {
+  var map = {};
+  _HC_ORDER.forEach(function(code, i) {
+    var c = (str || '')[i];
+    if (c === 'Y') map[code] = '예';
+    else if (c === 'N') map[code] = '아니오';
+  });
+  return map;
+}
+function _buildHcText(str) {
+  if (!str || str.replace(/-/g, '') === '') return '';
+  var map = _hcDecode(str);
+  var lines = ['합체리 체크'];
+  _HC_SECTIONS.forEach(function(sec) {
+    lines.push('[' + sec.label + ']');
+    sec.codes.forEach(function(code) {
+      var ans  = map[code];
+      var mark = ans === '예' ? '✅' : ans === '아니오' ? '❌' : '○';
+      lines.push(mark + ' ' + _HC_LABELS[code]);
+    });
+  });
+  return lines.join('\n');
+}
+
 function buildReviewText(stage, r) {
   function fmtD(val) {
     if (!val) return '';
@@ -776,7 +826,9 @@ function buildReviewText(stage, r) {
   const vt = key => fmtT(r[key]);
   const loc = '청년회/' + v('실적지역');
 
-  if (stage === '찾기') return `[찾기]
+  if (stage === '찾기') {
+    const hcText = _buildHcText(v('합체리'));
+    return `[찾기]
 실적부서/지역 : ${loc}
 인도자부서/지역/팀/구역 : ${v('인도자부서/지역/팀/구역')}
 인도자 : ${v('인도자')}
@@ -796,7 +848,8 @@ function buildReviewText(stage, r) {
 2차연결유형 : ${v('2차연결유형')}
 다음만남일 : ${vd('다음만남일')}
 다음만남시간 : ${vt('다음만남시간')}
-다음만남목적 : ${v('다음만남목적')}`;
+다음만남목적 : ${v('다음만남목적')}${hcText ? '\n\n' + hcText : ''}`;
+  }
 
   if (stage === '합자') return `[합자]
 실적부서/지역 : ${loc}
@@ -1191,6 +1244,37 @@ function getPersonChecklist(payload) {
 
 function savePersonChecklistItem(payload) {
   const ss = SpreadsheetApp.openById(SS_ID);
+
+  // 합체리는 DB_찾기 행에 직접 저장 (별도 시트 불필요)
+  if (payload['체크종류'] === '합체리') {
+    ensureDbSheet(ss);
+    const dbSheet  = ss.getSheetByName(SHEET_DB);
+    const dbData   = dbSheet.getDataRange().getValues();
+    const dbH      = dbData[0];
+    const 지역Col  = dbH.indexOf('실적지역');
+    const 섭외자Col = dbH.indexOf('섭외자');
+    const 인도자Col = dbH.indexOf('인도자');
+    const 합체리Col = dbH.indexOf('합체리');
+    if (합체리Col < 0) return { success: false, error: '합체리 컬럼 없음' };
+    for (let i = 1; i < dbData.length; i++) {
+      const row = dbData[i];
+      if (String(row[지역Col]) === (payload['실적지역']||'') &&
+          String(row[섭외자Col]) === (payload['섭외자']||'') &&
+          String(row[인도자Col]) === (payload['인도자']||'')) {
+        const cur = String(row[합체리Col] || '').padEnd(10, '-').split('');
+        const pos = _HC_ORDER.indexOf(payload['항목코드']||'');
+        if (pos >= 0) {
+          const v = payload['예아니오'];
+          cur[pos] = v === '예' ? 'Y' : v === '아니오' ? 'N' : '-';
+          dbSheet.getRange(i + 1, 합체리Col + 1).setValue(cur.join(''));
+        }
+        return { success: true };
+      }
+    }
+    return { success: false, error: '해당 인물 없음' };
+  }
+
+  // 따체리/복체리는 기존 인물체크리스트 시트 사용
   ensurePersonChecklistSheet(ss);
   const sheet   = ss.getSheetByName(SHEET_PCLIST);
   const data    = sheet.getDataRange().getValues();

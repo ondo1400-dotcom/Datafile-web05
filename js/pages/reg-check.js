@@ -110,14 +110,21 @@ async function toggleCheck(key, item, cbEl) {
 
   try {
     const nujeokRow = STATE.nujeok.find(r => makeKey(r) === key) || {};
-    await gasPost({
-      action:    'saveCheck',
-      key,
-      itemName:  item,
-      checked:   newChecked,
-      checker:   checkerName,
-      nujeokInfo: nujeokRow,
-    });
+    const now = new Date().toISOString();
+    const { error } = await SUPA.from('checks').upsert({
+      '복합키':            key,
+      '실적지역':          nujeokRow['실적지역']          || '',
+      '인도자':            nujeokRow['인도자']            || '',
+      '섭외자':            nujeokRow['섭외자']            || '',
+      '목표개강(연도/월)': nujeokRow['목표개강(연도/월)'] || '',
+      '목표센터':          nujeokRow['목표센터']          || '',
+      '단계':              nujeokRow['단계']              || '',
+      '항목명':            item,
+      '체크여부':          newChecked ? 'Y' : 'N',
+      '체크자':            checkerName,
+      '체크일시':          now,
+    }, { onConflict: '복합키,항목명' });
+    if (error) throw new Error(error.message);
     showToast(newChecked ? '✅ 체크 저장됨' : '↩️ 체크 해제됨');
   } catch (e) {
     showToast('⚠️ 저장 실패: ' + e.message, 'error');

@@ -45,8 +45,9 @@ async function addItemConfirm() {
   }
 
   try {
-    const res = await gasPost({ action: 'addCheckItem', itemName: name });
-    STATE.checkItems = res.items;
+    const { error } = await SUPA.from('check_items').insert({ '항목명': name, sort_order: STATE.checkItems.length + 1 });
+    if (error) throw new Error(error.message);
+    STATE.checkItems.push(name);
     closeAddItemModal();
     renderItemManage();
     showToast('✅ 항목 추가됨');
@@ -67,8 +68,9 @@ async function removeItem(name) {
   }
 
   try {
-    const res = await gasPost({ action: 'removeCheckItem', itemName: name });
-    STATE.checkItems = res.items;
+    const { error } = await SUPA.from('check_items').delete().eq('항목명', name);
+    if (error) throw new Error(error.message);
+    STATE.checkItems = STATE.checkItems.filter(i => i !== name);
     renderItemManage();
     showToast('🗑 항목 삭제됨');
   } catch (e) {

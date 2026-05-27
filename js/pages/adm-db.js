@@ -35,7 +35,7 @@ function renderAdmDb() {
         ? '<span class="badge b-adm" style="font-size:10px;">승인완료</span>'
         : r['심의요청여부'] === 'Y'
           ? '<span class="badge b-amber" style="font-size:10px;">심의대기</span>'
-          : `<button class="btn reg-pri" style="font-size:11px;padding:4px 10px;" onclick="event.stopPropagation();openRequestReviewModal(${ri})">심의요청</button>`;
+          : `<button class="btn reg-pri" style="font-size:11px;padding:4px 10px;" onclick="event.stopPropagation();openRequestReviewModal(${ri},'db')">심의요청</button>`;
 
     return `<tr style="${rowStyle}" class="cr" onclick="openDbDetail(${ri})">
       <td><span class="badge ${typeColor}">${r['구분']||'—'}</span></td>
@@ -139,8 +139,10 @@ async function submitNewDb() {
       renderAdmDb();
       return;
     }
-    const res = await gasPost({ action: 'saveDbFinding', ...payload });
-    STATE.dbFindings = res.dbFindings;
+    const { error } = await SUPA.from('db_findings').insert(payload);
+    if (error) throw new Error(error.message);
+    const { data: refreshed } = await SUPA.from('db_findings').select('*');
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
     showToast('✅ 등록 완료');
     closeNewDbModal();
     renderAdmDb();
