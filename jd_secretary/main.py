@@ -601,29 +601,24 @@ def _clist_save(섭외자: str, 지역: str, type_key: str, state: dict):
 
 
 def _clist_render(type_key: str, 섭외자: str, 지역: str, state: dict) -> tuple[str, InlineKeyboardMarkup]:
-    """메시지 텍스트 + 인라인 키보드 반환."""
-    lines = [f'[{type_key}체크리스트] {섭외자} | {지역}']
+    """항목 텍스트를 버튼 안에 표시. 클릭 시 ○→✅→❌→○ 순환."""
+    done_count = sum(1 for v in state.values() if v in ('Y', 'N'))
+    total = len(CLIST_ORDER[type_key])
+    header = f'[{type_key}체크리스트] {섭외자} | {지역} ({done_count}/{total})'
+
     buttons = []
-    idx = 1
     for sec in CLIST_ITEMS[type_key]:
-        lines.append(f'\n※{sec["section"]}')
+        buttons.append([InlineKeyboardButton(f'▸ {sec["section"]}', callback_data='cl_noop')])
         for item in sec['items']:
             val = state.get(item['code'], '-')
             mark = '✅' if val == 'Y' else '❌' if val == 'N' else '○'
-            lines.append(f'{mark} {idx}. {item["text"]}')
-            y_label = f'{idx}. ✅예' if val == 'Y' else f'{idx}. 예'
-            n_label = f'{idx}. ❌아니오' if val == 'N' else f'{idx}. 아니오'
-            buttons.append([
-                InlineKeyboardButton(y_label, callback_data=f'cl|{type_key}|{item["code"]}|Y'),
-                InlineKeyboardButton(n_label, callback_data=f'cl|{type_key}|{item["code"]}|N'),
-            ])
-            idx += 1
+            buttons.append([InlineKeyboardButton(
+                f'{mark}  {item["text"]}',
+                callback_data=f'cl|{type_key}|{item["code"]}',
+            )])
+    buttons.append([InlineKeyboardButton('💾 완료', callback_data='cl_done')])
 
-    done_count = sum(1 for v in state.values() if v in ('Y', 'N'))
-    total = len(CLIST_ORDER[type_key])
-    lines[0] += f' ({done_count}/{total})'
-
-    return '\n'.join(lines), InlineKeyboardMarkup(buttons)
+    return header, InlineKeyboardMarkup(buttons)
 
 
 # ── 체크리스트 요청 핸들러 ────────────────────────────────
@@ -669,11 +664,20 @@ async def handle_clist_request(update: Update, context: ContextTypes.DEFAULT_TYP
 # ── 체크리스트 버튼 콜백 ─────────────────────────────────
 async def handle_clist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    if not query.data or not query.data.startswith('cl|'):
-        return
-    await query.answer()
+    data = query.data or ''
 
-    _, type_key, code, val = query.data.split('|')
+    if data == 'cl_noop':
+        await query.answer()
+        return
+    if data == 'cl_done':
+        await query.answer('✅ 저장완료!', show_alert=True)
+        return
+    if not data.startswith('cl|'):
+        await query.answer()
+        return
+
+    await query.answer()
+    _, type_key, code = data.split('|')
 
     # 메시지 첫 줄에서 섭외자/지역 파싱: "[합자체크리스트] 홍길동 | OO지역 (2/10)"
     first_line = (query.message.text or '').split('\n')[0]
@@ -684,8 +688,9 @@ async def handle_clist_callback(update: Update, context: ContextTypes.DEFAULT_TY
     지역   = m.group(2).strip()
 
     state = await asyncio.to_thread(_clist_load, 섭외자, 지역, type_key)
-    # 토글: 같은 값 누르면 취소(-), 다른 값이면 변경
-    state[code] = '-' if state.get(code) == val else val
+    # ○ → ✅(Y) → ❌(N) → ○(-) 순환
+    cur = state.get(code, '-')
+    state[code] = 'Y' if cur == '-' else 'N' if cur == 'Y' else '-'
     await asyncio.to_thread(_clist_save, 섭외자, 지역, type_key, state)
 
     text_body, keyboard = _clist_render(type_key, 섭외자, 지역, state)
@@ -698,7 +703,7 @@ async def _run():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_meeting),       group=0)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_clist_request), group=1)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),       group=2)
-    app.add_handler(CallbackQueryHandler(handle_clist_callback, pattern=r'^cl\|'))
+    app.add_handler(CallbackQueryHandler(handle_clist_callback, pattern=r'^cl'))
     log.info(f'[jd-secretary] 시작 — DB보고창: {DB_CHAT_ID} | 만남보고창: {MEETING_CHAT_ID}')
     await app.initialize()
     await app.start()
