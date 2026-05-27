@@ -263,13 +263,14 @@ async def _run():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     log.info(f'[jd-secretary] 시작 — DB보고창 감시: {DB_CHAT_ID}')
-    async with app:
-        await app.initialize()
-        await app.start()
-        await app.updater.start_polling(drop_pending_updates=True)
-        log.info('[jd-secretary] 대기 중 — Ctrl+C 로 종료')
-        await app.updater.idle()
-        await app.stop()
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling(drop_pending_updates=True)
+    log.info('[jd-secretary] 대기 중 — Ctrl+C 로 종료')
+    await app.updater.idle()
+    await app.updater.stop()
+    await app.stop()
+    await app.shutdown()
 
 
 if __name__ == '__main__':
