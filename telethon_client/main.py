@@ -102,6 +102,7 @@ async def forward_to_jd(event):
 
     reply_to = event.message.reply_to
     top_id = getattr(reply_to, 'reply_to_top_id', None) or getattr(reply_to, 'reply_to_msg_id', None)
+    print(f'  reply_to={reply_to}, top_id={top_id}, SUJUNG_TOPIC_ADM={SUJUNG_TOPIC_ADM}')
     if top_id == SUJUNG_TOPIC_ADM:
         await client.send_message(JD_CHAT_ID, text, reply_to=InputReplyToMessage(reply_to_msg_id=SUJUNG_TOPIC_JD, top_msg_id=SUJUNG_TOPIC_JD))
         print('[수정요청] 지파전도비서창으로 전달 완료')
