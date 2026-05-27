@@ -291,30 +291,48 @@ function renderDetailTab() {
     `;
 
   } else if (_detailTab === 'meets') {
-    const personMeets = (STATE.meets || []).filter(m =>
-      m['섭외자'] === r['섭외자'] && m['인도자'] === r['인도자']
-    ).sort((a, b) => (b._date?.getTime()||0) - (a._date?.getTime()||0));
+    const dbMeets = (STATE.dbMeetings || []).filter(m => m['섭외자'] === r['섭외자']);
 
-    if (!personMeets.length) {
+    if (!dbMeets.length) {
       el.innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center;">만남 기록 없음</div>';
       return;
     }
 
     el.innerHTML = `
-      <div class="tw">
-        <table class="bt">
-          <thead><tr><th>날짜</th><th>시간</th><th>목적</th><th>결과</th></tr></thead>
-          <tbody>
-            ${personMeets.map(m => `
-              <tr>
-                <td style="font-weight:700;">${m._date ? fmtMD(m._date) : '—'}</td>
-                <td>${fmtTime(m['다음만남시간'])||'—'}</td>
-                <td>${m['다음만남목적']||'—'}</td>
-                <td style="font-size:16px;">${m['만남결과']||'⬜'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+      <div style="padding:4px 0;">
+        <div style="font-size:11px;color:var(--text3);padding:4px 12px 8px;">총 ${dbMeets.length}회</div>
+        ${dbMeets.map((m, i) => {
+          const nth = dbMeets.length - i;
+          const date = m['만남일자'] || '—';
+          const time = m['만남시간'] || '';
+          const title = m['제목'] || '';
+          const 내용 = m['수업내용'] || '';
+          const 반응 = m['수업반응'] || '';
+          const 특이 = m['특이사항'] || '';
+          const next = m['다음만남일'] || '';
+          const 교사 = m['교사'] || '';
+          const 인도 = m['인도자'] || '';
+          const 동행 = m['동행자'] || '';
+          const 섬김 = m['섬김이'] || '';
+          return `
+            <div style="border:1px solid var(--border);border-radius:10px;margin:0 8px 10px;overflow:hidden;">
+              <div style="background:var(--reg-light);padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);">
+                <span style="font-size:12px;font-weight:700;color:var(--reg2);">${nth}차</span>
+                <span style="font-size:13px;font-weight:700;">${date}</span>
+                ${time ? `<span style="font-size:11px;color:var(--text3);">${time}</span>` : ''}
+                ${title ? `<span style="font-size:12px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</span>` : '<span style="flex:1;"></span>'}
+                ${교사 ? `<span style="font-size:11px;color:var(--text3);">교사: ${교사}</span>` : ''}
+              </div>
+              <div style="padding:10px 12px;font-size:12px;line-height:1.6;">
+                ${인도 ? `<div style="font-size:11px;color:var(--text3);margin-bottom:6px;">인도자: ${인도}</div>` : ''}
+                ${내용 ? `<div style="margin-bottom:6px;"><span style="font-weight:600;color:var(--text2);">수업내용</span><br><span style="color:var(--text1);white-space:pre-wrap;">${내용}</span></div>` : ''}
+                ${반응 ? `<div style="margin-bottom:6px;"><span style="font-weight:600;color:var(--text2);">수업반응</span><br><span style="color:var(--text1);white-space:pre-wrap;">${반응}</span></div>` : ''}
+                ${특이 ? `<div style="margin-bottom:6px;"><span style="font-weight:600;color:var(--text2);">특이사항</span><br><span style="color:var(--text1);white-space:pre-wrap;">${특이}</span></div>` : ''}
+                ${(동행||섬김) ? `<div style="font-size:11px;color:var(--text3);">${동행?'동행: '+동행:''}${동행&&섬김?' · ':''}${섬김?'섬김: '+섬김:''}</div>` : ''}
+                ${next ? `<div style="margin-top:6px;font-size:11px;color:var(--reg2);font-weight:600;">📅 다음만남: ${next}</div>` : ''}
+              </div>
+            </div>`;
+        }).join('')}
       </div>
     `;
 
@@ -713,11 +731,11 @@ async function submitIwol() {
 }
 
 // ═══════════════════════════════════════════════════════
-//  C_list 탭 — 합체리 / 따체리 / 복체리
+//  C_list 탭 — 합자체크리스트 / 따기체크리스트 / 센터확정체크리스트
 // ═══════════════════════════════════════════════════════
 
 const _CLIST_ITEMS = {
-  합체리: [
+  합자체크리스트: [
     { section: '인성', items: [
       { code: 'h_in_1', text: '정신질환 관련 약을 복용중이지 않은가? (우울증, 공황장애, ADHD, 조울증)' },
       { code: 'h_in_2', text: '만남에 특정 목적을 띄고 있지 않은가? (이성, 다단계, 보험권유 등)' },
@@ -730,12 +748,12 @@ const _CLIST_ITEMS = {
     ]},
     { section: '환경', items: [
       { code: 'h_ev_1', text: '사는 곳이 센터와 1시간 이내 거리인가?' },
-      { code: 'h_ev_2', text: '타 지역 중복 섭외 이력을 확인하였는가?' },
-      { code: 'h_ev_3', text: '주 3회 대면 센터수강 시간이 가능한가? (평일 10시, 19시반)' },
-      { code: 'h_ev_4', text: '센터기간(6개월) 내에 2주 이상의 센터수강 불가 일정이 없는가?' },
+      { code: 'h_ev_2', text: '타 지역 중복 섭외 이력을 확인하였는가?', note: '상담, 복음방 경험 / 세미나, 전도의 장, 인터뷰 경험: 지역장 또는 열매 통한 직접 파악' },
+      { code: 'h_ev_3', text: '주 3회 대면 센터수강 시간이 가능한가?(평일 10시, 19시반)' },
+      { code: 'h_ev_4', text: '센터기간(6개월) 내에 2주 이상의 센터수강 불가 일정이 없는가?', note: '여행, 타지역 방문 등' },
     ]},
   ],
-  따체리: [
+  따기체크리스트: [
     { section: '교사와의 신뢰', items: [
       { code: 'd_tr_1', text: '교사의 말을 30분 이상 경청하는 자세를 가지며 배려심 있고 공손하다.' },
       { code: 'd_tr_2', text: '교사에게 자신의 이야기를 잘 털어놓는다. (가정사, 고민, 이성친구 등)' },
@@ -755,7 +773,7 @@ const _CLIST_ITEMS = {
       { code: 'd_sc_2', text: '상담을 받으러 나올때 주위에 뭐라고 하고 나오는지 확인이 되었는가?' },
     ]},
   ],
-  복체리: [
+  센터확정체크리스트: [
     { section: '동기부여', items: [
       { code: 'b_mo_1', text: '건강한 미래를 위해 이 상담이 반드시 필요하다는 것을 받아들였는가?' },
       { code: 'b_mo_2', text: '자신의 현 상태를 인지하여 변화가 반드시 필요함을 인정하는가?' },
@@ -812,7 +830,7 @@ function _renderClistHtml(el, state) {
               return `
                 <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);">
                   <span style="font-size:11px;color:var(--text3);min-width:18px;padding-top:1px;">${idx+1}.</span>
-                  <span style="flex:1;font-size:12px;line-height:1.5;">${item.text}</span>
+                  <span style="flex:1;font-size:12px;line-height:1.5;">${item.text}${item.note ? `<br><span style="font-size:10px;color:var(--text3);">(${item.note})</span>` : ''}</span>
                   <div style="display:flex;gap:4px;flex-shrink:0;">
                     <button onclick="saveClistItem('${typeName}','${item.code}','예')"
                       style="padding:3px 10px;border-radius:12px;border:1px solid ${ans==='예'?'var(--green)':'var(--border)'};background:${ans==='예'?'var(--green)':'#fff'};color:${ans==='예'?'#fff':'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">예</button>
@@ -828,12 +846,12 @@ function _renderClistHtml(el, state) {
 }
 
 function _hcDecodeToMap(str) {
-  const order = _CLIST_ITEMS.합체리.flatMap(sec => sec.items.map(it => it.code));
+  const order = _CLIST_ITEMS.합자체크리스트.flatMap(sec => sec.items.map(it => it.code));
   const map = {};
   order.forEach((code, i) => {
     const c = (str || '')[i];
-    if (c === 'Y') map['합체리|' + code] = '예';
-    else if (c === 'N') map['합체리|' + code] = '아니오';
+    if (c === 'Y') map['합자체크리스트|' + code] = '예';
+    else if (c === 'N') map['합자체크리스트|' + code] = '아니오';
   });
   return map;
 }
@@ -842,9 +860,9 @@ function _renderClistTab(el) {
   const r = _detailRow;
   const cacheKey = (r['실적지역']||'') + '|' + (r['섭외자']||'') + '|' + (r['인도자']||'');
 
-  // 합체리는 DB_찾기 행에서 직접 decode (별도 GAS 호출 불필요)
-  if (_clistCache[cacheKey] === undefined && '합체리' in r) {
-    _clistCache[cacheKey] = _hcDecodeToMap(r['합체리'] || '');
+  // 합자체크리스트는 DB_찾기 행에서 직접 decode (별도 GAS 호출 불필요)
+  if (_clistCache[cacheKey] === undefined && '합자체크리스트' in r) {
+    _clistCache[cacheKey] = _hcDecodeToMap(r['합자체크리스트'] || '');
   }
 
   if (_clistCache[cacheKey] !== undefined) {
@@ -879,14 +897,14 @@ async function saveClistItem(typeName, code, val) {
   if (!_clistCache[cacheKey]) _clistCache[cacheKey] = {};
   _clistCache[cacheKey][typeName + '|' + code] = val;
 
-  // 합체리는 _detailRow['합체리'] 문자열도 함께 업데이트
-  if (typeName === '합체리' && '합체리' in r) {
-    const order = _CLIST_ITEMS.합체리.flatMap(sec => sec.items.map(it => it.code));
-    const cur = (r['합체리'] || '-'.repeat(10)).padEnd(10, '-').split('');
+  // 합자체크리스트는 _detailRow['합자체크리스트'] 문자열도 함께 업데이트
+  if (typeName === '합자체크리스트' && '합자체크리스트' in r) {
+    const order = _CLIST_ITEMS.합자체크리스트.flatMap(sec => sec.items.map(it => it.code));
+    const cur = (r['합자체크리스트'] || '-'.repeat(10)).padEnd(10, '-').split('');
     const pos = order.indexOf(code);
     if (pos >= 0) {
       cur[pos] = val === '예' ? 'Y' : val === '아니오' ? 'N' : '-';
-      r['합체리'] = cur.join('');
+      r['합자체크리스트'] = cur.join('');
     }
   }
 

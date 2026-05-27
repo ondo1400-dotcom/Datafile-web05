@@ -22,8 +22,9 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', level=logg
 log = logging.getLogger(__name__)
 
 # ── 설정 ────────────────────────────────────────────────
-BOT_TOKEN  = os.environ['JD_BOT_TOKEN']
-DB_CHAT_ID = int(os.environ.get('DB_CHAT_ID', '-1003828748700'))   # 찾기/DB 보고창
+BOT_TOKEN       = os.environ['JD_BOT_TOKEN']
+DB_CHAT_ID      = int(os.environ.get('DB_CHAT_ID',      '-1003828748700'))  # 찾기/DB 보고창
+MEETING_CHAT_ID = int(os.environ.get('MEETING_CHAT_ID', '0'))               # 만남보고창
 
 REVIEW_CHAT_ID       = int(os.environ.get('ADM_CHAT_ID', '-1003943121521'))  # 행정보고창
 REVIEW_EDIT_THREAD_ID = 104  # 행정보고창 수정요청 주제
@@ -43,6 +44,94 @@ PRESERVED = {
 
 # 예/아니오 → 1/0 변환 필드
 CHECKLIST_FIELDS = {'합자체크리스트', '따기체크리스트', '센터확정체크리스트'}
+
+
+# ── 만남보고 파싱 ───────────────────────────────────────
+_MEET_MARKERS = ('▫️', '🌈', '✅', '▫')
+
+def _split_key_val(s: str) -> tuple[str, str] | None:
+    """'key : val' 또는 'key:val' 등 콜론 구분자 유연 파싱."""
+    m = re.match(r'^(.+?)\s*:\s*(.*)', s)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return None
+
+def parse_meeting_report(text: str) -> dict | None:
+    data: dict = {}
+    current_key: str | None = None
+    buffer: list[str] = []
+
+    def flush():
+        nonlocal current_key, buffer
+        if current_key:
+            data[current_key] = '\n'.join(buffer).strip()
+        current_key = None
+        buffer = []
+
+    for raw in text.split('\n'):
+        s = raw.strip()
+        if any(s.startswith(m) for m in _MEET_MARKERS):
+            flush()
+            for m in _MEET_MARKERS:
+                if s.startswith(m):
+                    s = s[len(m):].strip()
+                    break
+            kv = _split_key_val(s)
+            if kv:
+                current_key, val = kv
+                buffer = [val] if val else []
+            else:
+                current_key = s.strip() or None
+        elif s and current_key is not None:
+            buffer.append(s)
+
+    flush()
+    return data if data.get('섭외자') else None
+
+
+# ── 만남보고 Supabase 저장 ───────────────────────────────
+def save_meeting_report(data: dict) -> int:
+    """db_meetings에 저장 후 해당 섭외자 누적 횟수 반환."""
+    row = {
+        '실적지역':  data.get('부서', ''),
+        '섭외자':    data['섭외자'],
+        '인도자':    data.get('인도자', ''),
+        '교사':      data.get('교사', ''),
+        '동행자':    data.get('동행자', ''),
+        '섬김이':    data.get('섬김이', ''),
+        '만남일자':  data.get('만남일자', ''),
+        '만남시간':  data.get('만남시간', ''),
+        '제목':      data.get('제목', ''),
+        '수업내용':  data.get('수업내용', ''),
+        '수업반응':  data.get('수업 반응', data.get('수업반응', '')),
+        '다음만남일': data.get('다음 만남일', data.get('다음만남일', '')),
+        '특이사항':  data.get('특이사항', ''),
+    }
+    supa.table('db_meetings').insert(row).execute()
+    res = supa.table('db_meetings') \
+        .select('id', count='exact') \
+        .eq('섭외자', data['섭외자']) \
+        .execute()
+    return res.count or 0
+
+
+def get_recent_meetings(섭외자: str, limit: int = 5) -> list:
+    res = supa.table('db_meetings') \
+        .select('만남일자,제목,다음만남일') \
+        .eq('섭외자', 섭외자) \
+        .order('보고일시', desc=True) \
+        .limit(limit) \
+        .execute()
+    return res.data or []
+
+
+def update_next_meeting(섭외자: str, next_date: str):
+    if not next_date:
+        return
+    supa.table('db_findings') \
+        .update({'다음만남일': next_date}) \
+        .eq('섭외자', 섭외자) \
+        .execute()
 
 
 # ── 양식 파싱 ───────────────────────────────────────────
@@ -245,7 +334,50 @@ def build_stage_text(row: dict) -> str:
     return f"[{stage}]\n섭외자 : {v('섭외자')}\n실적지역 : {v('실적지역')}"
 
 
-# ── 메시지 핸들러 ────────────────────────────────────────
+# ── 만남보고 핸들러 ──────────────────────────────────────
+async def handle_meeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+    if not msg or not msg.text:
+        return
+    if MEETING_CHAT_ID == 0 or msg.chat.id != MEETING_CHAT_ID:
+        return
+
+    text = msg.text.strip()
+    if not text.startswith('[만남보고]'):
+        return
+
+    log.info(f'[만남보고] 수신: {text[:60]}')
+    parsed = parse_meeting_report(text)
+    if not parsed:
+        await msg.reply_text('⚠️ 만남보고 양식을 확인해주세요.\n섭외자는 필수입니다.')
+        return
+
+    count = await asyncio.to_thread(save_meeting_report, parsed)
+
+    next_date = parsed.get('다음 만남일', '')
+    if next_date:
+        await asyncio.to_thread(update_next_meeting, parsed['섭외자'], next_date)
+
+    history = await asyncio.to_thread(get_recent_meetings, parsed['섭외자'])
+    history_lines = []
+    for i, m in enumerate(history):
+        nth = count - i
+        date = m.get('만남일자', '—')
+        title = m.get('제목', '—')
+        history_lines.append(f'  {nth}차  {date}  {title}')
+
+    next_line = f'📅 다음만남일: {next_date} 업데이트됨\n' if next_date else ''
+    history_text = '\n'.join(history_lines) or '없음'
+
+    await msg.reply_text(
+        f'✅ 만남보고 저장 — {parsed["섭외자"]} ({count}번째 만남)\n'
+        f'{next_line}\n'
+        f'[만남 흐름]\n{history_text}'
+    )
+    log.info(f'[만남보고] 완료: {parsed["섭외자"]} ({count}회)')
+
+
+# ── DB보고창 핸들러 ────────────────────────────────────────
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     if not msg or not msg.text:
@@ -313,8 +445,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── 실행 ─────────────────────────────────────────────────
 async def _run():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_meeting))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    log.info(f'[jd-secretary] 시작 — DB보고창 감시: {DB_CHAT_ID}')
+    log.info(f'[jd-secretary] 시작 — DB보고창: {DB_CHAT_ID} | 만남보고창: {MEETING_CHAT_ID}')
     await app.initialize()
     await app.start()
     await app.updater.start_polling(drop_pending_updates=True)

@@ -21,6 +21,7 @@ async function loadData(manual = false) {
         { data: checks,      error: e5 },
         { data: checkItems,  error: e6 },
         { data: goalsRows,   error: e7 },
+        { data: dbMeetings,  error: e8 },
       ] = await Promise.all([
         SUPA.from('nujeok').select('*'),
         SUPA.from('tallag').select('*'),
@@ -29,6 +30,7 @@ async function loadData(manual = false) {
         SUPA.from('checks').select('*'),
         SUPA.from('check_items').select('항목명').order('sort_order'),
         SUPA.from('goals').select('*'),
+        SUPA.from('db_meetings').select('*').order('보고일시', { ascending: false }),
       ]);
 
       const firstErr = e1 || e2 || e3 || e4 || e5 || e6 || e7;
@@ -46,6 +48,7 @@ async function loadData(manual = false) {
         tallag:     tallag     || [],
         dbFindings: dbFindings || [],
         meets:      meets      || [],
+        dbMeetings: dbMeetings || [],
         checks:     checks     || [],
         checkItems: (checkItems || []).map(r => r['항목명']),
         goals:      goalsMap,
