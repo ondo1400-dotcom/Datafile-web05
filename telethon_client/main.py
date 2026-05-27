@@ -137,38 +137,6 @@ async def forward_to_jd(event):
             print(f'[합자] db_findings 합자요청여부=Y 업데이트: {parsed["섭외자"]}')
 
 
-@client.on(events.NewMessage(chats=DB_CHAT_ID))
-async def on_message(event):
-    """DB_찾기 보고창 메시지 처리 → Supabase 저장"""
-    text = event.message.text
-    if not text:
-        return
-    text = text.strip()
-
-    if text.startswith('[DB]'):
-        parsed = parse_form(text, 'DB')
-        if parsed:
-            await asyncio.to_thread(save_to_supabase, parsed)
-            await event.reply(
-                '✅ DB - ' + (parsed.get('섭외자') or '—') +
-                ' - 정상적으로 기록되었습니다.\n지역: ' + (parsed.get('실적지역') or '—')
-            )
-        else:
-            await event.reply('⚠️ DB 양식을 확인해주세요.\n실적지역과 섭외자는 필수입니다.')
-
-    elif text.startswith('[찾기]'):
-        parsed = parse_form(text, '찾기')
-        if parsed:
-            is_update = await asyncio.to_thread(save_to_supabase, parsed)
-            await event.reply(
-                ('🔄 찾기 수정' if is_update else '✅ 찾기 등록') +
-                ' - ' + (parsed.get('섭외자') or '—') +
-                ' - 정상적으로 기록되었습니다.\n지역: ' +
-                (parsed.get('실적지역') or '—') +
-                ' | 인도자: ' + (parsed.get('인도자') or '—')
-            )
-        else:
-            await event.reply('⚠️ 찾기 양식을 확인해주세요.\n실적지역과 섭외자는 필수입니다.')
 
 
 async def main():
