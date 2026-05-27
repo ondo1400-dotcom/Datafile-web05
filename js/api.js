@@ -37,8 +37,8 @@ async function loadData(manual = false) {
       // goals: 배열 → { 'kaigang|center|stage|region': count } 형태로 변환
       const goalsMap = {};
       (goalsRows || []).forEach(r => {
-        const key = `${r['목표개강(연도/월)']}|${r['목표센터']}|${r['단계']}|${r['실적지역']}`;
-        goalsMap[key] = r.target_count;
+        const key = `${r.kaigang}|${r.center}|${r.stage}|${r.region}`;
+        goalsMap[key] = r.target;
       });
 
       _applyData({

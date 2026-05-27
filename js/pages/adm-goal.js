@@ -128,8 +128,8 @@ async function updateGoal(kaigang, center, stage, region, value) {
 
   try {
     const { error } = await SUPA.from('goals').upsert(
-      { '목표개강(연도/월)': kaigang, '목표센터': center, '단계': stage, '실적지역': region, target_count: count },
-      { onConflict: '목표개강(연도/월),목표센터,단계,실적지역' }
+      { kaigang, center, stage, region, target: count },
+      { onConflict: 'kaigang,center,stage,region' }
     );
     if (error) throw new Error(error.message);
     showToast('✅ 목표 저장됨');

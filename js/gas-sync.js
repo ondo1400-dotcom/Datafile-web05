@@ -107,6 +107,44 @@ function _syncSheet(ss, sheetName, table) {
   _supabaseUpsert(table, rows, '실적지역,섭외자,인도자');
 }
 
+// ── 목표설정 시트 일회성 이전 ─────────────────────────
+function migrateGoals() {
+  const ss    = SpreadsheetApp.openById(SS_ID);
+  const sheet = ss.getSheetByName('목표설정');
+  if (!sheet) { Logger.log('목표설정 시트 없음'); return; }
+
+  const allData = sheet.getDataRange().getValues();
+  if (allData.length < 2) { Logger.log('데이터 없음'); return; }
+
+  const headers = allData[0].map(h => String(h).trim());
+  const COL_MAP = {
+    '개강(연도/월)': 'kaigang',
+    '센터':          'center',
+    '단계':          'stage',
+    '지역':          'region',
+    '목표수':        'target',
+  };
+
+  const rows = allData.slice(1)
+    .filter(row => row.some(cell => cell !== ''))
+    .map(row => {
+      const obj = {};
+      headers.forEach((h, j) => {
+        const key = COL_MAP[h];
+        if (!key) return;
+        const val = row[j];
+        obj[key] = key === 'target' ? (parseInt(val) || 0) : String(val || '').trim();
+      });
+      return obj;
+    })
+    .filter(r => r.kaigang && r.stage && r.region);
+
+  if (!rows.length) { Logger.log('유효 행 없음'); return; }
+
+  const ok = _supabaseUpsert('goals', rows, 'kaigang,center,stage,region');
+  if (ok) Logger.log('goals 이전 완료: 총 ' + rows.length + '행');
+}
+
 // ── DB_찾기 시트 일회성 이전 ───────────────────────────
 function migrateDbFindings() {
   const ss    = SpreadsheetApp.openById(SS_ID);
