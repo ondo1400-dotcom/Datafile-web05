@@ -13,8 +13,8 @@ from datetime import datetime
 import pytz
 from dotenv import load_dotenv
 from supabase import create_client
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import ApplicationBuilder, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 load_dotenv()
 
@@ -442,11 +442,205 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         log.info(f'[정보 업데이트] 완료: {parsed["섭외자"]}')
 
 
+# ── 체크리스트 데이터 ────────────────────────────────────
+CLIST_ITEMS = {
+    '합자': [
+        {'section': '인성', 'items': [
+            {'code': 'h_in_1', 'text': '정신질환 관련 약을 복용중이지 않은가?'},
+            {'code': 'h_in_2', 'text': '만남에 특정 목적을 띄고 있지 않은가?'},
+            {'code': 'h_in_3', 'text': '부모에게 지나치게 의존적이지 않는가?'},
+        ]},
+        {'section': '신성', 'items': [
+            {'code': 'h_sp_1', 'text': '신의 존재를 부정하지않고 믿거나 소망하는가?'},
+            {'code': 'h_sp_2', 'text': '신천지 부정적 경험이 없는가?'},
+            {'code': 'h_sp_3', 'text': '교회 사역/봉사 여부가 파악되었는가?'},
+        ]},
+        {'section': '환경', 'items': [
+            {'code': 'h_ev_1', 'text': '사는 곳이 센터와 1시간 이내인가?'},
+            {'code': 'h_ev_2', 'text': '타 지역 중복 섭외 이력을 확인하였는가?'},
+            {'code': 'h_ev_3', 'text': '주 3회 대면 수강 가능한가?'},
+            {'code': 'h_ev_4', 'text': '2주 이상 불가 일정이 없는가?'},
+        ]},
+    ],
+    '따기': [
+        {'section': '교사와의 신뢰', 'items': [
+            {'code': 'd_tr_1', 'text': '30분 이상 경청하는 자세인가?'},
+            {'code': 'd_tr_2', 'text': '교사에게 자신의 이야기를 털어놓는가?'},
+            {'code': 'd_tr_3', 'text': '무료 상담 이유가 메리트있게 소개되었는가?'},
+            {'code': 'd_tr_4', 'text': '친교/마음사기로 친밀감이 형성되었는가?'},
+        ]},
+        {'section': '정보파악', 'items': [
+            {'code': 'd_in_1', 'text': '필수 정보(직장, 주소, 생일)가 파악되었는가?'},
+            {'code': 'd_in_2', 'text': '영적 정보(이단경계심, 종교거부감)가 파악되었는가?'},
+        ]},
+        {'section': '동기부여', 'items': [
+            {'code': 'd_mo_1', 'text': '변화해야 하는 이유를 구체적으로 인식하는가?'},
+            {'code': 'd_mo_2', 'text': '영따기 프로그램 사전 안내가 되었는가?'},
+        ]},
+        {'section': '침방지/입막음', 'items': [
+            {'code': 'd_sc_1', 'text': '보안서약서를 작성했는가?'},
+            {'code': 'd_sc_2', 'text': '나올 때 주위에 뭐라고 하는지 확인되었는가?'},
+        ]},
+    ],
+    '센터확정': [
+        {'section': '동기부여', 'items': [
+            {'code': 'b_mo_1', 'text': '상담이 반드시 필요하다는 것을 받아들였는가?'},
+            {'code': 'b_mo_2', 'text': '변화가 반드시 필요함을 인정하는가?'},
+            {'code': 'b_mo_3', 'text': '일정 조율 의지가 있는가?'},
+        ]},
+        {'section': '교사신뢰', 'items': [
+            {'code': 'b_tr_1', 'text': '교사가 변화시켜줄 존재임을 인정하는가?'},
+            {'code': 'b_tr_2', 'text': '원활하게 연락이 되고 있는가?'},
+        ]},
+        {'section': '종교거부감', 'items': [
+            {'code': 'b_re_1', 'text': '종교 거부감이 해소되었는가?'},
+            {'code': 'b_re_2', 'text': '이단경계심이 해소되었는가?'},
+            {'code': 'b_re_3', 'text': '성경을 변화의 지침서로 인정하는가?'},
+            {'code': 'b_re_4', 'text': '성경에 대해 열린 마음인가?'},
+        ]},
+        {'section': '침방지/입막음', 'items': [
+            {'code': 'b_sc_1', 'text': '외부에 이야기하지 않는다고 인지하는가?'},
+            {'code': 'b_sc_2', 'text': '개인 맞춤 모략을 사용하고 있는가?'},
+        ]},
+        {'section': '섬김이', 'items': [
+            {'code': 'b_se_1', 'text': '간증 잎사귀가 투입되어 간증을 공유했는가?'},
+            {'code': 'b_se_2', 'text': '예정된 섬김이가 매칭되어있는가?'},
+            {'code': 'b_se_3', 'text': '섬김이와 친교만남이 되었는가?'},
+        ]},
+        {'section': '개강진 연결', 'items': [
+            {'code': 'b_ab_1', 'text': '센터 교육기관 소개가 잘 되었는가?'},
+            {'code': 'b_ab_2', 'text': '개강진 ABC가 진행되었는가?'},
+            {'code': 'b_ab_3', 'text': '개강진 특강이 진행되었는가?'},
+        ]},
+        {'section': '수강환경', 'items': [
+            {'code': 'b_en_1', 'text': '주3회 실참이 가능한 스케줄인가?'},
+        ]},
+    ],
+}
+
+CLIST_DB_COL = {'합자': '합자체크리스트', '따기': '따기체크리스트', '센터확정': '센터확정체크리스트'}
+CLIST_ORDER = {
+    '합자':    ['h_in_1','h_in_2','h_in_3','h_sp_1','h_sp_2','h_sp_3','h_ev_1','h_ev_2','h_ev_3','h_ev_4'],
+    '따기':    ['d_tr_1','d_tr_2','d_tr_3','d_tr_4','d_in_1','d_in_2','d_mo_1','d_mo_2','d_sc_1','d_sc_2'],
+    '센터확정': ['b_mo_1','b_mo_2','b_mo_3','b_tr_1','b_tr_2','b_re_1','b_re_2','b_re_3','b_re_4',
+                'b_sc_1','b_sc_2','b_se_1','b_se_2','b_se_3','b_ab_1','b_ab_2','b_ab_3','b_en_1'],
+}
+
+
+def _clist_load(섭외자: str, 지역: str, type_key: str) -> dict:
+    """DB에서 현재 체크 상태 로드 → {code: 'Y'/'N'/'-'} 딕트."""
+    col = CLIST_DB_COL[type_key]
+    res = supa.table('db_findings').select(col) \
+        .eq('섭외자', 섭외자).eq('실적지역', 지역).limit(1).execute()
+    if not res.data:
+        return {}
+    encoded = str(res.data[0].get(col) or '')
+    order = CLIST_ORDER[type_key]
+    return {code: encoded[i] if i < len(encoded) else '-' for i, code in enumerate(order)}
+
+
+def _clist_save(섭외자: str, 지역: str, type_key: str, state: dict):
+    """state 딕트 → 인코딩 문자열로 DB 저장."""
+    order = CLIST_ORDER[type_key]
+    encoded = ''.join(state.get(c, '-') for c in order)
+    col = CLIST_DB_COL[type_key]
+    supa.table('db_findings').update({col: encoded}) \
+        .eq('섭외자', 섭외자).eq('실적지역', 지역).execute()
+
+
+def _clist_render(type_key: str, 섭외자: str, 지역: str, state: dict) -> tuple[str, InlineKeyboardMarkup]:
+    """메시지 텍스트 + 인라인 키보드 반환."""
+    lines = [f'[{type_key}체크리스트] {섭외자} | {지역}']
+    buttons = []
+    idx = 1
+    for sec in CLIST_ITEMS[type_key]:
+        lines.append(f'\n※{sec["section"]}')
+        for item in sec['items']:
+            val = state.get(item['code'], '-')
+            mark = '✅' if val == 'Y' else '❌' if val == 'N' else '○'
+            lines.append(f'{mark} {idx}. {item["text"]}')
+            y_label = f'{idx}. ✅예' if val == 'Y' else f'{idx}. 예'
+            n_label = f'{idx}. ❌아니오' if val == 'N' else f'{idx}. 아니오'
+            buttons.append([
+                InlineKeyboardButton(y_label, callback_data=f'cl|{type_key}|{item["code"]}|Y'),
+                InlineKeyboardButton(n_label, callback_data=f'cl|{type_key}|{item["code"]}|N'),
+            ])
+            idx += 1
+
+    done_count = sum(1 for v in state.values() if v in ('Y', 'N'))
+    total = len(CLIST_ORDER[type_key])
+    lines[0] += f' ({done_count}/{total})'
+
+    return '\n'.join(lines), InlineKeyboardMarkup(buttons)
+
+
+# ── 체크리스트 요청 핸들러 ────────────────────────────────
+async def handle_clist_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+    if not msg or not msg.text:
+        return
+    if MEETING_CHAT_ID == 0 or msg.chat.id != MEETING_CHAT_ID:
+        return
+
+    text = msg.text.strip()
+    if not text.startswith('[체크리스트]'):
+        return
+
+    data = {}
+    for line in text.split('\n'):
+        kv = _split_key_val(line.strip())
+        if kv:
+            data[kv[0]] = kv[1]
+
+    type_key = data.get('종류', '').strip()
+    섭외자   = data.get('섭외자', '').strip()
+    지역     = data.get('지역', '').strip()
+
+    if type_key not in CLIST_ITEMS:
+        await msg.reply_text('⚠️ 종류는 합자 / 따기 / 센터확정 중 하나를 입력하세요.')
+        return
+    if not 섭외자:
+        await msg.reply_text('⚠️ 섭외자를 입력해주세요.')
+        return
+
+    state = await asyncio.to_thread(_clist_load, 섭외자, 지역, type_key)
+    text_body, keyboard = _clist_render(type_key, 섭외자, 지역, state)
+    await msg.reply_text(text_body, reply_markup=keyboard)
+
+
+# ── 체크리스트 버튼 콜백 ─────────────────────────────────
+async def handle_clist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not query.data or not query.data.startswith('cl|'):
+        return
+    await query.answer()
+
+    _, type_key, code, val = query.data.split('|')
+
+    # 메시지 첫 줄에서 섭외자/지역 파싱: "[합자체크리스트] 홍길동 | OO지역 (2/10)"
+    first_line = (query.message.text or '').split('\n')[0]
+    m = re.match(r'\[.+?\]\s+(.+?)\s+\|\s+(.+?)(?:\s+\(\d+/\d+\))?$', first_line)
+    if not m:
+        return
+    섭외자 = m.group(1).strip()
+    지역   = m.group(2).strip()
+
+    state = await asyncio.to_thread(_clist_load, 섭외자, 지역, type_key)
+    # 토글: 같은 값 누르면 취소(-), 다른 값이면 변경
+    state[code] = '-' if state.get(code) == val else val
+    await asyncio.to_thread(_clist_save, 섭외자, 지역, type_key, state)
+
+    text_body, keyboard = _clist_render(type_key, 섭외자, 지역, state)
+    await query.edit_message_text(text_body, reply_markup=keyboard)
+
+
 # ── 실행 ─────────────────────────────────────────────────
 async def _run():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_meeting))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_clist_request))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CallbackQueryHandler(handle_clist_callback, pattern=r'^cl\|'))
     log.info(f'[jd-secretary] 시작 — DB보고창: {DB_CHAT_ID} | 만남보고창: {MEETING_CHAT_ID}')
     await app.initialize()
     await app.start()
