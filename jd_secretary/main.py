@@ -601,7 +601,7 @@ def _clist_save(섭외자: str, 지역: str, type_key: str, state: dict):
 
 
 def _clist_render(type_key: str, 섭외자: str, 지역: str, state: dict) -> tuple[str, InlineKeyboardMarkup]:
-    """항목 텍스트를 버튼 안에 표시. 클릭 시 ○→✅→❌→○ 순환."""
+    """질문 텍스트 버튼 옆에 Y / N 버튼 배치."""
     done_count = sum(1 for v in state.values() if v in ('Y', 'N'))
     total = len(CLIST_ORDER[type_key])
     header = f'[{type_key}체크리스트] {섭외자} | {지역} ({done_count}/{total})'
@@ -611,11 +611,13 @@ def _clist_render(type_key: str, 섭외자: str, 지역: str, state: dict) -> tu
         buttons.append([InlineKeyboardButton(f'▸ {sec["section"]}', callback_data='cl_noop')])
         for item in sec['items']:
             val = state.get(item['code'], '-')
-            mark = '✅' if val == 'Y' else '❌' if val == 'N' else '○'
-            buttons.append([InlineKeyboardButton(
-                f'{mark}  {item["text"]}',
-                callback_data=f'cl|{type_key}|{item["code"]}',
-            )])
+            y_label = '✅ Y' if val == 'Y' else 'Y'
+            n_label = '❌ N' if val == 'N' else 'N'
+            buttons.append([
+                InlineKeyboardButton(item['text'], callback_data='cl_noop'),
+                InlineKeyboardButton(y_label, callback_data=f'cl|{type_key}|{item["code"]}|Y'),
+                InlineKeyboardButton(n_label, callback_data=f'cl|{type_key}|{item["code"]}|N'),
+            ])
     buttons.append([InlineKeyboardButton('💾 완료', callback_data='cl_done')])
 
     return header, InlineKeyboardMarkup(buttons)
@@ -677,7 +679,7 @@ async def handle_clist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     await query.answer()
-    _, type_key, code = data.split('|')
+    _, type_key, code, val = data.split('|')
 
     # 메시지 첫 줄에서 섭외자/지역 파싱: "[합자체크리스트] 홍길동 | OO지역 (2/10)"
     first_line = (query.message.text or '').split('\n')[0]
@@ -688,9 +690,8 @@ async def handle_clist_callback(update: Update, context: ContextTypes.DEFAULT_TY
     지역   = m.group(2).strip()
 
     state = await asyncio.to_thread(_clist_load, 섭외자, 지역, type_key)
-    # ○ → ✅(Y) → ❌(N) → ○(-) 순환
-    cur = state.get(code, '-')
-    state[code] = 'Y' if cur == '-' else 'N' if cur == 'Y' else '-'
+    # 같은 값 누르면 취소(-), 다른 값이면 설정
+    state[code] = '-' if state.get(code) == val else val
     await asyncio.to_thread(_clist_save, 섭외자, 지역, type_key, state)
 
     text_body, keyboard = _clist_render(type_key, 섭외자, 지역, state)
