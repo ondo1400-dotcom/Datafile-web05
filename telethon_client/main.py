@@ -115,6 +115,21 @@ async def forward_to_jd(event):
     await client.send_message(JD_CHAT_ID, text)
     print(f'{matched_tag} 전달 완료')
 
+    # [합자] 메시지면 db_findings에 합자요청여부=Y 업데이트
+    if matched_tag == '[합자]':
+        parsed = parse_form(text, '합자')
+        if parsed and parsed.get('실적지역') and parsed.get('섭외자'):
+            now = datetime.now(KST).isoformat()
+            await asyncio.to_thread(
+                lambda: supa.table('db_findings')
+                    .update({'합자요청여부': 'Y', '합자요청일시': now})
+                    .eq('실적지역', parsed['실적지역'])
+                    .eq('섭외자',   parsed['섭외자'])
+                    .eq('인도자',   parsed.get('인도자', ''))
+                    .execute()
+            )
+            print(f'[합자] db_findings 합자요청여부=Y 업데이트: {parsed["섭외자"]}')
+
 
 @client.on(events.NewMessage(chats=DB_CHAT_ID))
 async def on_message(event):
