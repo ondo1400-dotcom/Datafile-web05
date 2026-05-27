@@ -68,13 +68,13 @@ def update_db_findings(data: dict) -> dict | None:
         .eq('실적지역', data['실적지역']) \
         .eq('섭외자',   data['섭외자']) \
         .eq('인도자',   data['인도자']) \
-        .maybe_single() \
+        .limit(1) \
         .execute()
 
-    if not res.data:
+    if not res or not res.data:
         return None
 
-    existing = res.data
+    existing = res.data[0]
     patch = {k: v for k, v in data.items() if k not in PRESERVED and v != ''}
     merged = {**existing, **patch}
 
