@@ -512,9 +512,12 @@ async function submitRequestReview() {
     }
 
     const base = _reviewDbRow || _reviewRow;
+    const _NUJEOK_ONLY = new Set(['단계', '이전개강']);
     const upsertData = {
       '구분': _reviewRow['단계'] || _reviewRow['구분'] || '찾기',
-      ...Object.fromEntries(Object.entries(base).filter(([k]) => !k.startsWith('__') && k !== 'id' && k !== 'synced_at')),
+      ...Object.fromEntries(Object.entries(base).filter(([k]) =>
+        !k.startsWith('_') && k !== 'id' && k !== 'synced_at' && !_NUJEOK_ONLY.has(k)
+      )),
       ...formData,
     };
 
