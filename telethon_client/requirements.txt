@@ -1,5 +1,4 @@
 telethon>=1.36
-gspread>=6.1
-google-auth>=2.29
+supabase>=2.0
 python-dotenv>=1.0
 pytz>=2024.1

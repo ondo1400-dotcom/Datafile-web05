@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Telethon 사용자 계정 클라이언트
-봇과 동일하게 [DB] / [찾기] 메시지를 읽어 Google Sheets에 저장합니다.
+[DB] / [찾기] 메시지를 읽어 Supabase db_findings 테이블에 저장합니다.
 """
 
 import asyncio
@@ -9,48 +9,37 @@ import os
 import re
 from datetime import datetime
 
-import gspread
 import pytz
 from dotenv import load_dotenv
-from google.oauth2.service_account import Credentials
+from supabase import create_client
 from telethon import TelegramClient, events
 
 load_dotenv()
 
 # ── Telegram 설정 ─────────────────────────────────────────
-API_ID     = int(os.environ['TG_API_ID'])
-API_HASH   = os.environ['TG_API_HASH']
-PHONE      = os.environ['TG_PHONE']
+API_ID      = int(os.environ['TG_API_ID'])
+API_HASH    = os.environ['TG_API_HASH']
+PHONE       = os.environ['TG_PHONE']
 DB_CHAT_ID  = int(os.environ.get('DB_CHAT_ID',  '-1003828748700'))  # 찾기/DB 보고창
 ADM_CHAT_ID = int(os.environ.get('ADM_CHAT_ID', '-1003943121521'))  # 행정보고용창
 JD_CHAT_ID  = int(os.environ.get('JD_CHAT_ID',  '-1003983618752'))  # 전도비서창
 
-# 행정보고창에서 전도비서창으로 전달할 양식 태그
 FORWARD_TAGS = ['[찾기]', '[합자]', '[육따기]', '[따기]', '[복음방]', '[탈락]', '[이월]', '[지역장]']
 
-# ── Google Sheets 설정 ────────────────────────────────────
-SS_ID      = os.environ.get('SS_ID', '1T7lt0ZZ2JpQPD26ft9CAnslhxO-7a9Lk1ZF7rzX_624')
-SHEET_NAME = os.environ.get('SHEET_NAME', 'DB_찾기')
-SA_FILE    = os.environ.get('SA_FILE', 'service_account.json')
+SUJUNG_TOPIC_ADM = 104
+SUJUNG_TOPIC_JD  = 53
 
-KST = pytz.timezone('Asia/Seoul')
+# ── Supabase 설정 ─────────────────────────────────────────
+SUPABASE_URL = os.environ['SUPABASE_URL']
+SUPABASE_KEY = os.environ['SUPABASE_KEY']
+supa = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ── Google Sheets 연결 ────────────────────────────────────
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-_creds = Credentials.from_service_account_file(SA_FILE, scopes=SCOPES)
-gc     = gspread.authorize(_creds)
-
-# ── Telethon 클라이언트 ───────────────────────────────────
+KST    = pytz.timezone('Asia/Seoul')
 client = TelegramClient('user_session', API_ID, API_HASH)
 
 
-def get_sheet():
-    ss = gc.open_by_key(SS_ID)
-    return ss.worksheet(SHEET_NAME)
-
-
 def parse_form(text: str, type_: str) -> dict | None:
-    """[DB] / [찾기] 양식 텍스트 파싱 — GAS parseForm() 과 동일 로직"""
+    """[DB] / [찾기] 양식 텍스트 파싱"""
     lines = text.split('\n')
     data  = {'구분': type_}
 
@@ -71,60 +60,34 @@ def parse_form(text: str, type_: str) -> dict | None:
     return data
 
 
-def save_or_update_sheet(data: dict) -> bool:
+def save_to_supabase(data: dict) -> bool:
     """
-    GAS saveOrUpdateSheet() 와 동일 로직.
-    반환값: True = 업데이트, False = 새로 추가
+    db_findings 테이블에 upsert.
+    반환값: True = 기존 행 업데이트, False = 새로 삽입
     """
-    sheet    = get_sheet()
-    all_vals = sheet.get_all_values()
-    if not all_vals:
-        return False
+    region = data.get('실적지역', '')
+    person = data.get('섭외자', '')
+    guide  = data.get('인도자', '')
 
-    headers = all_vals[0]
-    now     = datetime.now(KST).strftime('%Y. %m. %d. %p %I:%M:%S')
+    res = supa.table('db_findings') \
+        .select('id') \
+        .eq('실적지역', region) \
+        .eq('섭외자', person) \
+        .eq('인도자', guide) \
+        .maybe_single() \
+        .execute()
 
-    def col(name: str) -> int:
-        return headers.index(name) if name in headers else -1
+    is_update = bool(res.data)
 
-    구분_c   = col('구분')
-    지역_c   = col('실적지역')
-    섭외자_c = col('섭외자')
-    인도자_c = col('인도자')
+    if not is_update:
+        data['등록일시'] = datetime.now(KST).isoformat()
 
-    # ─ 찾기: 중복 체크 후 업데이트
-    if data['구분'] == '찾기' and all(c >= 0 for c in [구분_c, 지역_c, 섭외자_c, 인도자_c]):
-        for i, row in enumerate(all_vals[1:], start=2):
-            def get(c):
-                return row[c] if c < len(row) else ''
+    supa.table('db_findings').upsert(
+        data,
+        on_conflict='실적지역,섭외자,인도자'
+    ).execute()
 
-            if (get(구분_c)   == '찾기'
-                    and get(지역_c)   == (data.get('실적지역') or '')
-                    and get(섭외자_c) == (data.get('섭외자')   or '')
-                    and get(인도자_c) == (data.get('인도자')   or '')):
-
-                new_row = []
-                for j, h in enumerate(headers):
-                    if h in ('등록일시', '합자요청여부', '합자요청일시'):
-                        new_row.append(row[j] if j < len(row) else '')
-                    else:
-                        new_row.append(data.get(h, row[j] if j < len(row) else ''))
-
-                sheet.update(f'A{i}', [new_row])
-                return True
-
-    # ─ 새로 추가
-    new_row = []
-    for h in headers:
-        if h == '등록일시':
-            new_row.append(now)
-        elif h in ('합자요청여부', '합자요청일시'):
-            new_row.append('')
-        else:
-            new_row.append(data.get(h, ''))
-
-    sheet.append_row(new_row, value_input_option='USER_ENTERED')
-    return False
+    return is_update
 
 
 @client.on(events.NewMessage(chats=ADM_CHAT_ID))
@@ -136,7 +99,13 @@ async def forward_to_jd(event):
     text = text.strip()
     print(f'[행정보고용창] 메시지 수신: {text}')
 
-    # 전달 대상 태그 확인
+    reply_to = event.message.reply_to
+    top_id = getattr(reply_to, 'reply_to_top_id', None) or getattr(reply_to, 'reply_to_msg_id', None)
+    if top_id == SUJUNG_TOPIC_ADM:
+        await client.send_message(JD_CHAT_ID, text, reply_to=SUJUNG_TOPIC_JD)
+        print('[수정요청] 지파전도비서창으로 전달 완료')
+        return
+
     matched_tag = next((tag for tag in FORWARD_TAGS if text.startswith(tag)), None)
     if not matched_tag:
         return
@@ -148,7 +117,7 @@ async def forward_to_jd(event):
 
 @client.on(events.NewMessage(chats=DB_CHAT_ID))
 async def on_message(event):
-    """DB_찾기 보고창 메시지 처리"""
+    """DB_찾기 보고창 메시지 처리 → Supabase 저장"""
     text = event.message.text
     if not text:
         return
@@ -157,7 +126,7 @@ async def on_message(event):
     if text.startswith('[DB]'):
         parsed = parse_form(text, 'DB')
         if parsed:
-            await asyncio.to_thread(save_or_update_sheet, parsed)
+            await asyncio.to_thread(save_to_supabase, parsed)
             await event.reply(
                 '✅ DB - ' + (parsed.get('섭외자') or '—') +
                 ' - 정상적으로 기록되었습니다.\n지역: ' + (parsed.get('실적지역') or '—')
@@ -168,7 +137,7 @@ async def on_message(event):
     elif text.startswith('[찾기]'):
         parsed = parse_form(text, '찾기')
         if parsed:
-            is_update = await asyncio.to_thread(save_or_update_sheet, parsed)
+            is_update = await asyncio.to_thread(save_to_supabase, parsed)
             await event.reply(
                 ('🔄 찾기 수정' if is_update else '✅ 찾기 등록') +
                 ' - ' + (parsed.get('섭외자') or '—') +
