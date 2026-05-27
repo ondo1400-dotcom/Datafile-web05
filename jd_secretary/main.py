@@ -257,12 +257,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ── 실행 ─────────────────────────────────────────────────
-def main():
+import asyncio
+
+async def _run():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     log.info(f'[jd-secretary] 시작 — DB보고창 감시: {DB_CHAT_ID}')
-    app.run_polling(drop_pending_updates=True)
+    async with app:
+        await app.initialize()
+        await app.start()
+        await app.updater.start_polling(drop_pending_updates=True)
+        log.info('[jd-secretary] 대기 중 — Ctrl+C 로 종료')
+        await app.updater.idle()
+        await app.stop()
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(_run())
