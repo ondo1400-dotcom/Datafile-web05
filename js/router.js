@@ -10,6 +10,10 @@ function nav(screen) {
   const el = document.getElementById('sc-' + screen);
   if (el) el.classList.add('on');
 
+  // 스크롤 맨 위로 초기화
+  const main = document.querySelector('.main');
+  if (main) main.scrollTop = 0;
+
   const si = document.getElementById('si-' + screen);
   if (si) si.classList.add('on', STATE.role);
 

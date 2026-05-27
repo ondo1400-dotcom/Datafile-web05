@@ -194,12 +194,27 @@ async function approveAndSend(rowIndex, stage) {
     const { data: refreshed } = await SUPA.from('db_findings').select('*');
     STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
 
-    // 2. 텔레그램 전송 (GAS 경유, 점진적 이전 예정)
+    // 2. 텔레그램 전송 (행정보고창)
     const r = (STATE.dbFindings||[]).find(d => d['id'] === rowIndex);
-    if (r) {
+    if (r && TELEGRAM_BOT_TOKEN) {
       const messageText = buildReviewMessageText(stage, r);
-      const encoded = encodeURIComponent(JSON.stringify({ action: 'sendReviewTelegram', messageText, ...r }));
-      fetch(GAS_URL + '?payload=' + encoded + '&t=' + Date.now()).catch(() => {});
+      try {
+        const tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: REVIEW_TELEGRAM_CHAT, text: messageText }),
+        });
+        const tgJson = await tgRes.json();
+        if (!tgJson.ok) throw new Error(tgJson.description || '전송 실패');
+      } catch(tgErr) {
+        showToast(`⚠️ 승인 완료, 텔레그램 전송 실패: ${tgErr.message}`, 'error');
+        renderAdmReview();
+        return;
+      }
+    } else if (!TELEGRAM_BOT_TOKEN) {
+      showToast('⚠️ 승인 완료, 텔레그램 토큰 미설정 (config.js)', 'error');
+      renderAdmReview();
+      return;
     }
 
     showToast(`📤 [${stage}] 승인 및 전송 완료!`);

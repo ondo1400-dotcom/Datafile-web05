@@ -18,7 +18,7 @@ function renderBoardTable() {
 
   const findingRows = (STATE.dbFindings || [])
     .filter(r => r['구분'] === '찾기')
-    .map(r => ({ ...r, '단계': '찾기' }));
+    .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));
 
   const data = [...STATE.nujeok, ...findingRows].filter(r => {
     if (_boardStages.size > 0 && !_boardStages.has(r['단계'])) return false;
@@ -56,9 +56,11 @@ function renderBoardTable() {
   }
 
   tbody.innerHTML = data.map(r => {
-    const tallag = isTallag(r);
-    const style  = tallag ? 'opacity:.5;' : '';
-    const key    = makeKey(r);
+    const tallag  = isTallag(r);
+    const style   = tallag ? 'opacity:.5;' : '';
+    const key     = makeKey(r);
+    const ri      = r['__rowIndex'];
+    const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri})` : `openPersonDetail(${ri})`;
 
     const checkCells = showItems.map(item => {
       const ck      = key + '||' + item;
@@ -66,7 +68,7 @@ function renderBoardTable() {
       return `<td style="text-align:center;">${checked ? '✅' : '⬜'}</td>`;
     }).join('');
 
-    return `<tr style="${style}">
+    return `<tr style="${style}cursor:pointer;" class="cr" onclick="${clickFn}">
       <td>${stageBadge(r['단계'])} ${tallag ? '<span class="badge b-red">탈락</span>' : ''}</td>
       <td>${r['실적지역'] || '—'}</td>
       <td>${r['인도자']   || '—'}</td>
