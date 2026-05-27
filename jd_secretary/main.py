@@ -5,6 +5,7 @@ jd-secretary 텔레그램 봇
 """
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -35,6 +36,35 @@ SUPABASE_KEY = os.environ['SUPABASE_KEY']
 supa = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 KST = pytz.timezone('Asia/Seoul')
+
+# ── 토픽 캐시 (thread_id → 지역명) ───────────────────────
+_TOPIC_CACHE_FILE = os.path.join(os.path.dirname(__file__), 'topic_cache.json')
+_topic_cache: dict[str, str] = {}
+
+def _load_topic_cache():
+    global _topic_cache
+    try:
+        with open(_TOPIC_CACHE_FILE, encoding='utf-8') as f:
+            _topic_cache = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        _topic_cache = {}
+
+def _save_topic_cache():
+    with open(_TOPIC_CACHE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(_topic_cache, f, ensure_ascii=False)
+
+def _topic_key(chat_id: int, thread_id: int) -> str:
+    return f'{chat_id}:{thread_id}'
+
+def _set_topic(chat_id: int, thread_id: int, name: str):
+    _topic_cache[_topic_key(chat_id, thread_id)] = name
+    _save_topic_cache()
+    log.info(f'[topic] 등록: {name} (chat={chat_id}, thread={thread_id})')
+
+def _get_topic(chat_id: int, thread_id: int | None) -> str | None:
+    if thread_id is None:
+        return None
+    return _topic_cache.get(_topic_key(chat_id, thread_id))
 
 # 수정 시 보존할 필드 (덮어쓰지 않음)
 PRESERVED = {
@@ -743,19 +773,20 @@ def _livedata_person_line(row: dict) -> str:
     return f'{emoji}/{팀}/{s}-{i}-{t}/{목적}/{날짜}'
 
 
-def fetch_livedata(개강: str, 센터: str) -> list[dict]:
+def fetch_livedata(개강: str, 센터: str, 지역: str) -> list[dict]:
     # 컬럼명 특수문자(괄호) 문제로 개강은 Python에서 필터링
     res = (
         supa.table('db_findings')
         .select('*')
-        .ilike('실적지역', f'%{센터}%')
+        .ilike('실적지역', f'%{지역}%')
+        .ilike('목표센터', f'%{센터}%')
         .execute()
     )
     rows = res.data or []
     return [r for r in rows if str(r.get('목표개강(연도/월)') or '') == 개강]
 
 
-def build_livedata_message(개강: str, 센터: str, rows: list[dict]) -> str:
+def build_livedata_message(개강: str, 센터: str, 지역: str, rows: list[dict]) -> str:
     def group(db_vals):
         return [r for r in rows if str(r.get('구분') or '') in db_vals]
 
@@ -768,7 +799,7 @@ def build_livedata_message(개강: str, 센터: str, rows: list[dict]) -> str:
     )
 
     lines = [
-        f'전체☀️{월}월개강 보유데이터',
+        f'전체☀️{월}월개강 #{지역} 보유데이터',
         f'개강 | {개강} {센터}센터',
         f'총 {len(rows)}명',
         '',
@@ -796,6 +827,33 @@ def build_livedata_message(개강: str, 센터: str, rows: list[dict]) -> str:
     return '\n'.join(lines).strip()
 
 
+async def handle_topic_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """토픽 생성/수정 이벤트를 캐시에 저장."""
+    msg = update.message
+    if not msg or msg.message_thread_id is None:
+        return
+    if msg.forum_topic_created:
+        _set_topic(msg.chat.id, msg.message_thread_id, msg.forum_topic_created.name)
+    elif msg.forum_topic_edited and msg.forum_topic_edited.name:
+        _set_topic(msg.chat.id, msg.message_thread_id, msg.forum_topic_edited.name)
+
+
+async def handle_settopic(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/settopic 지역명 — 현재 토픽을 지역과 연결."""
+    msg = update.message
+    if not msg:
+        return
+    if not msg.message_thread_id:
+        await msg.reply_text('⚠️ 토픽(주제) 안에서 사용해주세요.')
+        return
+    if not context.args:
+        await msg.reply_text('사용법: /settopic 지역명')
+        return
+    지역 = ' '.join(context.args)
+    _set_topic(msg.chat.id, msg.message_thread_id, 지역)
+    await msg.reply_text(f'✅ 이 주제 → [{지역}] 지역으로 등록됨')
+
+
 async def handle_livedata(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     if not msg:
@@ -810,14 +868,23 @@ async def handle_livedata(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     개강 = args[0]
     센터 = ' '.join(args[1:])
-    log.info(f'[livedata] 개강={개강} 센터={센터}')
+    지역 = _get_topic(msg.chat.id, msg.message_thread_id)
+
+    if not 지역:
+        await msg.reply_text(
+            '⚠️ 이 주제의 지역이 등록되지 않았습니다.\n'
+            '/settopic 지역명 으로 먼저 등록해주세요.'
+        )
+        return
+
+    log.info(f'[livedata] 개강={개강} 센터={센터} 지역={지역}')
 
     try:
-        rows = await asyncio.to_thread(fetch_livedata, 개강, 센터)
+        rows = await asyncio.to_thread(fetch_livedata, 개강, 센터, 지역)
         if not rows:
-            await msg.reply_text(f'⚠️ [{개강} {센터}센터] 해당하는 데이터가 없습니다.')
+            await msg.reply_text(f'⚠️ [{개강} {지역} {센터}센터] 해당하는 데이터가 없습니다.')
             return
-        text = build_livedata_message(개강, 센터, rows)
+        text = build_livedata_message(개강, 센터, 지역, rows)
         await msg.reply_text(text)
     except Exception as e:
         log.error(f'[livedata] 오류: {e}')
@@ -826,8 +893,12 @@ async def handle_livedata(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── 실행 ─────────────────────────────────────────────────
 async def _run():
+    _load_topic_cache()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler('livedata', handle_livedata))
+    app.add_handler(CommandHandler('livedata',  handle_livedata))
+    app.add_handler(CommandHandler('settopic',  handle_settopic))
+    app.add_handler(MessageHandler(filters.StatusUpdate.FORUM_TOPIC_CREATED, handle_topic_event))
+    app.add_handler(MessageHandler(filters.StatusUpdate.FORUM_TOPIC_EDITED,  handle_topic_event))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_meeting),       group=0)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_clist_request), group=1)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),       group=2)
