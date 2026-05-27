@@ -14,7 +14,7 @@ import pytz
 from dotenv import load_dotenv
 from supabase import create_client
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ApplicationBuilder, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 load_dotenv()
 
@@ -23,8 +23,9 @@ log = logging.getLogger(__name__)
 
 # ── 설정 ────────────────────────────────────────────────
 BOT_TOKEN       = os.environ['JD_BOT_TOKEN']
-DB_CHAT_ID      = int(os.environ.get('DB_CHAT_ID',      '-1003828748700'))  # 찾기/DB 보고창
-MEETING_CHAT_ID = int(os.environ.get('MEETING_CHAT_ID', '0'))               # 만남보고창
+DB_CHAT_ID       = int(os.environ.get('DB_CHAT_ID',       '-1003828748700'))  # 찾기/DB 보고창
+MEETING_CHAT_ID  = int(os.environ.get('MEETING_CHAT_ID', '0'))               # 만남보고창
+LIVEDATA_CHAT_ID = int(os.environ.get('LIVEDATA_CHAT_ID', '0'))              # 보유데이터 조회창
 
 REVIEW_CHAT_ID       = int(os.environ.get('ADM_CHAT_ID', '-1003943121521'))  # 행정보고창
 REVIEW_EDIT_THREAD_ID = 104  # 행정보고창 수정요청 주제
@@ -698,14 +699,151 @@ async def handle_clist_callback(update: Update, context: ContextTypes.DEFAULT_TY
     await query.edit_message_text(text_body, reply_markup=keyboard)
 
 
+# ── livedata 헬퍼 ────────────────────────────────────────
+_RECRUIT_EMOJI = [
+    ('노방', '🏃🏻'), ('통신', '📞'), ('지인', '👫'),
+    ('가족', '👥'), ('UP', '🔝'), ('묵데', '🔄'),
+]
+
+# (db 구분값 목록, 표시명, 코드) — 파이프라인 역순(높은 단계 → 낮은 단계)
+_LIVEDATA_STAGES = [
+    (['센터확정', '지역장'], '센확',   'CT'),
+    (['복음방'],             '복음방',  'B'),
+    (['영따기', '따기'],    '영따기',  'D2'),
+    (['육따기'],             '육따기',  'D1'),
+    (['합자'],               '합자',    'H'),
+    (['찾기'],               '찾기',    'CH'),
+]
+
+# 요약줄 순서(낮은 단계 → 높은 단계)
+_SUMMARY_STAGES = list(reversed(_LIVEDATA_STAGES))
+
+
+def _livedata_emoji(유형: str) -> str:
+    for key, emoji in _RECRUIT_EMOJI:
+        if key in (유형 or ''):
+            return emoji
+    return '❓'
+
+
+def _livedata_team(field: str) -> str:
+    """'부서/지역/팀/구역' 형식 필드에서 팀명 추출."""
+    parts = (field or '').split('/')
+    return parts[2].strip() if len(parts) >= 3 else '—'
+
+
+def _livedata_person_line(row: dict) -> str:
+    emoji = _livedata_emoji(str(row.get('섭외유형') or ''))
+    팀    = _livedata_team(str(row.get('인도자부서/지역/팀/구역') or ''))
+    s     = str(row.get('섭외자') or '')
+    i     = str(row.get('인도자') or '')
+    t     = str(row.get('교사') or '')
+    목적  = str(row.get('다음만남목적') or '')
+    날짜  = str(row.get('다음만남일') or '')
+    return f'{emoji}/{팀}/{s}-{i}-{t}/{목적}/{날짜}'
+
+
+def fetch_livedata(개강: str, 센터: str) -> list[dict]:
+    res = (
+        supa.table('db_findings')
+        .select('*')
+        .eq('목표개강(연도/월)', 개강)
+        .ilike('목표센터', f'%{센터}%')
+        .execute()
+    )
+    return res.data or []
+
+
+def build_livedata_message(개강: str, 센터: str, rows: list[dict]) -> str:
+    def group(db_vals):
+        return [r for r in rows if str(r.get('구분') or '') in db_vals]
+
+    월 = 개강.split('/')[-1].lstrip('0') if '/' in 개강 else ''
+
+    # 요약줄
+    summary = ' '.join(
+        f'{label}{len(group(db_vals)):02d}'
+        for db_vals, label, _ in _SUMMARY_STAGES
+    )
+
+    # 전체 목록 (낮은 단계 → 높은 단계 순)
+    all_lines = []
+    for db_vals, _, _ in _SUMMARY_STAGES:
+        for row in group(db_vals):
+            all_lines.append(_livedata_person_line(row))
+    # 분류 안 된 나머지
+    known = {v for db_vals, _, _ in _LIVEDATA_STAGES for v in db_vals}
+    for row in rows:
+        if str(row.get('구분') or '') not in known:
+            all_lines.append(_livedata_person_line(row))
+
+    lines = [
+        f'전체☀️{월}월개강 보유데이터',
+        f'개강 | {개강} {센터}센터',
+        f'총 {len(rows)}명',
+        '',
+        '🔰보유 현황',
+        summary,
+        '',
+        '◼️섭외 유형',
+        '🏃🏻노방 📞통신 👫지인 👥가족 🔝UP 🔄묵데',
+        '',
+        '◼️양식',
+        '섭외유형/팀/섭외자-인도자-교사/다음만남목적/다음만남일',
+        *all_lines,
+        '',
+    ]
+
+    # 단계별 섹션 (높은 단계 → 낮은 단계)
+    for db_vals, label, code in _LIVEDATA_STAGES:
+        grp = group(db_vals)
+        cnt = len(grp)
+        header = f'◼️{label} {code} {cnt:02d}' if code else f'◼️{label} {cnt:02d}'
+        lines.append(header)
+        for row in grp:
+            lines.append(_livedata_person_line(row))
+        lines.append('')
+
+    return '\n'.join(lines).strip()
+
+
+async def handle_livedata(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+    if not msg:
+        return
+    if LIVEDATA_CHAT_ID != 0 and msg.chat.id != LIVEDATA_CHAT_ID:
+        return
+
+    args = context.args or []
+    if len(args) < 2:
+        await msg.reply_text('사용법: /livedata 43/06 홍대')
+        return
+
+    개강 = args[0]
+    센터 = ' '.join(args[1:])
+    log.info(f'[livedata] 개강={개강} 센터={센터}')
+
+    try:
+        rows = await asyncio.to_thread(fetch_livedata, 개강, 센터)
+        if not rows:
+            await msg.reply_text(f'⚠️ [{개강} {센터}센터] 해당하는 데이터가 없습니다.')
+            return
+        text = build_livedata_message(개강, 센터, rows)
+        await msg.reply_text(text)
+    except Exception as e:
+        log.error(f'[livedata] 오류: {e}')
+        await msg.reply_text(f'⚠️ 오류: {e}')
+
+
 # ── 실행 ─────────────────────────────────────────────────
 async def _run():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler('livedata', handle_livedata))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_meeting),       group=0)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_clist_request), group=1)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),       group=2)
     app.add_handler(CallbackQueryHandler(handle_clist_callback, pattern=r'^cl'))
-    log.info(f'[jd-secretary] 시작 — DB보고창: {DB_CHAT_ID} | 만남보고창: {MEETING_CHAT_ID}')
+    log.info(f'[jd-secretary] 시작 — DB보고창: {DB_CHAT_ID} | 만남보고창: {MEETING_CHAT_ID} | livedata: {LIVEDATA_CHAT_ID}')
     await app.initialize()
     await app.start()
     await app.updater.start_polling(drop_pending_updates=True)
