@@ -16,7 +16,8 @@ const STATE = {
   role:       'adm',
   authUsers:    [],
   authRequests: [],
-  dbFindings:   [],
+  dbFindings:      [],
+  canonicalCenters: new Set(),   // goals 테이블 기준 표준 센터명
   currentScreen: 'loading',
 };
 

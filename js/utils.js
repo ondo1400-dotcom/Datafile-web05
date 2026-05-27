@@ -20,6 +20,19 @@ function normalizeKaigang(val) {
   return String(val).replace(/^(\d+)\/(\d)$/, '$1/0$2');
 }
 
+// 센터명 정규화 (goals 테이블 canonical 기준, prefix 매칭)
+// "홍대" → "홍대센터" (canonical에 "홍대"로 시작하는 항목이 하나만 있을 때)
+function normalizeCenter(val, canonicalCenters) {
+  if (!val) return val;
+  if (!canonicalCenters || canonicalCenters.size === 0) return val;
+  if (canonicalCenters.has(val)) return val;
+  const matches = [];
+  for (const c of canonicalCenters) {
+    if (c.startsWith(val)) matches.push(c);
+  }
+  return matches.length === 1 ? matches[0] : val;
+}
+
 // 복합키 생성
 function makeKey(row) {
   return [

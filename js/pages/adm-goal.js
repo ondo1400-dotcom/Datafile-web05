@@ -16,6 +16,7 @@ function renderAdmGoal() {
   const centerList = [...new Set(
     STATE.nujeok.map(r => r['목표센터']).filter(Boolean)
   )].sort();
+  renderGoalStandards();
   const nujeokRegions = [...new Set(STATE.nujeok.map(r => r['실적지역']).filter(Boolean))];
   const allRegions = [...new Set([...REGION_ORDER, ...nujeokRegions])];
   const regionList = sortRegions(allRegions);
@@ -141,4 +142,100 @@ async function updateGoal(kaigang, center, stage, region, value) {
 // 목표키 생성 (utils.js와 동일, 프론트용)
 function makeGoalKey(kaigang, center, stage, region) {
   return [kaigang, center, stage, region].join('|');
+}
+
+// ── 기준 현황 렌더링 ──────────────────────────────────
+function renderGoalStandards() {
+  const el = document.getElementById('goal-standards-content');
+  if (!el) return;
+
+  const canonical = STATE.canonicalCenters;
+  const canonicalKaigangs = new Set(
+    Object.keys(STATE.goals).map(k => k.split('|')[0]).filter(Boolean)
+  );
+
+  // 데이터 전체에서 센터·개강 수집
+  const allRows = [...STATE.nujeok, ...STATE.tallag, ...STATE.dbFindings];
+  const centerCount  = {};
+  const kaigangCount = {};
+  allRows.forEach(r => {
+    const c = r['목표센터'];
+    const k = r['목표개강(연도/월)'];
+    if (c) centerCount[c]  = (centerCount[c]  || 0) + 1;
+    if (k) kaigangCount[k] = (kaigangCount[k] || 0) + 1;
+  });
+
+  // 비표준값 (canonical에 없는 것)
+  const nonStdCenters  = Object.entries(centerCount).filter(([c]) => !canonical.has(c)).sort((a, b) => b[1] - a[1]);
+  const nonStdKaigangs = Object.entries(kaigangCount).filter(([k]) => !canonicalKaigangs.has(k)).sort();
+
+  const canonicalCenterList = [...canonical].sort();
+  const canonicalKaigangList = [...canonicalKaigangs].sort();
+
+  const chip = (txt, cls) =>
+    `<span style="display:inline-block;background:${cls};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin:2px;">${txt}</span>`;
+
+  const nonStdHtml = (list, label) => list.length
+    ? list.map(([v, n]) => chip(`${v} (${n}건)`, '#fee2e2')).join('')
+    : `<span style="font-size:11px;color:var(--text3);">없음 ✓</span>`;
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">📌 표준 센터 (goals 기준)</div>
+        <div>${canonicalCenterList.length ? canonicalCenterList.map(c => chip(c, '#dbeafe')).join('') : '<span style="font-size:11px;color:var(--text3);">미설정</span>'}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin:10px 0 6px;">⚠️ 비표준 센터</div>
+        <div>${nonStdHtml(nonStdCenters)}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">📌 표준 개강 (goals 기준)</div>
+        <div>${canonicalKaigangList.length ? canonicalKaigangList.map(k => chip(k, '#dcfce7')).join('') : '<span style="font-size:11px;color:var(--text3);">미설정</span>'}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin:10px 0 6px;">⚠️ 비표준 개강</div>
+        <div>${nonStdHtml(nonStdKaigangs)}</div>
+      </div>
+    </div>
+    ${(nonStdCenters.length || nonStdKaigangs.length) ? `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+      <button id="norm-run-btn" class="btn reg-pri" style="padding:8px 20px;" onclick="runDbNormalization()">DB 정규화 실행</button>
+      <span style="font-size:11px;color:var(--text3);margin-left:10px;">비표준 데이터를 표준값으로 일괄 수정합니다</span>
+    </div>` : ''}
+  `;
+}
+
+// ── DB 정규화 실행 ────────────────────────────────────
+async function runDbNormalization() {
+  if (!confirm('비표준 개강·센터 데이터를 표준값으로 일괄 수정합니다.\n계속할까요?')) return;
+  const btn = document.getElementById('norm-run-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '정규화 중...'; }
+
+  let totalChanged = 0;
+  try {
+    const tables = [
+      ['nujeok',      'id,"목표개강(연도/월)","목표센터"'],
+      ['tallag',      'id,"목표개강(연도/월)","목표센터"'],
+      ['db_findings', 'id,"목표개강(연도/월)","목표센터"'],
+    ];
+    for (const [table, cols] of tables) {
+      const { data: rows, error } = await SUPA.from(table).select(cols);
+      if (error) throw new Error(error.message);
+      for (const r of (rows || [])) {
+        const normK = normalizeKaigang(r['목표개강(연도/월)'] || '');
+        const normC = normalizeCenter(r['목표센터'] || '', STATE.canonicalCenters);
+        const kChanged = normK !== (r['목표개강(연도/월)'] || '');
+        const cChanged = normC !== (r['목표센터'] || '');
+        if (!kChanged && !cChanged) continue;
+        const patch = {};
+        if (kChanged) patch['목표개강(연도/월)'] = normK;
+        if (cChanged) patch['목표센터'] = normC;
+        const { error: ue } = await SUPA.from(table).update(patch).eq('id', r.id);
+        if (ue) throw new Error(ue.message);
+        totalChanged++;
+      }
+    }
+    showToast(`✅ 정규화 완료 — ${totalChanged}건 수정`);
+    await loadData(false);
+  } catch (e) {
+    showToast(`⚠️ 정규화 실패: ${e.message}`, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'DB 정규화 실행'; }
+  }
 }

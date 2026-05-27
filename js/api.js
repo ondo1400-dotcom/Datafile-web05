@@ -84,15 +84,23 @@ async function loadData(manual = false) {
 }
 
 function _applyData(data) {
+  // goals 테이블에서 표준 센터명 추출
+  const canonicalCenters = new Set(
+    Object.keys(data.goals || {}).map(k => k.split('|')[1]).filter(Boolean)
+  );
+  STATE.canonicalCenters = canonicalCenters;
+
   STATE.nujeok = (data.nujeok || []).map((r, i) => ({
     ...r,
     '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
-    '이전개강': normalizeKaigang(r['이전개강']),
+    '이전개강':          normalizeKaigang(r['이전개강']),
+    '목표센터':          normalizeCenter(r['목표센터'], canonicalCenters),
     __rowIndex: r.id || i,
   }));
   STATE.tallag = (data.tallag || []).map((r, i) => ({
     ...r,
     '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
+    '목표센터':          normalizeCenter(r['목표센터'], canonicalCenters),
     __rowIndex: r.id || i,
   }));
   STATE.checks     = data.checks     || [];
@@ -100,6 +108,8 @@ function _applyData(data) {
   STATE.goals      = data.goals      || {};
   STATE.dbFindings = (data.dbFindings || []).map((r, i) => ({
     ...r,
+    '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
+    '목표센터':          normalizeCenter(r['목표센터'], canonicalCenters),
     __rowIndex: r.id || i,
   }));
   STATE.meets = (data.meets || []).map((r, i) => ({
