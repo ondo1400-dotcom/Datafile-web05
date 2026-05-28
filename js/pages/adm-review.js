@@ -182,12 +182,17 @@ async function approveAndSend(rowIndex, stage) {
       return;
     }
 
+    // __rowIndex는 배열 인덱스이므로 실제 UUID id 먼저 조회
+    const targetRow = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
+    if (!targetRow) throw new Error('행을 찾을 수 없습니다');
+    const rowId = targetRow.id;
+
     // 1. Supabase 승인 상태 업데이트
     const now = new Date().toISOString();
     const { error: approveErr } = await SUPA.from('db_findings').update({
       '심의승인여부': 'Y', '심의승인일시': now, '심의단계': stage,
       '전송완료여부': 'Y', '전송완료일시': now,
-    }).eq('id', rowIndex);
+    }).eq('id', rowId);
     if (approveErr) throw new Error(approveErr.message);
 
     // STATE 갱신
@@ -195,7 +200,7 @@ async function approveAndSend(rowIndex, stage) {
     STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
 
     // 2. 텔레그램 전송 (행정보고창)
-    const r = (STATE.dbFindings||[]).find(d => d['id'] === rowIndex);
+    const r = (STATE.dbFindings||[]).find(d => d['id'] === rowId);
     if (r && TELEGRAM_BOT_TOKEN) {
       const messageText = buildReviewMessageText(stage, r);
       try {
