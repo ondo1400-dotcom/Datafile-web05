@@ -56,13 +56,11 @@ function renderAdmReview() {
 
     let actionBtn = '';
     if (!isSent) {
-      if (!isApproved) {
+      if (!isApproved || isFailed) {
+        const btnLabel = isFailed ? '🔄 재전송' : `✓ ${reqStage} 승인`;
+        const fn       = isFailed ? 'sendTelegram' : 'approveAndSend';
         actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
-          onclick="approveOnly(${ri}, '${reqStage}')">✓ ${reqStage} 승인</button>`;
-      } else {
-        const btnLabel = isFailed ? '🔄 재전송' : '📤 지파전송';
-        actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
-          onclick="sendTelegram(${ri}, '${reqStage}')">${btnLabel}</button>`;
+          onclick="${fn}(${ri}, '${reqStage}')">${btnLabel}</button>`;
       }
     }
 
@@ -133,13 +131,12 @@ function openReviewDetail(rowIndex) {
   let detailAction;
   if (isSent) {
     detailAction = `<div style="flex:1;text-align:center;color:var(--green);font-weight:700;padding:10px;">✅ 지파전송완료</div>`;
-  } else if (!isApproved) {
+  } else if (isFailed) {
     detailAction = `<button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
-      onclick="closeReviewDetail();approveOnly(${ri},'${stage}')">✓ ${stage} 승인</button>`;
+      onclick="closeReviewDetail();sendTelegram(${ri},'${stage}')">🔄 재전송</button>`;
   } else {
-    const btnLabel = isFailed ? '🔄 재전송' : '📤 지파전송';
     detailAction = `<button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
-      onclick="closeReviewDetail();sendTelegram(${ri},'${stage}')">${btnLabel}</button>`;
+      onclick="closeReviewDetail();approveAndSend(${ri},'${stage}')">✓ ${stage} 승인</button>`;
   }
 
   document.getElementById('rv-detail-body').innerHTML = `
@@ -199,32 +196,55 @@ async function _sendTelegramReview(stage, data) {
   if (!tgJson.ok) throw new Error(tgJson.description || '전송 실패');
 }
 
-// ─── 승인만 처리 (전송 없음) ───
-async function approveOnly(rowIndex, stage) {
-  const btns = document.querySelectorAll(`[onclick*="approveOnly(${rowIndex}"]`);
+// ─── 승인 + 즉시 전송 ───
+async function approveAndSend(rowIndex, stage) {
+  const btns = document.querySelectorAll(`[onclick*="approveAndSend(${rowIndex}"]`);
   btns.forEach(b => { b.textContent = '처리 중...'; b.disabled = true; });
 
   try {
     if (USE_SAMPLE) {
       const t = (STATE.dbFindings||[]).find(d => d['__rowIndex'] === rowIndex);
-      if (t) { t['심의승인여부']='Y'; t['심의단계']=stage; }
-      showToast(`✓ [${stage}] 승인 완료`);
+      if (t) { t['심의승인여부']='Y'; t['심의단계']=stage; t['전송완료여부']='Y'; }
+      showToast(`📤 [${stage}] 승인 및 전송 완료! (샘플)`);
       renderAdmReview();
       return;
     }
 
     const targetRow = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
     if (!targetRow) throw new Error('행을 찾을 수 없습니다');
+    const rowId = targetRow.id;
 
+    // 1. 승인 저장
     const { error } = await SUPA.from('db_findings').update({
       '심의승인여부': 'Y', '심의승인일시': new Date().toISOString(), '심의단계': stage,
-    }).eq('id', targetRow.id);
+    }).eq('id', rowId);
     if (error) throw new Error(error.message);
 
+    // 2. 텔레그램 전송
     const { data: refreshed } = await SUPA.from('db_findings').select('*');
     STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
+    const r = STATE.dbFindings.find(d => d.id === rowId);
 
-    showToast(`✓ [${stage}] 승인 완료 — 지파전송 버튼을 눌러 전송하세요`);
+    try {
+      await _sendTelegramReview(stage, r);
+    } catch(tgErr) {
+      await SUPA.from('db_findings').update({ '전송완료여부': 'F' }).eq('id', rowId);
+      const { data: r2 } = await SUPA.from('db_findings').select('*');
+      STATE.dbFindings = (r2 || []).map((d, i) => ({ ...d, __rowIndex: parseInt(d.id) || i }));
+      alert(`텔레그램 전송 실패:\n${tgErr.message}`);
+      renderAdmReview();
+      return;
+    }
+
+    // 3. 전송 완료 저장
+    await SUPA.from('db_findings').update({
+      '전송완료여부': 'Y', '전송완료일시': new Date().toISOString(),
+    }).eq('id', rowId);
+
+    const { data: refreshed2 } = await SUPA.from('db_findings').select('*');
+    STATE.dbFindings = (refreshed2 || []).map((d, i) => ({ ...d, __rowIndex: parseInt(d.id) || i }));
+
+    showToast(`📤 [${stage}] 승인 및 전송 완료!`);
     renderAdmReview();
   } catch(e) {
     alert(`승인 실패:\n${e.message}`);
