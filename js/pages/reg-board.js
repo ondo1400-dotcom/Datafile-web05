@@ -132,7 +132,7 @@ function renderRegBoard() {
       : `<button class="btn" style="font-size:10px;padding:3px 7px;"
            onclick="event.stopPropagation();openRequestReviewModal(${ri},'${r._isDbFinding ? 'db' : 'nujeok'}')">심의요청</button>`;
 
-    const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri})` : `openPersonDetail(${ri})`;
+    const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri},'reg-board')` : `openPersonDetail(${ri},'reg-board')`;
     return `<tr style="${style}cursor:pointer;" class="cr" onclick="${clickFn}">
       <td>
         ${stageBadge(r['단계'])}
@@ -539,7 +539,7 @@ async function submitRequestReview() {
 
     // STATE 갱신
     const { data: refreshed } = await SUPA.from('db_findings').select('*');
-    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
 
     showToast('✅ 심의 요청 완료!');
     closeRequestReviewModal();

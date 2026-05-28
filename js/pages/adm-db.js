@@ -142,7 +142,7 @@ async function submitNewDb() {
     const { error } = await SUPA.from('db_findings').insert(payload);
     if (error) throw new Error(error.message);
     const { data: refreshed } = await SUPA.from('db_findings').select('*');
-    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
     showToast('✅ 등록 완료');
     closeNewDbModal();
     renderAdmDb();

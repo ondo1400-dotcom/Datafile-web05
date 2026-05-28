@@ -2,10 +2,17 @@
 //  pages/reg-detail.js — 섭외자 상세 페이지
 // ══════════════════════════════════════════════════════
 
+// GAS 호출 헬퍼 (탈락/이월/clist 등 GAS 경유 작업에 사용)
+async function gasPost(payload) {
+  const res = await fetch(GAS_URL + '?payload=' + encodeURIComponent(JSON.stringify(payload)) + '&t=' + Date.now());
+  return res.json();
+}
+
 let _detailRow = null;
 let _detailTab = 'basic'; // basic | history | meets | check
+let _detailBackScreen = 'reg-board';
 
-function openPersonDetail(rowIndex) {
+function openPersonDetail(rowIndex, backScreen) {
   const baseRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex)
                 || STATE.tallag.find(r => r['__rowIndex'] === rowIndex);
   if (!baseRow) return;
@@ -16,15 +23,17 @@ function openPersonDetail(rowIndex) {
     r['실적지역'] === baseRow['실적지역']
   );
   _detailRow = dbRow ? { ...baseRow, ...dbRow } : baseRow;
+  _detailBackScreen = backScreen || STATE.currentScreen || 'reg-board';
 
   _detailTab = 'basic';
   nav('reg-detail');
 }
 
-function openDbFindingDetail(rowIndex) {
+function openDbFindingDetail(rowIndex, backScreen) {
   const row = (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
   if (!row) return;
   _detailRow = { ...row, 단계: row['단계'] || row['구분'] || '찾기' };
+  _detailBackScreen = backScreen || STATE.currentScreen || 'reg-board';
   _detailTab = 'basic';
   nav('reg-detail');
 }
@@ -91,7 +100,7 @@ function renderRegDetail() {
         </div>
         <!-- 오른쪽 버튼 -->
         <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-          <button class="btn" onclick="nav('reg-board')" style="font-size:11px;padding:6px 10px;">← 목록</button>
+          <button class="btn" onclick="nav(_detailBackScreen)" style="font-size:11px;padding:6px 10px;">← 목록</button>
           <button class="btn reg-pri" id="detail-edit-toggle" onclick="toggleEditMode()" style="font-size:11px;padding:6px 10px;">✏️ 수정</button>
           <button class="btn" onclick="openIwolModal()" style="font-size:11px;padding:6px 10px;color:var(--amber);">↩ 이월</button>
           <button class="btn" onclick="openTallagModal()" style="font-size:11px;padding:6px 10px;color:var(--red);">✕ 탈락</button>
@@ -439,7 +448,7 @@ async function submitInlineEdit() {
       const { error } = await SUPA.from('db_findings').upsert(clean, { onConflict: '실적지역,섭외자,인도자' });
       if (error) throw new Error(error.message);
       const { data: refreshed } = await SUPA.from('db_findings').select('*');
-      STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
+      STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
       showToast('💾 기본 정보 저장 완료!');
     }
     Object.assign(_detailRow, payload);
@@ -516,7 +525,7 @@ async function submitDbEdit() {
     const { error } = await SUPA.from('db_findings').upsert(clean, { onConflict: '실적지역,섭외자,인도자' });
     if (error) throw new Error(error.message);
     const { data: refreshed } = await SUPA.from('db_findings').select('*');
-    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
     showToast('✅ 수정 완료');
     closeDbEditModal();
   } catch(e) {
@@ -623,7 +632,7 @@ async function submitDetailEdit() {
     const { error } = await SUPA.from('db_findings').upsert(clean, { onConflict: '실적지역,섭외자,인도자' });
     if (error) throw new Error(error.message);
     const { data: refreshed } = await SUPA.from('db_findings').select('*');
-    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
     Object.assign(_detailRow, payload);
 
     showToast('✅ 수정 완료! 심의요청 탭에서 보고할 수 있어요');

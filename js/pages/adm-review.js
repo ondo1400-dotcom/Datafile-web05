@@ -192,7 +192,7 @@ async function approveAndSend(rowIndex, stage) {
 
     // STATE 갱신
     const { data: refreshed } = await SUPA.from('db_findings').select('*');
-    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: r.id || i }));
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
 
     // 2. 텔레그램 전송 (행정보고창)
     const r = (STATE.dbFindings||[]).find(d => d['id'] === rowIndex);

@@ -81,11 +81,53 @@ function _supabaseUpsert(table, rows, conflictCols) {
   return true;
 }
 
+// ── 다음만남일 시트 → meets 테이블 sync ──────────────────
+// 시트 구조: 1행=제목, 2행=헤더, 3행~=데이터
+function _syncMeets(ss) {
+  const sheet = ss.getSheetByName('다음만남일');
+  if (!sheet) { Logger.log('다음만남일 시트 없음'); return; }
+
+  const allData = sheet.getDataRange().getValues();
+  if (allData.length < 3) return;
+
+  const headers = allData[1].map(h => String(h).trim());
+  const rows = [];
+
+  for (let i = 2; i < allData.length; i++) {
+    const row = allData[i];
+    if (!row[0] && !row[1]) continue;
+    const obj = { synced_at: new Date().toISOString() };
+    headers.forEach((h, j) => {
+      if (!h) return;
+      const val = row[j];
+      if (h === '다음만남시간') {
+        // 시간 셀: Date 객체 → HH:mm 문자열 (Asia/Seoul 기준)
+        if (val instanceof Date && !isNaN(val)) {
+          obj[h] = Utilities.formatDate(val, 'Asia/Seoul', 'HH:mm');
+        } else {
+          obj[h] = val !== null && val !== undefined ? String(val) : '';
+        }
+      } else if (val instanceof Date && !isNaN(val)) {
+        obj[h] = Utilities.formatDate(val, 'Asia/Seoul', 'yyyy-MM-dd');
+      } else {
+        obj[h] = val !== null && val !== undefined ? String(val) : '';
+      }
+    });
+    if (!obj['섭외자'] && !obj['인도자']) continue;
+    rows.push(obj);
+  }
+
+  if (!rows.length) return;
+  const ok = _supabaseUpsert('meets', rows, '실적지역,섭외자,인도자,다음만남일');
+  if (ok) Logger.log('meets sync 완료: ' + rows.length + '행');
+}
+
 // ── 메인 sync 함수 (트리거로 1분마다 실행) ──────────────
 function syncSheetToSupabase() {
   const ss = SpreadsheetApp.openById(SS_ID);
   _syncSheet(ss, NUJEOK_SHEET_NAME, 'nujeok');
   _syncSheet(ss, TALLAG_SHEET_NAME, 'tallag');
+  _syncMeets(ss);
   reconcilePendingUpdates();
   Logger.log('Supabase sync 완료: ' + new Date().toLocaleString('ko-KR'));
 }

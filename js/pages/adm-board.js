@@ -60,7 +60,7 @@ function renderBoardTable() {
     const style   = tallag ? 'opacity:.5;' : '';
     const key     = makeKey(r);
     const ri      = r['__rowIndex'];
-    const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri})` : `openPersonDetail(${ri})`;
+    const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri},'adm-board')` : `openPersonDetail(${ri},'adm-board')`;
 
     const checkCells = showItems.map(item => {
       const ck      = key + '||' + item;

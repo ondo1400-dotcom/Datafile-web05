@@ -95,13 +95,13 @@ function _applyData(data) {
     '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
     '이전개강':          normalizeKaigang(r['이전개강']),
     '목표센터':          normalizeCenter(r['목표센터'], canonicalCenters),
-    __rowIndex: r.id || i,
+    __rowIndex: parseInt(r.id) || i,
   }));
   STATE.tallag = (data.tallag || []).map((r, i) => ({
     ...r,
     '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
     '목표센터':          normalizeCenter(r['목표센터'], canonicalCenters),
-    __rowIndex: r.id || i,
+    __rowIndex: parseInt(r.id) || i,
   }));
   STATE.checks     = data.checks     || [];
   STATE.checkItems = data.checkItems || [];
@@ -110,13 +110,14 @@ function _applyData(data) {
     ...r,
     '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
     '목표센터':          normalizeCenter(r['목표센터'], canonicalCenters),
-    __rowIndex: r.id || i,
+    __rowIndex: parseInt(r.id) || i,
   }));
   STATE.meets = (data.meets || []).map((r, i) => ({
     ...r,
     _date: parseMeetDate(r['다음만남일'] || ''),
-    __rowIndex: r.id || i,
+    __rowIndex: parseInt(r.id) || i,
   }));
+  STATE.dbMeetings = (data.dbMeetings || []);
   STATE.syncedAt = data.syncedAt;
 
   // tallagKeys: 실적지역|섭외자|인도자
