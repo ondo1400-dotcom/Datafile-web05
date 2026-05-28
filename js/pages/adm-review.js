@@ -23,7 +23,7 @@ function renderAdmReview() {
 
   const tbody = document.getElementById('rv-body');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3);">심의 요청 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3);">심의 요청 없음</td></tr>';
     return;
   }
 
@@ -63,6 +63,7 @@ function renderAdmReview() {
         <span style="background:${reqSc.bg};color:${reqSc.c};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${reqStage}</span>
       </td>
       <td><strong>${r['섭외자']||'—'}</strong></td>
+      <td style="font-size:12px;color:var(--text3);">${r['섭외유형']||'—'}</td>
       <td style="font-size:12px;">${r['실적지역']||'—'}</td>
       <td style="font-size:12px;">${r['인도자']||'—'}</td>
       <td style="font-size:11px;color:var(--text3);">${reqDate}</td>
