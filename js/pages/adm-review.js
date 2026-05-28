@@ -173,8 +173,9 @@ function closeReviewDetail() {
 
 // ─── 전송 메시지 텍스트 빌더 ───
 function buildReviewMessageText(stage, data) {
-  const LABELS   = { '실적지역': '실적부서/지역' };
-  const header   = stage === '영따기' ? '따기' : stage;
+  const LABELS  = { '실적지역': '실적부서/지역' };
+  const VALUES  = { '실적지역': val => '청년회/' + (val || '') };
+  const header  = stage === '영따기' ? '따기' : stage;
   const fieldMap = {
     '찾기':   ['실적지역','인도자부서/지역/팀/구역','인도자','목표개강(연도/월)','목표센터','섭외자','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','다음만남일','다음만남시간','다음만남목적'],
     '합자':   ['실적지역','인도자부서/지역/팀/구역','인도자','목표개강(연도/월)','목표센터','섭외자','출생연도','성별','사는곳','하는일','종교','신앙년수','섭외유형','2차연결유형','따기예정일','교사부서/지역/팀/구역','교사','다음만남일','다음만남시간','다음만남목적'],
@@ -185,7 +186,11 @@ function buildReviewMessageText(stage, data) {
     '지역장': ['실적지역','인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섭외자','다음만남일','다음만남시간','다음만남목적','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부'],
   };
   const fields = fieldMap[stage] || [];
-  return `[${header}]\n` + fields.map(f => `${LABELS[f] || f} : ${data[f] || ''}`).join('\n');
+  return `[${header}]\n` + fields.map(f => {
+    const label = LABELS[f] || f;
+    const val   = VALUES[f] ? VALUES[f](data[f]) : (data[f] || '');
+    return `${label} : ${val}`;
+  }).join('\n');
 }
 
 // ─── 텔레그램 전송 공통 헬퍼 ───

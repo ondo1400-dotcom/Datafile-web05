@@ -976,6 +976,9 @@ function requestTallag(payload) {
   // 전송대기 탭에 저장
   addToQueue('탈락', stage, payload, text);
 
+  // 찾기 단계는 행정보고창 전송 안 함
+  if (stage === '찾기') return { success: true };
+
   // 텔레그램 전송
   const token = getBotToken();
   try {
@@ -1010,6 +1013,9 @@ function requestIwol(payload) {
   const text  = buildIwolText(payload);
 
   addToQueue('이월', stage, payload, text);
+
+  // 찾기 단계는 행정보고창 전송 안 함
+  if (stage === '찾기') return { success: true };
 
   const token = getBotToken();
   try {
