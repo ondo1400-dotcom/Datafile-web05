@@ -81,6 +81,37 @@ function _supabaseUpsert(table, rows, conflictCols) {
   return true;
 }
 
+// ── 날짜 정규화: M/D 텍스트 또는 Date 객체 → YYYY-MM-DD ──
+function _normalizeMeetDate(val) {
+  if (val instanceof Date && !isNaN(val)) {
+    return Utilities.formatDate(val, 'Asia/Seoul', 'yyyy-MM-dd');
+  }
+  const s = String(val || '').trim();
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // 이미 정규화됨
+  // M/D 또는 MM/DD 텍스트 → 연도는 현재연도 고정 (과거 보정 없음)
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (m) {
+    const y  = new Date().getFullYear();
+    const mo = String(parseInt(m[1])).padStart(2, '0');
+    const d  = String(parseInt(m[2])).padStart(2, '0');
+    return y + '-' + mo + '-' + d;
+  }
+  return s;
+}
+
+// ── 시간 정규화: Date 객체 또는 깨진 1899-12-30 → HH:mm ──
+function _normalizeMeetTime(val) {
+  if (val instanceof Date && !isNaN(val)) {
+    return Utilities.formatDate(val, 'Asia/Seoul', 'HH:mm');
+  }
+  const s = String(val || '').trim();
+  if (!s) return '';
+  if (/^\d{2}:\d{2}$/.test(s)) return s;              // 이미 HH:mm
+  if (s.startsWith('1899-12-30')) return '';            // 깨진 GAS 시간 → 빈 값
+  return s;
+}
+
 // ── 다음만남일 시트 → meets 테이블 sync ──────────────────
 // 시트 구조: 1행=제목, 2행=헤더, 3행~=데이터
 function _syncMeets(ss) {
@@ -100,12 +131,15 @@ function _syncMeets(ss) {
     headers.forEach((h, j) => {
       if (!h) return;
       const val = row[j];
-      if (h === '다음만남시간') {
-        // 시간 셀: Date 객체 → HH:mm 문자열 (Asia/Seoul 기준)
+      if (h === '다음만남일') {
+        obj[h] = _normalizeMeetDate(val);
+      } else if (h === '다음만남시간') {
+        obj[h] = _normalizeMeetTime(val);
+      } else if (TIMESTAMP_COLS.includes(h)) {
         if (val instanceof Date && !isNaN(val)) {
-          obj[h] = Utilities.formatDate(val, 'Asia/Seoul', 'HH:mm');
+          obj[h] = Utilities.formatDate(val, 'Asia/Seoul', "yyyy-MM-dd'T'HH:mm:ss+09:00");
         } else {
-          obj[h] = val !== null && val !== undefined ? String(val) : '';
+          obj[h] = parseKoreanDate(String(val));
         }
       } else if (val instanceof Date && !isNaN(val)) {
         obj[h] = Utilities.formatDate(val, 'Asia/Seoul', 'yyyy-MM-dd');
@@ -114,6 +148,7 @@ function _syncMeets(ss) {
       }
     });
     if (!obj['섭외자'] && !obj['인도자']) continue;
+    if (!obj['다음만남일']) continue; // 날짜 없는 행 제외
     rows.push(obj);
   }
 

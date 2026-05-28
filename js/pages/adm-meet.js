@@ -27,27 +27,15 @@ function parseMeetDate(raw) {
 
   // MM-DD or MM/DD or MM.DD
   m = str.match(/^(\d{1,2})[-\/\.](\d{1,2})$/);
-  if (m) {
-    const d = new Date(year, +m[1]-1, +m[2]);
-    if (d < today) d.setFullYear(year + 1);
-    return d;
-  }
+  if (m) return new Date(year, +m[1]-1, +m[2]);
 
   // MMDD (4자리)
   m = str.match(/^(\d{2})(\d{2})$/);
-  if (m) {
-    const d = new Date(year, +m[1]-1, +m[2]);
-    if (d < today) d.setFullYear(year + 1);
-    return d;
-  }
+  if (m) return new Date(year, +m[1]-1, +m[2]);
 
   // MM월DD일
   m = str.match(/^(\d{1,2})월\s*(\d{1,2})일?$/);
-  if (m) {
-    const d = new Date(year, +m[1]-1, +m[2]);
-    if (d < today) d.setFullYear(year + 1);
-    return d;
-  }
+  if (m) return new Date(year, +m[1]-1, +m[2]);
 
   // DD만
   m = str.match(/^(\d{1,2})일?$/);
@@ -68,16 +56,21 @@ function fmtMD(date) {
   return `${date.getMonth()+1}/${date.getDate()}`;
 }
 
-// ─── 시간 포맷 (GAS ISO 시간 직렬화 처리) ───
-// 구글 시트 시간 셀은 GAS에서 "1899-12-30T{UTC시간}Z" 형식으로 직렬화됨 (UTC+9 변환 필요)
+// ─── 시간 포맷 ───
 function fmtTime(val) {
   if (!val) return '';
   const s = String(val).trim();
+  if (!s) return '';
+  // 이미 HH:mm 형식
+  if (/^\d{2}:\d{2}$/.test(s)) return s;
+  // GAS ISO 시간 직렬화: "1899-12-30T{UTC}Z" → KST 변환
   const m = s.match(/^1899-12-30T(\d{2}):(\d{2}):/);
   if (m) {
     const h = (parseInt(m[1]) + 9) % 24;
     return `${String(h).padStart(2,'0')}:${m[2]}`;
   }
+  // 깨진 GAS 날짜 잔여물 (시간 없는 1899-12-30) → 빈 값
+  if (s === '1899-12-30' || s.startsWith('1899-12-30')) return '';
   return s;
 }
 
