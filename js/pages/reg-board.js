@@ -106,7 +106,7 @@ function renderRegBoard() {
 
   const tbody = document.getElementById('reg-board-body');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3);">데이터가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3);">데이터가 없습니다</td></tr>';
     _updateColIcons();
     return;
   }
@@ -140,6 +140,7 @@ function renderRegBoard() {
         ${r._isDbFinding ? '<span class="badge b-gray" style="margin-left:4px;font-size:9px;">DB</span>' : ''}
       </td>
       <td style="font-size:12px;">${r['실적지역'] || '—'}</td>
+      <td style="font-size:11px;">${r['섭외유형'] || '—'}</td>
       <td><strong>${r['섭외자'] || '—'}</strong></td>
       <td style="font-size:12px;">${r['인도자'] || '—'}</td>
       <td style="font-size:12px;">${r['교사'] || '—'}</td>

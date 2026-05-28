@@ -43,7 +43,7 @@ function renderBoardTable() {
   const thead = document.querySelector('#sc-adm-board table thead tr');
   if (thead) {
     thead.innerHTML = `
-      <th>단계</th><th>실적지역</th><th>인도자</th><th>섭외자</th>
+      <th>단계</th><th>실적지역</th><th>섭외유형</th><th>인도자</th><th>섭외자</th>
       <th>목표개강</th><th>목표센터</th>
       ${showItems.map(i => `<th style="font-size:11px;text-align:center;max-width:80px;">${i}</th>`).join('')}
     `;
@@ -51,7 +51,7 @@ function renderBoardTable() {
 
   const tbody = document.getElementById('board-body');
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="${6 + showItems.length}" style="text-align:center;padding:20px;color:var(--text3);">해당 데이터 없음</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${7 + showItems.length}" style="text-align:center;padding:20px;color:var(--text3);">해당 데이터 없음</td></tr>`;
     return;
   }
 
@@ -71,6 +71,7 @@ function renderBoardTable() {
     return `<tr style="${style}cursor:pointer;" class="cr" onclick="${clickFn}">
       <td>${stageBadge(r['단계'])} ${tallag ? '<span class="badge b-red">탈락</span>' : ''}</td>
       <td>${r['실적지역'] || '—'}</td>
+      <td style="font-size:11px;">${r['섭외유형'] || '—'}</td>
       <td>${r['인도자']   || '—'}</td>
       <td>${r['섭외자']   || '—'}</td>
       <td style="font-size:11px;">${r['목표개강(연도/월)'] || '—'}</td>
