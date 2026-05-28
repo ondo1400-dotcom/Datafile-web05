@@ -46,8 +46,8 @@ function renderAdmReview() {
     const curSc    = STAGE_COLORS[curStage] || { bg:'#f0f0f0', c:'#555' };
 
     let statusBadge = '';
-    if (isSent)          statusBadge = '<span class="badge b-green">전송완료</span>';
-    else if (isApproved) statusBadge = '<span class="badge b-adm">승인완료</span>';
+    if (isSent)          statusBadge = '<span class="badge b-green">지파전송완료</span>';
+    else if (isApproved) statusBadge = '<span class="badge b-red">지파전송필요</span>';
     else                 statusBadge = '<span class="badge b-amber">심의대기</span>';
 
     let actionBtn = '';
