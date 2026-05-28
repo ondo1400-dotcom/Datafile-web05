@@ -29,7 +29,7 @@ function renderAdmReview() {
   }
 
   tbody.innerHTML = data.map(r => {
-    const ri         = r['__rowIndex'];
+    const ri         = r.id;
     const isSent     = r['전송완료여부'] === 'Y';
     const isApproved = r['심의승인여부'] === 'Y';
     const reqStage   = r['심의단계'] || r['구분'] || '—';
@@ -60,7 +60,7 @@ function renderAdmReview() {
         const btnLabel = isFailed ? '🔄 재전송' : `✓ ${reqStage} 승인`;
         const fn       = isFailed ? 'sendTelegram' : 'approveAndSend';
         actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
-          onclick="${fn}(${ri}, '${reqStage}')">${btnLabel}</button>`;
+          onclick="${fn}('${ri}', '${reqStage}')">${btnLabel}</button>`;
       }
     }
 
@@ -78,7 +78,7 @@ function renderAdmReview() {
       <td>${statusBadge}</td>
       <td style="display:flex;gap:4px;align-items:center;white-space:nowrap;">
         <button class="btn" style="font-size:11px;padding:4px 8px;"
-          onclick="openReviewPersonDetail(${ri})">상세</button>
+          onclick="openReviewPersonDetail('${ri}')">상세</button>
         ${actionBtn}
       </td>
     </tr>`;
@@ -87,7 +87,7 @@ function renderAdmReview() {
 
 // ─── 상세 버튼 → 섭외자 상세 페이지 ───
 function openReviewPersonDetail(rowIndex) {
-  const r = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
+  const r = (STATE.dbFindings || []).find(d => d.id === rowIndex);
   if (!r) return;
 
   // nujeok에서 같은 사람 찾기
@@ -106,7 +106,7 @@ function openReviewPersonDetail(rowIndex) {
 
 // ─── 간단 상세 모달 (nujeok 없는 경우) ───
 function openReviewDetail(rowIndex) {
-  const r = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
+  const r = (STATE.dbFindings || []).find(d => d.id === rowIndex);
   if (!r) return;
 
   const stage = r['심의단계'] || r['구분'] || '';
@@ -126,17 +126,17 @@ function openReviewDetail(rowIndex) {
   const isSent     = r['전송완료여부'] === 'Y';
   const isFailed   = r['전송완료여부'] === 'F';
   const isApproved = r['심의승인여부'] === 'Y';
-  const ri         = r['__rowIndex'];
+  const ri         = r.id;
 
   let detailAction;
   if (isSent) {
     detailAction = `<div style="flex:1;text-align:center;color:var(--green);font-weight:700;padding:10px;">✅ 지파전송완료</div>`;
   } else if (isFailed) {
     detailAction = `<button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
-      onclick="closeReviewDetail();sendTelegram(${ri},'${stage}')">🔄 재전송</button>`;
+      onclick="closeReviewDetail();sendTelegram('${ri}','${stage}')">🔄 재전송</button>`;
   } else {
     detailAction = `<button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
-      onclick="closeReviewDetail();approveAndSend(${ri},'${stage}')">✓ ${stage} 승인</button>`;
+      onclick="closeReviewDetail();approveAndSend('${ri}','${stage}')">✓ ${stage} 승인</button>`;
   }
 
   document.getElementById('rv-detail-body').innerHTML = `
@@ -198,19 +198,19 @@ async function _sendTelegramReview(stage, data) {
 
 // ─── 승인 + 즉시 전송 ───
 async function approveAndSend(rowIndex, stage) {
-  const btns = document.querySelectorAll(`[onclick*="approveAndSend(${rowIndex}"]`);
+  const btns = document.querySelectorAll(`[onclick*="approveAndSend('${rowIndex}'"]`);
   btns.forEach(b => { b.textContent = '처리 중...'; b.disabled = true; });
 
   try {
     if (USE_SAMPLE) {
-      const t = (STATE.dbFindings||[]).find(d => d['__rowIndex'] === rowIndex);
+      const t = (STATE.dbFindings||[]).find(d => d.id === rowIndex);
       if (t) { t['심의승인여부']='Y'; t['심의단계']=stage; t['전송완료여부']='Y'; }
       showToast(`📤 [${stage}] 승인 및 전송 완료! (샘플)`);
       renderAdmReview();
       return;
     }
 
-    const targetRow = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
+    const targetRow = (STATE.dbFindings || []).find(d => d.id === rowIndex);
     if (!targetRow) throw new Error('행을 찾을 수 없습니다');
     const rowId = targetRow.id;
 
@@ -254,19 +254,19 @@ async function approveAndSend(rowIndex, stage) {
 
 // ─── 텔레그램 전송 (승인 완료 후) ───
 async function sendTelegram(rowIndex, stage) {
-  const btns = document.querySelectorAll(`[onclick*="sendTelegram(${rowIndex}"]`);
+  const btns = document.querySelectorAll(`[onclick*="sendTelegram('${rowIndex}'"]`);
   btns.forEach(b => { b.textContent = '전송 중...'; b.disabled = true; });
 
   try {
     if (USE_SAMPLE) {
-      const t = (STATE.dbFindings||[]).find(d => d['__rowIndex'] === rowIndex);
+      const t = (STATE.dbFindings||[]).find(d => d.id === rowIndex);
       if (t) t['전송완료여부'] = 'Y';
       showToast('📤 지파전송 완료! (샘플)');
       renderAdmReview();
       return;
     }
 
-    const targetRow = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
+    const targetRow = (STATE.dbFindings || []).find(d => d.id === rowIndex);
     if (!targetRow) throw new Error('행을 찾을 수 없습니다');
     const rowId = targetRow.id;
 
