@@ -127,7 +127,7 @@ function _syncMeets(ss) {
   for (let i = 2; i < allData.length; i++) {
     const row = allData[i];
     if (!row[0] && !row[1]) continue;
-    const obj = { synced_at: new Date().toISOString() };
+    const obj = {};
     headers.forEach((h, j) => {
       if (!h) return;
       const val = row[j];
