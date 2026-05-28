@@ -6,7 +6,6 @@ const opts = {
   bundle: true,
   outfile: 'js/notion-table-bundle.js',
   format: 'iife',
-  globalName: 'NotionTableApp',
   external: ['react', 'react-dom', 'react-dom/client'],
   jsx: 'transform',
   jsxFactory: 'React.createElement',
