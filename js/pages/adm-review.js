@@ -53,7 +53,7 @@ function renderAdmReview() {
     let actionBtn = '';
     if (!isSent) {
       actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
-        onclick="approveAndSend(${ri}, '${reqStage}')">✓ ${reqStage} 승인</button>`;
+        onclick="approveAndSend(${ri}, '${reqStage}')">✓ ${reqStage} 승인완료</button>`;
     }
 
     return `<tr>
@@ -137,7 +137,7 @@ function openReviewDetail(rowIndex) {
         <div style="flex:1;text-align:center;color:var(--green);font-weight:700;padding:10px;">✅ 전송 완료</div>
       ` : `
         <button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
-          onclick="closeReviewDetail();approveAndSend(${ri},'${stage}')">✓ ${stage} 승인 및 전송</button>
+          onclick="closeReviewDetail();approveAndSend(${ri},'${stage}')">✓ ${stage} 승인완료</button>
       `}
       <button class="btn" onclick="closeReviewDetail()" style="padding:10px 16px;">닫기</button>
     </div>
