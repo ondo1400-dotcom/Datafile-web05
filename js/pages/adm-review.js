@@ -29,12 +29,10 @@ function renderAdmReview() {
   }
 
   tbody.innerHTML = data.map(r => {
-    const ri         = r.id;
-    const isSent     = r['전송완료여부'] === 'Y';
-    const isApproved = r['심의승인여부'] === 'Y';
-    const reqStage   = r['심의단계'] || r['구분'] || '—';
-    const reqSc      = STAGE_COLORS[reqStage] || { bg:'#f0f0f0', c:'#555' };
-    const reqDate    = String(r['심의요청일시']||'').substring(0,10);
+    const ri       = r.id;
+    const reqStage = r['심의단계'] || r['구분'] || '—';
+    const reqSc    = STAGE_COLORS[reqStage] || { bg:'#f0f0f0', c:'#555' };
+    const reqDate  = String(r['심의요청일시']||'').substring(0,10);
 
     // 현 단계: nujeok에서 조회 (동일 섭외자+인도자 행이 여러 개면 단계 순서 가장 높은 것 선택)
     const nujeokMatches = (STATE.nujeok || []).filter(n =>
@@ -46,7 +44,14 @@ function renderAdmReview() {
     const curStage = nujeokRow?.['단계'] || '—';
     const curSc    = STAGE_COLORS[curStage] || { bg:'#f0f0f0', c:'#555' };
 
-    const isFailed   = r['전송완료여부'] === 'F';
+    // 심의요청일시 > 심의승인일시 이면 새 요청 → 이전 승인 무효
+    const aprvTime     = r['심의승인일시'] ? new Date(r['심의승인일시']) : null;
+    const reqTime      = r['심의요청일시'] ? new Date(r['심의요청일시']) : null;
+    const isNewRequest = !aprvTime || (reqTime && reqTime > aprvTime);
+
+    const isSent     = !isNewRequest && r['전송완료여부'] === 'Y';
+    const isFailed   = !isNewRequest && r['전송완료여부'] === 'F';
+    const isApproved = !isNewRequest && r['심의승인여부'] === 'Y';
 
     let statusBadge;
     if (isSent)          statusBadge = '<span class="badge b-green">지파전송완료</span>';
