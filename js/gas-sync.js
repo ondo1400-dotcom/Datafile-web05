@@ -159,8 +159,18 @@ function _syncMeets(ss) {
   }
 
   if (!rows.length) return;
-  const ok = _supabaseUpsert('meets', rows, '실적지역,섭외자,인도자,다음만남일');
-  if (ok) Logger.log('meets sync 완료: ' + rows.length + '행');
+
+  // 중복 키 제거: 같은 (실적지역,섭외자,인도자,다음만남일) 중 마지막 행만 유지
+  const deduped = Object.values(
+    rows.reduce((acc, r) => {
+      const k = (r['실적지역']||'') + '|' + (r['섭외자']||'') + '|' + (r['인도자']||'') + '|' + (r['다음만남일']||'');
+      acc[k] = r;
+      return acc;
+    }, {})
+  );
+
+  const ok = _supabaseUpsert('meets', deduped, '실적지역,섭외자,인도자,다음만남일');
+  if (ok) Logger.log('meets sync 완료: ' + deduped.length + '행 (' + rows.length + '행 중 중복 제거)');
 }
 
 // ── 메인 sync 함수 (트리거로 1분마다 실행) ──────────────
