@@ -51,14 +51,7 @@ function renderAdmReview() {
     else                 statusBadge = '<span class="badge b-amber">심의대기</span>';
 
     let actionBtn = '';
-    if (isSent) {
-      // 전송 완료 → 버튼 없음
-    } else if (isApproved) {
-      // 승인됐지만 전송 안 됨 → 재전송 버튼
-      actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
-        onclick="sendReviewMessage(${ri}, '${reqStage}')">📤 전송</button>`;
-    } else {
-      // 미승인 → 승인+전송 버튼
+    if (!isSent) {
       actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
         onclick="approveAndSend(${ri}, '${reqStage}')">✓ ${reqStage} 승인</button>`;
     }
@@ -142,9 +135,6 @@ function openReviewDetail(rowIndex) {
     <div style="display:flex;gap:8px;">
       ${isSent ? `
         <div style="flex:1;text-align:center;color:var(--green);font-weight:700;padding:10px;">✅ 전송 완료</div>
-      ` : isApproved ? `
-        <button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
-          onclick="closeReviewDetail();sendReviewMessage(${ri},'${stage}')">📤 전송</button>
       ` : `
         <button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
           onclick="closeReviewDetail();approveAndSend(${ri},'${stage}')">✓ ${stage} 승인 및 전송</button>
