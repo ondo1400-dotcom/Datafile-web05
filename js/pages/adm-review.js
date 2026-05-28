@@ -182,7 +182,7 @@ async function _sendTelegramReview(stage, data) {
 
 // ─── 승인 + 즉시 전송 ───
 async function approveAndSend(rowIndex, stage) {
-  if (!confirm(`[${stage}] 승인하고 바로 전송할까요?`)) return;
+  // confirm 없이 즉시 실행
 
   const btns = document.querySelectorAll(`[onclick*="approveAndSend(${rowIndex}"]`);
   btns.forEach(b => { b.textContent = '전송 중...'; b.disabled = true; });
@@ -216,7 +216,7 @@ async function approveAndSend(rowIndex, stage) {
     try {
       await _sendTelegramReview(stage, r);
     } catch(tgErr) {
-      showToast(`⚠️ 승인 완료, 텔레그램 전송 실패: ${tgErr.message}`, 'error');
+      alert(`텔레그램 전송 실패:\n${tgErr.message}`);
       renderAdmReview();
       return;
     }
