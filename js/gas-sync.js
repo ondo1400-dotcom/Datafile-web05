@@ -112,6 +112,12 @@ function _normalizeMeetTime(val) {
   return s;
 }
 
+// ── meets 테이블에 실제 존재하는 컬럼만 허용 ─────────────
+const MEETS_COLS = new Set([
+  '실적지역', '섭외자', '인도자', '단계',
+  '다음만남일', '다음만남시간', '다음만남목적', '만남결과',
+]);
+
 // ── 다음만남일 시트 → meets 테이블 sync ──────────────────
 // 시트 구조: 1행=제목, 2행=헤더, 3행~=데이터
 function _syncMeets(ss) {
@@ -129,7 +135,7 @@ function _syncMeets(ss) {
     if (!row[0] && !row[1]) continue;
     const obj = {};
     headers.forEach((h, j) => {
-      if (!h) return;
+      if (!h || !MEETS_COLS.has(h)) return; // 테이블에 없는 컬럼 무시
       const val = row[j];
       if (h === '다음만남일') {
         obj[h] = _normalizeMeetDate(val);
