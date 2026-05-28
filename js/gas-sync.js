@@ -159,10 +159,10 @@ function _syncMeets(ss) {
 
 // ── 메인 sync 함수 (트리거로 1분마다 실행) ──────────────
 function syncSheetToSupabase() {
-  const ss = SpreadsheetApp.openById(SS_ID);
-  _syncSheet(ss, NUJEOK_SHEET_NAME, 'nujeok');
-  _syncSheet(ss, TALLAG_SHEET_NAME, 'tallag');
-  _syncMeets(ss);
+  const ssRead = SpreadsheetApp.openById(SS_READ_ID);
+  _syncSheet(ssRead, NUJEOK_SHEET_NAME, 'nujeok');
+  _syncSheet(ssRead, TALLAG_SHEET_NAME, 'tallag');
+  _syncMeets(ssRead);
   reconcilePendingUpdates();
   Logger.log('Supabase sync 완료: ' + new Date().toLocaleString('ko-KR'));
 }
