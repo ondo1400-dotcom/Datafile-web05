@@ -2,59 +2,13 @@
 //  pages/adm-db.js — DB/찾기 관리
 // ══════════════════════════════════════════════════════
 
-let dbFilter = { type: '', region: '' };
-
 function renderAdmDb() {
   const data = STATE.dbFindings || [];
-
-  const filtered = data.filter(r => {
-    if (dbFilter.type   && r['구분']     !== dbFilter.type)   return false;
-    if (dbFilter.region && r['실적지역'] !== dbFilter.region) return false;
-    return true;
-  });
-
-  // 통계
-  document.getElementById('db-stat-db').textContent    = data.filter(r => r['구분'] === 'DB').length;
-  document.getElementById('db-stat-find').textContent  = data.filter(r => r['구분'] === '찾기').length;
-  document.getElementById('db-stat-hapja').textContent = data.filter(r => r['전송완료여부'] === 'Y').length;
-
-  const tbody = document.getElementById('db-body');
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3);">데이터 없음</td></tr>';
-    return;
+  if (window.NotionTableApp) {
+    window.NotionTableApp.mountDbTable('adm-db-notion-root', data, {
+      onRefresh: () => { if (typeof loadData === 'function') loadData().then(renderAdmDb); },
+    });
   }
-
-  tbody.innerHTML = filtered.map(r => {
-    const typeColor = r['구분'] === 'DB' ? 'b-gray' : 'b-reg';
-    const rowStyle  = r['전송완료여부'] === 'Y' ? 'opacity:.5;' : '';
-    const ri        = r['__rowIndex'];
-
-    const reviewStatus = r['전송완료여부'] === 'Y'
-      ? '<span class="badge b-green" style="font-size:10px;">전송완료</span>'
-      : r['심의승인여부'] === 'Y'
-        ? '<span class="badge b-adm" style="font-size:10px;">승인완료</span>'
-        : r['심의요청여부'] === 'Y'
-          ? '<span class="badge b-amber" style="font-size:10px;">심의대기</span>'
-          : `<button class="btn reg-pri" style="font-size:11px;padding:4px 10px;" onclick="event.stopPropagation();openRequestReviewModal(${ri},'db')">심의요청</button>`;
-
-    return `<tr style="${rowStyle}" class="cr" onclick="openDbDetail(${ri})">
-      <td><span class="badge ${typeColor}">${r['구분']||'—'}</span></td>
-      <td style="max-width:80px;overflow:hidden;text-overflow:ellipsis;">${r['실적지역']||'—'}</td>
-      <td><strong>${r['섭외자']||'—'}</strong></td>
-      <td style="font-size:11px;max-width:110px;overflow:hidden;text-overflow:ellipsis;">${r['전화번호']||'—'}</td>
-      <td style="font-size:11px;">${r['인도자']||'—'}</td>
-      <td style="font-size:11px;">${r['목표개강(연도/월)']||'—'}</td>
-      <td style="font-size:11px;">${r['다음만남일']||'—'}</td>
-      <td style="font-size:11px;">${r['섭외유형']||'—'}</td>
-      <td style="font-size:11px;color:var(--text3);">${String(r['등록일시']||'').substring(0,10)}</td>
-      <td onclick="event.stopPropagation()">${reviewStatus}</td>
-    </tr>`;
-  }).join('');
-}
-
-function setDbFilter(key, val) {
-  dbFilter[key] = val;
-  renderAdmDb();
 }
 
 // ─── 상세 보기 ───
@@ -163,32 +117,13 @@ function fmtRegDate(val) {
 
 // ─── REG: DB/찾기 (지역 담당자용) ───
 function renderRegDb() {
-  const typeFilter = document.getElementById('reg-db-type-sel')?.value || '';
-  const data = (STATE.dbFindings || []).filter(r => {
-    if (typeFilter && r['구분'] !== typeFilter) return false;
-    // 관리자 지역 보기 모드
-    if (ADM_VIEW_REGION && r['실적지역'] !== ADM_VIEW_REGION) return false;
-    return true;
-  });
-
-  const tbody = document.getElementById('reg-db-body');
-  if (!tbody) return;
-
-  if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3);">데이터 없음</td></tr>';
-    return;
+  let data = STATE.dbFindings || [];
+  if (ADM_VIEW_REGION) {
+    data = data.filter(r => r['실적지역'] === ADM_VIEW_REGION);
   }
-
-  tbody.innerHTML = data.map(r => {
-    const ri   = r['__rowIndex'];
-    const type = r['구분'] === '찾기' ? '찾기' : 'DB';
-    const typeColor = type === 'DB' ? '#e2e8f0;color:#475569' : '#dcfce7;color:#166534';
-    return `<tr class="cr" onclick="openDbDetail(${ri})">
-      <td><span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${typeColor};">${type}</span></td>
-      <td><strong>${r['섭외자']||'—'}</strong></td>
-      <td style="font-size:11px;">${r['전화번호']||'—'}</td>
-      <td style="font-size:11px;">${r['실적지역']||'—'}</td>
-      <td style="font-size:11px;color:var(--text3);">${fmtRegDate(r['등록일시'])}</td>
-    </tr>`;
-  }).join('');
+  if (window.NotionTableApp) {
+    window.NotionTableApp.mountDbTable('reg-db-notion-root', data, {
+      onRefresh: () => { if (typeof loadData === 'function') loadData().then(renderRegDb); },
+    });
+  }
 }

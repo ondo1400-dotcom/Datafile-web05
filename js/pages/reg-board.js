@@ -94,63 +94,24 @@ function _updateColIcons() {
 }
 
 function renderRegBoard() {
-  _fillRegBoardSelects();
+  const findingRows = (STATE.dbFindings || [])
+    .filter(r => r['구분'] === '찾기')
+    .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));
 
-  const meetMap = _buildMeetMap();
-  let   data    = _buildBaseData();
-  data          = _applyColFilters(data, meetMap, null);
-  data          = _sortRegBoard(data, meetMap);
+  const allNujeok = [...(STATE.nujeok || []), ...(STATE.tallag || []).map(r => ({ ...r, _isTallag: true }))];
+  let data = [...allNujeok.filter(r => VALID_STAGES.includes(r['단계'])), ...findingRows];
 
-  const countEl = document.getElementById('reg-board-count');
-  if (countEl) countEl.textContent = `${data.length}명`;
-
-  const tbody = document.getElementById('reg-board-body');
-  if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3);">데이터가 없습니다</td></tr>';
-    _updateColIcons();
-    return;
+  const allowed = getAllowedRegions();
+  if (allowed !== null) {
+    data = data.filter(r => allowed.includes(r['실적지역']));
   }
 
-  tbody.innerHTML = data.map(r => {
-    const tallag  = isTallag(r) || r['_isTallag'];
-    const style   = tallag ? 'opacity:.5;' : '';
-    const ri      = r['__rowIndex'];
-    const meetKey = (r['섭외자'] || '') + '|' + (r['인도자'] || '');
-    const meet    = meetMap[meetKey];
-    const meetDate    = meet?._date ? fmtMD(meet._date) : (meet?.['다음만남일'] || '—');
-    const meetPurpose = meet?.['다음만남목적'] || '—';
-
-    const dbRow = (STATE.dbFindings || []).find(d =>
-      d['섭외자'] === r['섭외자'] && d['인도자'] === r['인도자']
-    );
-    const reviewStatus = dbRow?.['심의요청여부'] === 'Y'
-      ? (dbRow?.['전송완료여부'] === 'Y'
-          ? '<span class="badge b-green" style="font-size:10px;">전송완료</span>'
-          : dbRow?.['심의승인여부'] === 'Y'
-            ? '<span class="badge b-adm" style="font-size:10px;">승인완료</span>'
-            : '<span class="badge b-amber" style="font-size:10px;">심의대기</span>')
-      : `<button class="btn" style="font-size:10px;padding:3px 7px;"
-           onclick="event.stopPropagation();openRequestReviewModal(${ri},'${r._isDbFinding ? 'db' : 'nujeok'}')">심의요청</button>`;
-
-    const clickFn = r._isDbFinding ? `openDbFindingDetail(${ri},'reg-board')` : `openPersonDetail(${ri},'reg-board')`;
-    return `<tr style="${style}cursor:pointer;" class="cr" onclick="${clickFn}">
-      <td>
-        ${stageBadge(r['단계'])}
-        ${tallag ? '<span class="badge b-red" style="margin-left:4px;">탈락</span>' : ''}
-        ${r._isDbFinding ? '<span class="badge b-gray" style="margin-left:4px;font-size:9px;">DB</span>' : ''}
-      </td>
-      <td style="font-size:12px;">${r['실적지역'] || '—'}</td>
-      <td style="font-size:11px;">${r['섭외유형'] || '—'}</td>
-      <td><strong>${r['섭외자'] || '—'}</strong></td>
-      <td style="font-size:12px;">${r['인도자'] || '—'}</td>
-      <td style="font-size:12px;">${r['교사'] || '—'}</td>
-      <td style="font-size:12px;font-weight:600;color:var(--reg2);">${meetDate}</td>
-      <td style="font-size:11px;color:var(--text2);">${meetPurpose}</td>
-      <td onclick="event.stopPropagation()">${reviewStatus}</td>
-    </tr>`;
-  }).join('');
-
-  _updateColIcons();
+  if (window.NotionTableApp) {
+    window.NotionTableApp.mountBoardTable('reg-board-notion-root', data, {
+      source: 'reg-board',
+      onRefresh: () => { if (typeof loadData === 'function') loadData().then(renderRegBoard); },
+    });
+  }
 }
 
 function _sortRegBoard(data, meetMap) {
