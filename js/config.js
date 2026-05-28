@@ -15,8 +15,8 @@ function initSupabase() {
 // ⚠️ Apps Script 배포 URL (GAS sync용으로 유지)
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx94rAb6olhwRaHds6EZsTzFS56dUq1xbeFpxv5ZOO7EhoS0ckavlKUYmkNM-p8AY7Y/exec';
 
-// ⚠️ 텔레그램 봇 설정 (심의 승인 전송용 — JD_BOT_TOKEN 값 입력)
-const TELEGRAM_BOT_TOKEN    = ''; // config.local.js 에서 덮어씀
+// ⚠️ 텔레그램 봇 설정 (심의 승인 전송용)
+const TELEGRAM_BOT_TOKEN    = '8887050175:AAHu-lTOzzy8YOi_9ibMydpqTA3PUGleVTE';
 const REVIEW_TELEGRAM_CHAT  = -1003943121521; // 행정보고창
 
 // ⚠️ Google OAuth 클라이언트 ID
