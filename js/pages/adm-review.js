@@ -51,7 +51,14 @@ function renderAdmReview() {
     else                 statusBadge = '<span class="badge b-amber">심의대기</span>';
 
     let actionBtn = '';
-    if (!isSent) {
+    if (isSent) {
+      // 전송 완료 → 버튼 없음
+    } else if (isApproved) {
+      // 승인됐지만 전송 안 됨 → 재전송 버튼
+      actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
+        onclick="sendReviewMessage(${ri}, '${reqStage}')">📤 전송</button>`;
+    } else {
+      // 미승인 → 승인+전송 버튼
       actionBtn = `<button class="btn adm-pri" style="font-size:11px;padding:4px 10px;"
         onclick="approveAndSend(${ri}, '${reqStage}')">✓ ${reqStage} 승인</button>`;
     }
@@ -133,11 +140,14 @@ function openReviewDetail(rowIndex) {
       `).join('')}
     </div>
     <div style="display:flex;gap:8px;">
-      ${!isSent ? `
+      ${isSent ? `
+        <div style="flex:1;text-align:center;color:var(--green);font-weight:700;padding:10px;">✅ 전송 완료</div>
+      ` : isApproved ? `
+        <button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
+          onclick="closeReviewDetail();sendReviewMessage(${ri},'${stage}')">📤 전송</button>
+      ` : `
         <button class="btn adm-pri" style="flex:1;padding:10px;font-size:13px;"
           onclick="closeReviewDetail();approveAndSend(${ri},'${stage}')">✓ ${stage} 승인 및 전송</button>
-      ` : `
-        <div style="flex:1;text-align:center;color:var(--green);font-weight:700;padding:10px;">✅ 전송 완료</div>
       `}
       <button class="btn" onclick="closeReviewDetail()" style="padding:10px 16px;">닫기</button>
     </div>
@@ -167,6 +177,19 @@ function buildReviewMessageText(stage, data) {
   return `[${header}]\n` + fields.map(f => `${LABELS[f] || f} : ${data[f] || ''}`).join('\n');
 }
 
+// ─── 텔레그램 전송 공통 헬퍼 ───
+async function _sendTelegramReview(stage, data) {
+  if (!TELEGRAM_BOT_TOKEN) throw new Error('텔레그램 토큰 미설정 (config.js)');
+  const messageText = buildReviewMessageText(stage, data);
+  const tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: REVIEW_TELEGRAM_CHAT, text: messageText }),
+  });
+  const tgJson = await tgRes.json();
+  if (!tgJson.ok) throw new Error(tgJson.description || '전송 실패');
+}
+
 // ─── 승인 + 즉시 전송 ───
 async function approveAndSend(rowIndex, stage) {
   if (!confirm(`[${stage}] 승인하고 바로 전송할까요?`)) return;
@@ -183,16 +206,14 @@ async function approveAndSend(rowIndex, stage) {
       return;
     }
 
-    // __rowIndex는 배열 인덱스이므로 실제 UUID id 먼저 조회
     const targetRow = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
     if (!targetRow) throw new Error('행을 찾을 수 없습니다');
     const rowId = targetRow.id;
 
-    // 1. Supabase 승인 상태 업데이트
+    // 1. 승인 상태만 먼저 저장 (전송완료는 텔레그램 성공 후 저장)
     const now = new Date().toISOString();
     const { error: approveErr } = await SUPA.from('db_findings').update({
       '심의승인여부': 'Y', '심의승인일시': now, '심의단계': stage,
-      '전송완료여부': 'Y', '전송완료일시': now,
     }).eq('id', rowId);
     if (approveErr) throw new Error(approveErr.message);
 
@@ -200,33 +221,65 @@ async function approveAndSend(rowIndex, stage) {
     const { data: refreshed } = await SUPA.from('db_findings').select('*');
     STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
 
-    // 2. 텔레그램 전송 (행정보고창)
+    // 2. 텔레그램 전송
     const r = (STATE.dbFindings||[]).find(d => d['id'] === rowId);
-    if (r && TELEGRAM_BOT_TOKEN) {
-      const messageText = buildReviewMessageText(stage, r);
-      try {
-        const tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: REVIEW_TELEGRAM_CHAT, text: messageText }),
-        });
-        const tgJson = await tgRes.json();
-        if (!tgJson.ok) throw new Error(tgJson.description || '전송 실패');
-      } catch(tgErr) {
-        showToast(`⚠️ 승인 완료, 텔레그램 전송 실패: ${tgErr.message}`, 'error');
-        renderAdmReview();
-        return;
-      }
-    } else if (!TELEGRAM_BOT_TOKEN) {
-      showToast('⚠️ 승인 완료, 텔레그램 토큰 미설정 (config.js)', 'error');
+    try {
+      await _sendTelegramReview(stage, r);
+    } catch(tgErr) {
+      showToast(`⚠️ 승인 완료, 텔레그램 전송 실패: ${tgErr.message}`, 'error');
       renderAdmReview();
       return;
     }
+
+    // 3. 전송 완료 상태 저장
+    await SUPA.from('db_findings').update({
+      '전송완료여부': 'Y', '전송완료일시': new Date().toISOString(),
+    }).eq('id', rowId);
+
+    const { data: refreshed2 } = await SUPA.from('db_findings').select('*');
+    STATE.dbFindings = (refreshed2 || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
 
     showToast(`📤 [${stage}] 승인 및 전송 완료!`);
     renderAdmReview();
   } catch(e) {
     showToast('⚠️ 실패: ' + e.message, 'error');
     btns.forEach(b => { b.textContent = `✓ ${stage} 승인`; b.disabled = false; });
+  }
+}
+
+// ─── 승인완료 상태에서 재전송 ───
+async function sendReviewMessage(rowIndex, stage) {
+  const btns = document.querySelectorAll(`[onclick*="sendReviewMessage(${rowIndex}"]`);
+  btns.forEach(b => { b.textContent = '전송 중...'; b.disabled = true; });
+
+  try {
+    if (USE_SAMPLE) {
+      const t = (STATE.dbFindings||[]).find(d => d['__rowIndex'] === rowIndex);
+      if (t) t['전송완료여부'] = 'Y';
+      showToast('📤 전송 완료! (샘플)');
+      renderAdmReview();
+      return;
+    }
+
+    const targetRow = (STATE.dbFindings || []).find(d => d['__rowIndex'] === rowIndex);
+    if (!targetRow) throw new Error('행을 찾을 수 없습니다');
+    const rowId = targetRow.id;
+
+    // 텔레그램 전송
+    await _sendTelegramReview(stage, targetRow);
+
+    // 전송 완료 상태 저장
+    await SUPA.from('db_findings').update({
+      '전송완료여부': 'Y', '전송완료일시': new Date().toISOString(),
+    }).eq('id', rowId);
+
+    const { data: refreshed } = await SUPA.from('db_findings').select('*');
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
+
+    showToast(`📤 [${stage}] 전송 완료!`);
+    renderAdmReview();
+  } catch(e) {
+    showToast('⚠️ 전송 실패: ' + e.message, 'error');
+    btns.forEach(b => { b.textContent = '📤 전송'; b.disabled = false; });
   }
 }
