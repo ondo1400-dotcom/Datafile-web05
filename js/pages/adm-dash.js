@@ -62,12 +62,10 @@ function renderRegDash() {
 
 // ─── 필터 지역 결정 ───
 function _getDashFilterRegions(role) {
-  const tab = role === 'adm' ? _admDashTab : _regDashTab;
-  if (tab === 'all') return null;
-  if (role === 'adm') {
-    return ADM_VIEW_REGION ? [ADM_VIEW_REGION] : getAllowedRegions();
-  }
-  return getAllowedRegions(); // null이면 전체
+  if (role === 'reg') return getAllowedRegions();
+  const tab = _admDashTab;
+  if (tab === 'all') return ADM_VIEW_REGION ? [ADM_VIEW_REGION] : null;
+  return ADM_VIEW_REGION ? [ADM_VIEW_REGION] : getAllowedRegions();
 }
 
 // ─── 공통 대시보드 렌더 ───
@@ -115,8 +113,11 @@ function _renderDashContent(role) {
   el.innerHTML = `
     ${regionBadge}
 
+    <div class="sl" style="margin:0 0 8px;">누적현황 (단계별 목표 대비)</div>
+    <div id="${pfx}-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
+
     ${showFunnel ? `
-    <div class="sl" style="margin:0 0 8px;">누적 달성 현황</div>
+    <div class="sl" style="margin:0 0 8px;">지역별 단계 달성 현황</div>
     <div id="${pfx}-funnel-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
     ` : ''}
 
@@ -139,7 +140,8 @@ function _renderDashContent(role) {
     pfx + '-filter-wrap',
     showFunnel ? pfx + '-funnel-wrap' : null,
     filterRegions,
-    isAdm && isAdmin
+    isAdm && isAdmin,
+    pfx + '-cards-wrap'
   );
 }
 
@@ -555,15 +557,14 @@ function _buildLdMeetHtml(myRegions) {
         : [{ key: g.key, gKey: g.key, label: g.label, singleCol: true, cellBg: g.cellBg }];
       return { ...g, purs, cols };
     });
-    const SCHED_COLS = grps.flatMap(g => g.cols);
+    const ALL_COLS = [...grps.flatMap(g => g.cols), { key: 'none', gKey: 'none', label: '만남미정' }];
 
-    const colTots = {};
-    SCHED_COLS.forEach(c => { colTots[c.key] = 0; });
-    let noneTotal = 0;
+    const colTots = { none: 0 };
+    ALL_COLS.forEach(c => { if (c.key !== 'none') colTots[c.key] = 0; });
     sp.forEach(r => {
       const meet = getMeet(r);
       const gk   = grpKey(meet?._date);
-      if (gk === 'none') { noneTotal++; return; }
+      if (gk === 'none') { colTots.none++; return; }
       const nm = _ldNormPurpose(meet?.['다음만남목적']);
       const k  = `${gk}-${nm.label}`;
       if (colTots[k] !== undefined) colTots[k]++;
@@ -585,34 +586,49 @@ function _buildLdMeetHtml(myRegions) {
       });
     }).join('');
     const thead = `<tr>
-      <th rowspan="2" style="background:#bde0f5;color:#0c2d42;border:1px solid var(--border);padding:6px 12px;text-align:center;">지역</th>
+      <th rowspan="2" style="background:#bde0f5;color:#0c2d42;border:1px solid var(--border);padding:6px 12px;text-align:center;width:88px;">지역</th>
       ${row1}
+      <th rowspan="2" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);padding:6px 8px;text-align:center;width:40%;">만남미정</th>
     </tr><tr>${row2}</tr>`;
 
-    const noneMap = {};
     const regionRows = regions.map(region => {
       const rp = sp.filter(r => r['실적지역'] === region);
       if (!rp.length) return '';
       const isMine = myRegions && myRegions.includes(region);
 
-      const buckets = {};
-      SCHED_COLS.forEach(c => { buckets[c.key] = []; });
-      const noneBucket = [];
+      const buckets = { none: [] };
+      ALL_COLS.forEach(c => { if (c.key !== 'none') buckets[c.key] = []; });
       rp.forEach(r => {
         const meet = getMeet(r);
         const gk   = grpKey(meet?._date);
-        if (gk === 'none') { noneBucket.push(r); return; }
+        if (gk === 'none') { buckets.none.push(r); return; }
         const nm = _ldNormPurpose(meet?.['다음만남목적']);
         const k  = `${gk}-${nm.label}`;
         if (buckets[k]) buckets[k].push(r);
         else if (buckets[gk]) buckets[gk].push(r);
       });
-      noneMap[region] = noneBucket;
 
-      const cells = SCHED_COLS.map(c => {
+      const cells = ALL_COLS.map(c => {
         const list  = buckets[c.key] || [];
         const bgSt  = c.cellBg ? `background:${c.cellBg};` : '';
         if (!list.length) return `<td style="${bgSt}border:1px solid var(--border);padding:5px;text-align:center;"><span style="color:var(--text3)">—</span></td>`;
+
+        if (c.key === 'none') {
+          const groups = {};
+          list.forEach(r => {
+            const nm = _ldNormPurpose(getMeet(r)?.['다음만남목적']);
+            if (!groups[nm.label]) groups[nm.label] = { bg: nm.bg, color: nm.color, names: [] };
+            groups[nm.label].names.push(r['섭외자'] || '?');
+          });
+          const chips = _LD_PUR_ORDER.filter(k => groups[k]).map(k => {
+            const g = groups[k];
+            return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-bottom:2px;">
+              <span style="font-size:9px;font-weight:700;color:${g.color};">${k}</span>
+              ${g.names.map(n => `<span style="font-size:10px;padding:1px 5px;border-radius:8px;border:1px solid ${g.color}20;background:${g.bg};color:${g.color};">${n}</span>`).join('')}
+            </div>`;
+          }).join('');
+          return `<td style="border:1px solid var(--border);padding:5px;overflow:hidden;"><div style="overflow-wrap:break-word;word-break:break-word;">${chips || '<span style="color:var(--text3)">—</span>'}</div></td>`;
+        }
 
         const nm    = _ldNormPurpose(c.purpose || c.label);
         const chips = list.map(r => {
@@ -638,43 +654,19 @@ function _buildLdMeetHtml(myRegions) {
     }).filter(Boolean).join('');
 
     if (!regionRows) return '';
-    const totCells = SCHED_COLS.map(c =>
+    const totCells = ALL_COLS.map(c =>
       `<td style="border:1px solid var(--border);text-align:center;font-weight:700;background:#fef9c3;font-family:monospace;">${colTots[c.key] || 0}</td>`
     ).join('');
-
-    // 만남미정 별도 섹션 빌드
-    const noneGroups = {};
-    Object.values(noneMap).flat().forEach(r => {
-      const nm = _ldNormPurpose(getMeet(r)?.['다음만남목적']);
-      if (!noneGroups[nm.label]) noneGroups[nm.label] = { bg: nm.bg, color: nm.color, names: [] };
-      noneGroups[nm.label].names.push(r['섭외자'] || '?');
-    });
-    const noneChips = _LD_PUR_ORDER.filter(k => noneGroups[k]).map(k => {
-      const g = noneGroups[k];
-      const nameSpans = g.names.map(n =>
-        `<span style="font-size:10px;padding:1px 6px;border-radius:8px;border:1px solid ${g.color}25;background:${g.bg};color:${g.color};">${n}</span>`
-      ).join(' ');
-      return `<span style="font-size:9px;font-weight:800;color:${g.color};margin-right:3px;white-space:nowrap;">${k}</span>${nameSpans}`;
-    }).join('<span style="color:var(--border);margin:0 6px;">│</span>');
-
-    const noneSection = noneTotal ? `
-      <div style="padding:8px 14px 10px;background:var(--surface);border:1px solid var(--border);border-top:2px dashed var(--border);border-radius:0 0 8px 8px;">
-        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">만남미정
-          <span style="color:var(--red);font-family:monospace;margin-left:4px;">${noneTotal}명</span>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;line-height:1.9;">${noneChips}</div>
-      </div>` : '';
 
     return `<div style="margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px 8px 0 0;background:${sc.bg};cursor:pointer;user-select:none;"
            onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.querySelector('.ld-tog').textContent=this.nextElementSibling.style.display==='none'?'▼':'▲'">
         <span style="font-size:13px;font-weight:700;color:${sc.c};">${stage}</span>
         <span style="font-family:monospace;font-size:11px;padding:2px 8px;border-radius:10px;background:${sc.c}22;color:${sc.c};">${sp.length}명</span>
-        ${noneTotal ? `<span style="font-size:11px;color:var(--text3);">미정 ${noneTotal}명</span>` : ''}
         <span class="ld-tog" style="margin-left:auto;font-size:11px;color:${sc.c};opacity:.7;">▲</span>
       </div>
-      <div class="dash-tbl-wrap" style="border-radius:${noneTotal?'0':'0 0 8px 8px'};margin-bottom:0;border-top:none;">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <div class="dash-tbl-wrap" style="border-radius:0 0 8px 8px;margin-bottom:0;border-top:none;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">
           <thead>${thead}</thead>
           <tbody>
             ${regionRows}
@@ -685,7 +677,6 @@ function _buildLdMeetHtml(myRegions) {
           </tbody>
         </table>
       </div>
-      ${noneSection}
     </div>`;
   }).filter(Boolean).join('');
 
@@ -693,7 +684,7 @@ function _buildLdMeetHtml(myRegions) {
 }
 
 // ─── 개강 + 센터 필터 UI ───
-function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin) {
+function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId) {
   const wrap = document.getElementById(filterId);
   if (!wrap) return;
 
@@ -710,15 +701,16 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
   const btn = (label, active, onclick) =>
     `<button onclick="${onclick}" style="padding:3px 10px;border-radius:12px;border:1px solid var(--border);font-size:11px;cursor:pointer;font-family:inherit;background:${active?'var(--adm2)':'var(--surface2)'};color:${active?'#fff':'var(--text2)'};">${label}</button>`;
 
-  const mrJson = JSON.stringify(myRegions || null);
+  const mrJson  = JSON.stringify(myRegions || null);
+  const cidJson = JSON.stringify(cardsId || null);
   const kaigangBtns = kaigangs.map(k =>
-    btn(k, _ldKaigang === k, `_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin})`)
+    btn(k, _ldKaigang === k, `_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson})`)
   ).join('');
 
   const centerRow = centers.length ? `
     <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px;">
       <span style="font-size:10px;color:var(--text3);font-weight:700;">센터</span>
-      ${centers.map(c => btn(c, _ldCenter === c, `_ldSetCenter('${c}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin})`)).join('')}
+      ${centers.map(c => btn(c, _ldCenter === c, `_ldSetCenter('${c}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson})`)).join('')}
     </div>` : '';
 
   const tgBtns = isAdmin ? `
@@ -733,38 +725,44 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
   `;
 }
 
-function _ldSetKaigang(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin) {
+function _ldSetKaigang(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId) {
   _ldKaigang = val;
   _ldCenter  = '전체';
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
   const fw = document.getElementById(funnelId);
+  const cw = cardsId ? document.getElementById(cardsId) : null;
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
   if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin);
+  if (cw) cw.innerHTML = _buildFunnelHtml(myRegions);
+  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId);
 }
 
-function _ldSetCenter(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin) {
+function _ldSetCenter(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId) {
   _ldCenter = val;
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
   const fw = document.getElementById(funnelId);
+  const cw = cardsId ? document.getElementById(cardsId) : null;
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
   if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin);
+  if (cw) cw.innerHTML = _buildFunnelHtml(myRegions);
+  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId);
 }
 
 // ─── 렌더링 진입점 ───
-function _asyncFillLd(stageId, meetId, filterId, funnelId, myRegions, isAdmin) {
+function _asyncFillLd(stageId, meetId, filterId, funnelId, myRegions, isAdmin, cardsId) {
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
   const fw = document.getElementById(funnelId);
+  const cw = cardsId ? document.getElementById(cardsId) : null;
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
   if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin);
+  if (cw) cw.innerHTML = _buildFunnelHtml(myRegions);
+  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId);
 }
 
 // ─── 텔레그램 전송용 표 텍스트 빌더 ───
