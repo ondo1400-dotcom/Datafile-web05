@@ -120,30 +120,6 @@ function _renderDashContent(role) {
     <div id="${pfx}-funnel-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
     ` : ''}
 
-    <div class="sl" style="margin:0 0 8px;">보유현황</div>
-    <div class="stat-row c4" style="margin-bottom:18px;">
-      <div class="stat-card ${accent}-c" style="text-align:center;">
-        <div class="stat-label">전체 누적</div>
-        <div class="stat-val ${accent}" style="font-size:22px;">${nujeokAll.length}</div>
-        <div class="stat-sub">청년누적 인원</div>
-      </div>
-      <div class="stat-card base" style="text-align:center;">
-        <div class="stat-label">탈락 인원</div>
-        <div class="stat-val" style="font-size:22px;color:var(--red);">${tallag.length}</div>
-        <div class="stat-sub">청년탈락</div>
-      </div>
-      <div class="stat-card ${accent}-c" style="text-align:center;">
-        <div class="stat-label">보유 (생존)</div>
-        <div class="stat-val ${accent}" style="font-size:22px;">${active.length}</div>
-        <div class="stat-sub">누적 − 탈락</div>
-      </div>
-      <div class="stat-card base" style="text-align:center;">
-        <div class="stat-label">달성률</div>
-        <div class="stat-val" style="font-size:22px;color:var(--amber);">${achRate}</div>
-        <div class="stat-sub">보유 / 합자목표</div>
-      </div>
-    </div>
-
     <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
       <div class="sl" style="margin:0;flex:1;">단계별 보유현황 (만남캘린더)</div>
       <div id="${pfx}-filter-wrap" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
@@ -522,7 +498,7 @@ function _buildLdStageHtml(myRegions) {
         </tr>
         <tr>${goalHeaders}${rateHeaders}</tr>
       </thead>
-      <tbody>${regionRows}${totRowHtml}</tbody>
+      <tbody>${regionRows}${myRegions ? '' : totRowHtml}</tbody>
     </table>
   </div>`;
 }
@@ -610,7 +586,7 @@ function _buildLdMeetHtml(myRegions) {
     const thead = `<tr>
       <th rowspan="2" style="background:#bde0f5;color:#0c2d42;border:1px solid var(--border);padding:6px 12px;text-align:center;">지역</th>
       ${row1}
-      <th rowspan="2" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);padding:6px 8px;text-align:center;white-space:nowrap;">만남미정</th>
+      <th rowspan="2" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);padding:6px 8px;text-align:center;white-space:nowrap;max-width:40%;width:40%;">만남미정</th>
     </tr><tr>${row2}</tr>`;
 
     const regionRows = regions.map(region => {
@@ -649,7 +625,7 @@ function _buildLdMeetHtml(myRegions) {
               ${g.names.map(n => `<span style="font-size:10px;padding:1px 5px;border-radius:8px;border:1px solid ${g.color}20;background:${g.bg};color:${g.color};">${n}</span>`).join('')}
             </div>`;
           }).join('');
-          return `<td style="border:1px solid var(--border);padding:5px;text-align:left;min-width:80px;">${chips || '<span style="color:var(--text3)">—</span>'}</td>`;
+          return `<td style="border:1px solid var(--border);padding:5px;text-align:left;max-width:40%;overflow:hidden;"><div style="max-width:min(400px,40vw);overflow-wrap:break-word;word-break:break-word;">${chips || '<span style="color:var(--text3)">—</span>'}</div></td>`;
         }
 
         const nm    = _ldNormPurpose(c.purpose || c.label);
