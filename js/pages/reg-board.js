@@ -98,7 +98,10 @@ function renderRegBoard() {
     .filter(r => r['구분'] === '찾기')
     .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));
 
-  const allNujeok = [...(STATE.nujeok || []), ...(STATE.tallag || []).map(r => ({ ...r, _isTallag: true }))];
+  const tallagRows = _regBoardShowTallag
+    ? (STATE.tallag || []).map(r => ({ ...r, _isTallag: true }))
+    : [];
+  const allNujeok = [...(STATE.nujeok || []), ...tallagRows];
   let data = [...allNujeok.filter(r => VALID_STAGES.includes(r['단계'])), ...findingRows];
 
   const allowed = getAllowedRegions();
@@ -368,7 +371,7 @@ function renderReviewFormFields(stage) {
     return `<div style="${span}">
       <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:3px;">${f.label}</div>
       <input data-rv-key="${f.key}" type="${f.type || 'text'}" value="${esc}"
-        class="top-sel" style="width:100%;box-sizing:border-box;" oninput="validateReviewForm()">
+        class="top-sel" style="width:100%;box-sizing:border-box;" oninput="validateReviewForm()" onchange="validateReviewForm()">
     </div>`;
   };
 
@@ -413,7 +416,8 @@ function onReviewStageChange() {
 
 function openRequestReviewModal(rowIndex, source) {
   if (source === 'db') {
-    _reviewRow = (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex);
+    _reviewRow = (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex)
+              || (STATE.nujeok || []).find(r => r['__rowIndex'] === rowIndex);
   } else if (source === 'nujeok') {
     _reviewRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex);
   } else {

@@ -2,12 +2,29 @@
 //  pages/adm-board.js — 청년회 전지역 보유현황 (NotionTable)
 // ══════════════════════════════════════════════════════
 
+let _admBoardShowTallag = false;
+
+function toggleAdmTallag() {
+  _admBoardShowTallag = !_admBoardShowTallag;
+  const btn = document.getElementById('adm-tallag-toggle');
+  if (btn) {
+    btn.textContent = _admBoardShowTallag ? '탈락 숨기기' : '탈락 보기';
+    btn.style.background = _admBoardShowTallag ? 'var(--red)' : '';
+    btn.style.color      = _admBoardShowTallag ? '#fff' : '';
+  }
+  renderBoardTable();
+}
+
 function renderBoardTable() {
   const findingRows = (STATE.dbFindings || [])
     .filter(r => r['구분'] === '찾기')
     .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));
 
-  const data = [...(STATE.nujeok || []), ...findingRows];
+  const tallagRows = _admBoardShowTallag
+    ? (STATE.tallag || []).map(r => ({ ...r, _isTallag: true }))
+    : [];
+
+  const data = [...(STATE.nujeok || []), ...tallagRows, ...findingRows];
 
   if (window.NotionTableApp) {
     window.NotionTableApp.mountBoardTable('adm-board-notion-root', data, {
