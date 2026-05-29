@@ -113,6 +113,14 @@ function setRole(role) {
     if (el) el.style.display = role === 'reg' ? '' : 'none';
   });
 
+  // 사이드바 섹션 라벨 표시/숨김
+  ['sico-sec-adm-menu', 'sico-sec-adm-settings', 'sico-sec-adm-sys', 'sico-div-adm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = role === 'adm' ? '' : 'none';
+  });
+  const regSecEl = document.getElementById('sico-sec-reg-menu');
+  if (regSecEl) regSecEl.style.display = role === 'reg' ? '' : 'none';
+
   // 관리자 지역 보기 바: 관리자가 지역 탭일 때만 표시
   const regViewWrap = document.getElementById('adm-reg-view-wrap');
   if (regViewWrap) {

@@ -117,56 +117,60 @@ tailwind.config = {
 
     <!-- ─── SIDEBAR ─── -->
     <div class="sidebar adm" id="sidebar">
-      <!-- 청년회(ADM) 아이콘 -->
+      <!-- 청년회(ADM) 메뉴 -->
+      <div class="sico-section" id="sico-sec-adm-menu">메뉴</div>
       <div class="sico on adm" id="si-adm-dash" onclick="nav('adm-dash')" title="종합 대시보드 현황">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>대시보드
       </div>
       <div class="sico" id="si-adm-db" onclick="nav('adm-db')" title="DB/찾기">
-        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>DB
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>DB 관리
       </div>
       <div class="sico" id="si-adm-board" onclick="nav('adm-board')" title="전지역 보유현황">
-        <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>보유
+        <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>보유 현황
       </div>
       <div class="sico" id="si-adm-meet" onclick="nav('adm-meet')" title="만남 현황">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>만남
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>만남 현황
       </div>
       <div class="sico" id="si-adm-check" onclick="nav('adm-check')" title="개강 준비 체크">
-        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>체크
+        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>개강 체크
       </div>
+
+      <div class="sico-section" id="sico-sec-adm-settings">설정</div>
       <div class="sico" id="si-adm-goal" onclick="nav('adm-goal')" title="목표 설정">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>목표
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>목표 설정
       </div>
       <div class="sico" id="si-adm-field" onclick="nav('adm-field')" title="항목 관리">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2"/></svg>설정
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2"/></svg>항목 관리
       </div>
       <div class="sico" id="si-adm-auth" onclick="nav('adm-auth')" title="권한 관리">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>권한
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>권한 관리
       </div>
       <div class="sico" id="si-adm-review" onclick="nav('adm-review')" title="심의">
         <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>심의
       </div>
 
-      <div class="sico-div"></div>
-
+      <div class="sico-div" id="sico-div-adm"></div>
+      <div class="sico-section" id="sico-sec-adm-sys">시스템</div>
       <div class="sico" id="si-adm-dropdown" onclick="nav('adm-dropdown')" title="드롭다운 관리">
-        <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>목록
+        <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>목록 관리
       </div>
 
-      <!-- 지역 담당자(REG) 아이콘 (기본 숨김) -->
+      <!-- 지역 담당자(REG) 메뉴 (기본 숨김) -->
+      <div class="sico-section" id="sico-sec-reg-menu" style="display:none;">메뉴</div>
       <div class="sico" id="si-reg-dash" onclick="nav('reg-dash')" title="종합 대시보드 현황" style="display:none;">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>대시보드
       </div>
       <div class="sico" id="si-reg-db" onclick="nav('reg-db')" title="DB/찾기" style="display:none;">
-        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>DB
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>DB 관리
       </div>
       <div class="sico" id="si-reg-board" onclick="nav('reg-board')" title="내 지역 보유현황" style="display:none;">
-        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>보유
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>보유 현황
       </div>
       <div class="sico" id="si-reg-meet" onclick="nav('reg-meet')" title="만남 현황" style="display:none;">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>만남
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>만남 현황
       </div>
       <div class="sico" id="si-reg-check" onclick="nav('reg-check')" title="개강 준비 체크" style="display:none;">
-        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>체크
+        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>개강 체크
       </div>
     </div>
 
