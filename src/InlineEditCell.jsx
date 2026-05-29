@@ -1,37 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getTMDotColor, getTMStatusGroup, DAYS_OF_WEEK } from './selectOptions';
-import { TM_STATUS_GROUPS } from './selectOptions';
+import StageBadge from './StageBadge';
+import ColoredSelect from './ColoredSelect';
+import { getTmStatusGroups, getTMDotColor, getSelectOptions, DAYS_OF_WEEK, TM_STATUS_GROUPS } from './selectOptions';
+import { formatDateShort } from './columnConfig';
 
-/**
- * Inline editable cell component
- * Handles different field types: text, number, date, time, textarea, select, dayselect
- *
- * @param {string} rowId - Supabase row ID
- * @param {string} field - Field key (Korean field names)
- * @param {*} value - Current value
- * @param {Object} columnDef - Column definition { key, label, type, width, readonly, options }
- * @param {Array} selectOptions - Options for select type
- * @param {Array} tmStatusGroups - Grouped select options for TM status
- * @param {Function} onSaved - Callback(rowId, field, newValue) after successful save
- */
 export default function InlineEditCell({
-  rowId,
-  field,
-  value,
-  columnDef = {},
-  selectOptions = [],
-  tmStatusGroups = [],
-  onSaved,
+  rowId, field, value, columnDef = {}, selectOptions = [], tmStatusGroups = [], onSaved, badgeType,
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => { setEditValue(value); }, [value]);
+
   const { type = 'text', readonly = false } = columnDef;
 
-  if (readonly) {
-    return <div className="nt-edit-trigger">{formatDisplay(value, type)}</div>;
-  }
+  if (readonly) return <DisplayValue value={value} type={type} badgeType={badgeType} />;
 
   const handleSave = async (newValue) => {
     setIsSaving(true);
@@ -46,246 +30,151 @@ export default function InlineEditCell({
     }
   };
 
-  const handleCancel = () => {
-    setEditValue(value);
-    setIsEditing(false);
-  };
-
+  const handleCancel = () => { setEditValue(value); setIsEditing(false); };
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') handleCancel();
-    if (e.key === 'Enter' && type !== 'textarea') {
-      handleSave(editValue);
-    }
+    if (e.key === 'Enter' && type !== 'textarea') handleSave(editValue);
   };
 
   if (!isEditing) {
     return (
-      <div
-        className="nt-edit-trigger"
-        onClick={() => {
-          setEditValue(value);
-          setIsEditing(true);
-        }}
-      >
-        {field === 'TM현재상태' && value && (
-          <span
-            style={{
-              display: 'inline-block',
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              backgroundColor: getTMDotColor(value),
-              marginRight: '6px',
-            }}
-          />
-        )}
-        {formatDisplay(value, type)}
-        {!readonly && <span className="nt-edit-pencil">✏️</span>}
+      <div>
+        <button onClick={() => { setEditValue(value); setIsEditing(true); }} title="클릭하여 수정"
+          className="group/cell flex w-full cursor-pointer items-center rounded px-1 py-0.5 text-left hover:bg-blue-50/30 transition-colors">
+          <DisplayValue value={value} type={type} badgeType={badgeType} />
+          <span className="shrink-0 ml-1 w-3 text-center text-[10px] text-blue-400 opacity-0 group-hover/cell:opacity-100 transition-opacity">✎</span>
+        </button>
+        {isSaving && <div className="mt-0.5 text-[10px] text-slate-400">저장중...</div>}
       </div>
     );
   }
 
-  // Editing mode
-  switch (type) {
-    case 'select':
-      if (field === 'TM현재상태' && tmStatusGroups.length > 0) {
-        return (
-          <select
-            className="nt-edit-select"
-            value={editValue || ''}
-            onChange={(e) => handleSave(e.target.value || null)}
-            onBlur={handleCancel}
-            onKeyDown={handleKeyDown}
-            autoFocus
-          >
-            <option value="">— 선택 —</option>
-            {tmStatusGroups.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.options.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        );
-      }
-      return (
-        <select
-          className="nt-edit-select"
-          value={editValue || ''}
-          onChange={(e) => handleSave(e.target.value || null)}
-          onBlur={handleCancel}
-          onKeyDown={handleKeyDown}
-          autoFocus
-        >
-          <option value="">— 선택 —</option>
-          {selectOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      );
+  const inputCls = 'rounded-md border border-blue-300 bg-white px-2 py-1 text-[12px] outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 w-full transition-shadow';
 
-    case 'date':
-      return (
-        <input
-          type="date"
-          className="nt-edit-input"
-          value={editValue ? new Date(editValue).toISOString().split('T')[0] : ''}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={() => handleSave(editValue ? new Date(editValue).toISOString() : null)}
-          onKeyDown={handleKeyDown}
-          autoFocus
-        />
-      );
-
-    case 'time':
-      return (
-        <input
-          type="time"
-          className="nt-edit-input"
-          value={editValue || ''}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={() => handleSave(editValue || null)}
-          onKeyDown={handleKeyDown}
-          autoFocus
-        />
-      );
-
-    case 'number':
-      return (
-        <input
-          type="number"
-          className="nt-edit-input"
-          value={editValue || ''}
-          onChange={(e) => setEditValue(e.target.value ? parseInt(e.target.value) : null)}
-          onBlur={() => handleSave(editValue !== null ? editValue : null)}
-          onKeyDown={handleKeyDown}
-          autoFocus
-        />
-      );
-
-    case 'textarea':
-      return (
-        <div>
-          <textarea
-            className="nt-edit-textarea"
-            value={editValue || ''}
-            onChange={(e) => setEditValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            autoFocus
-          />
-          <div className="nt-edit-actions">
-            <button
-              onClick={() => handleSave(editValue || null)}
-              disabled={isSaving}
-            >
-              {isSaving ? '저장중...' : '저장'}
-            </button>
-            <button onClick={handleCancel} disabled={isSaving}>
-              취소
-            </button>
-          </div>
-        </div>
-      );
-
-    case 'dayselect':
-      const daysArray = Array.isArray(editValue) ? editValue : [];
-      return (
-        <div>
-          {DAYS_OF_WEEK.map((day) => (
-            <label key={day} className="nt-filter-checkbox">
-              <input
-                type="checkbox"
-                checked={daysArray.includes(day)}
-                onChange={(e) => {
-                  const newDays = e.target.checked
-                    ? [...daysArray, day]
-                    : daysArray.filter((d) => d !== day);
-                  setEditValue(newDays);
-                }}
-              />
-              {day}
-            </label>
-          ))}
-          <div className="nt-edit-actions">
-            <button onClick={() => handleSave(editValue)}>저장</button>
-            <button onClick={handleCancel}>취소</button>
-          </div>
-        </div>
-      );
-
-    case 'checklist':
-      // Checklist editing handled elsewhere
-      return <div className="nt-edit-trigger">{formatDisplay(value, type)}</div>;
-
-    case 'review':
-      // Review handled elsewhere
-      return <div className="nt-edit-trigger">{formatDisplay(value, type)}</div>;
-
-    default:
-      return (
-        <input
-          type="text"
-          className="nt-edit-input"
-          value={editValue || ''}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={() => handleSave(editValue || null)}
-          onKeyDown={handleKeyDown}
-          autoFocus
-        />
-      );
+  if (field === 'TM현재상태') {
+    return (
+      <div className="min-w-[100px]" onClick={e => e.stopPropagation()}>
+        <ColoredSelect value={editValue || ''} onChange={v => { setEditValue(v); handleSave(v || null); }}
+          onBlur={handleCancel} groups={getTmStatusGroups()} autoFocus />
+        {isSaving && <div className="mt-0.5 text-[10px] text-slate-400">저장중...</div>}
+      </div>
+    );
   }
-}
 
-/**
- * Format value for display
- */
-function formatDisplay(value, type) {
-  if (value === null || value === undefined || value === '') {
-    return <span style={{ color: '#9ca3af' }}>—</span>;
+  if (type === 'select') {
+    return (
+      <div onClick={e => e.stopPropagation()}>
+        <select className={inputCls} value={editValue || ''} onChange={e => handleSave(e.target.value || null)}
+          onBlur={handleCancel} onKeyDown={handleKeyDown} autoFocus>
+          <option value="">— 선택 —</option>
+          {selectOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
+      </div>
+    );
   }
 
   if (type === 'date') {
-    return new Date(value).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).replace(/\./g, '/').replace(/\/\s*$/, '');
+    return (
+      <div onClick={e => e.stopPropagation()}>
+        <input type="date" className={inputCls}
+          value={editValue ? new Date(editValue).toISOString().split('T')[0] : ''}
+          onChange={e => setEditValue(e.target.value)}
+          onBlur={() => handleSave(editValue ? new Date(editValue).toISOString() : null)}
+          onKeyDown={handleKeyDown} autoFocus />
+      </div>
+    );
   }
 
-  if (type === 'dayselect' && Array.isArray(value)) {
-    return value.join('');
+  if (type === 'time') {
+    return (
+      <div onClick={e => e.stopPropagation()}>
+        <input type="time" className={inputCls} value={editValue || ''}
+          onChange={e => setEditValue(e.target.value)} onBlur={() => handleSave(editValue || null)}
+          onKeyDown={handleKeyDown} autoFocus />
+      </div>
+    );
   }
 
-  if (type === 'checklist' && Array.isArray(value)) {
-    return value.length > 0 ? `${value.length}개` : '—';
+  if (type === 'number') {
+    return (
+      <div onClick={e => e.stopPropagation()}>
+        <input type="number" className={inputCls} value={editValue || ''}
+          onChange={e => setEditValue(e.target.value ? parseInt(e.target.value) : null)}
+          onBlur={() => handleSave(editValue != null ? editValue : null)}
+          onKeyDown={handleKeyDown} autoFocus />
+      </div>
+    );
   }
 
-  return String(value);
+  if (type === 'textarea') {
+    return (
+      <div className="min-w-[100px]" onClick={e => e.stopPropagation()}>
+        <textarea className={inputCls + ' resize-none'} value={editValue || ''} rows={2}
+          onChange={e => setEditValue(e.target.value)} onKeyDown={handleKeyDown} autoFocus />
+        <div className="flex gap-1 mt-1">
+          <button onClick={() => handleSave(editValue || null)} disabled={isSaving}
+            className="rounded-md bg-blue-500 px-2 py-0.5 text-xs text-white hover:bg-blue-600 disabled:opacity-50 transition-colors">
+            {isSaving ? '저장중' : '저장'}
+          </button>
+          <button onClick={handleCancel}
+            className="rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-100 transition-colors">
+            취소
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === 'dayselect') {
+    const daysArray = Array.isArray(editValue) ? editValue : [];
+    return (
+      <div onClick={e => e.stopPropagation()}>
+        <div className="flex gap-1 flex-wrap">
+          {DAYS_OF_WEEK.map(day => (
+            <label key={day} className="flex items-center gap-1 text-[11px] cursor-pointer">
+              <input type="checkbox" checked={daysArray.includes(day)}
+                onChange={e => setEditValue(e.target.checked ? [...daysArray, day] : daysArray.filter(d => d !== day))} />
+              {day}
+            </label>
+          ))}
+        </div>
+        <div className="flex gap-1 mt-1">
+          <button onClick={() => handleSave(editValue)} className="rounded-md bg-blue-500 px-2 py-0.5 text-xs text-white hover:bg-blue-600">저장</button>
+          <button onClick={handleCancel} className="rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-100">취소</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div onClick={e => e.stopPropagation()}>
+      <input type="text" className={inputCls} value={editValue || ''}
+        onChange={e => setEditValue(e.target.value)} onBlur={() => handleSave(editValue || null)}
+        onKeyDown={handleKeyDown} autoFocus />
+      {isSaving && <div className="mt-0.5 text-[10px] text-slate-400">저장중...</div>}
+    </div>
+  );
 }
 
-/**
- * Save field value to Supabase or sample state
- */
+function DisplayValue({ value, type, badgeType }) {
+  if (value == null || value === '') return <span className="text-slate-200 text-[12px]">—</span>;
+  if (badgeType) return <StageBadge value={String(value)} type={badgeType} />;
+  if (type === 'date') return <span className="text-[11px] text-slate-500 whitespace-nowrap">{formatDateShort(value)}</span>;
+  if (type === 'time') return <span className="text-[11px] text-slate-500 whitespace-nowrap">{String(value).slice(0, 5)}</span>;
+  if (type === 'number') return <span className="text-[12px] tabular-nums">{value}</span>;
+  if (type === 'dayselect' && Array.isArray(value)) return <span className="text-[12px]">{value.join('')}</span>;
+  if (type === 'checklist' && Array.isArray(value)) return <span className="text-[12px]">{value.length > 0 ? `${value.length}개` : '—'}</span>;
+  return <span className="text-[12px] text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis">{String(value)}</span>;
+}
+
 async function saveField(rowId, field, value) {
   if (typeof window.USE_SAMPLE !== 'undefined' && window.USE_SAMPLE) {
-    // Sample mode: update STATE directly
-    const row = (window.STATE?.dbFindings || []).find(
-      (r) => r.id === rowId || r.__rowIndex === rowId
-    );
+    const row = (window.STATE?.dbFindings || []).find(r => r.id === rowId || r.__rowIndex === rowId);
     if (row) row[field] = value;
     return;
   }
-
   const updateObj = {};
   updateObj[field] = value || null;
-  const { error } = await window.SUPA.from('db_findings')
-    .update(updateObj)
-    .eq('id', rowId);
-
+  const { error } = await window.SUPA.from('db_findings').update(updateObj).eq('id', rowId);
   if (error) throw new Error(error.message);
 }

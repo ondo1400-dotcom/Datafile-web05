@@ -10,6 +10,28 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Tailwind CSS Play CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        up: {
+          50: "#FEF2F1", 100: "#FDDCDA", 200: "#F9B3AE", 300: "#E8675F",
+          400: "#D4453E", 500: "#BB2720", 600: "#9B201A", 700: "#7D1915",
+          800: "#5E1310", 900: "#400D0B",
+        },
+        warm: {
+          50: "#FAFAF9", 100: "#F5F3F0", 200: "#EDEBE7", 300: "#DDD8D3",
+          400: "#C4BFBA", 500: "#A09D98", 600: "#787570", 700: "#57534E",
+          800: "#3D3A36", 900: "#1E1B18",
+        },
+      },
+    },
+  },
+}
+</script>
 <!-- React -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
