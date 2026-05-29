@@ -81,7 +81,7 @@ function _renderDashContent(role) {
   const accent        = isAdm ? 'adm' : 'reg';
   const pfx           = role + 'd'; // admd | regd  (고유 ID 접두사)
   const tab           = isAdm ? _admDashTab : _regDashTab;
-  const showFunnel    = tab === 'reg';
+  const showFunnel    = isAdm || tab === 'reg';
 
   // ── 데이터 필터링 ──
   const nujeokAll = filterRegions
@@ -116,7 +116,7 @@ function _renderDashContent(role) {
     ${regionBadge}
 
     ${showFunnel ? `
-    <div class="sl" style="margin:0 0 8px;">누적현황 (단계별 목표 대비)</div>
+    <div class="sl" style="margin:0 0 8px;">누적 달성 현황</div>
     <div id="${pfx}-funnel-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
     ` : ''}
 
@@ -271,7 +271,7 @@ function _buildNujeokAchHtml(myRegions) {
     const isMine  = myRegions && myRegions.includes(region);
     const rowBg   = isMine ? 'background:var(--reg-light,#f0fdf4);' : '';
     const label   = isMine ? `<span style="color:var(--reg2);font-weight:700;">★ ${region}</span>` : region;
-    const senGoal = _ldGetGoal(region, '수신');
+    const senGoal = _ldGetGoal(region, '센등');
 
     const cells = SHOW_STAGES.flatMap(s => {
       const goal = _ldGetGoal(region, s);
@@ -299,7 +299,7 @@ function _buildNujeokAchHtml(myRegions) {
       rateCell(ach, goal),
     ];
   }).join('');
-  const totSenGoal = regions.reduce((sum, r) => sum + (_ldGetGoal(r, '수신') || 0), 0);
+  const totSenGoal = regions.reduce((sum, r) => sum + (_ldGetGoal(r, '센등') || 0), 0);
 
   const ywCells = SHOW_STAGES.flatMap(s => {
     const goal = _ldGetGoal('청년회', s);
@@ -735,7 +735,7 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
     </div>` : '';
 
   const tgBtns = isAdmin ? `
-    <button onclick="sendDashTg(event,'${stageId}','${meetId}')" style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;margin-left:4px;">📊 현황 전송</button>` : '';
+    <button onclick="sendDashTg(event)" style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;margin-left:4px;">📊 현황 전송</button>` : '';
 
   wrap.innerHTML = `
     <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
@@ -754,7 +754,7 @@ function _ldSetKaigang(val, filterId, stageId, meetId, funnelId, myRegions, isAd
   const fw = document.getElementById(funnelId);
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
-  if (fw) fw.innerHTML = _buildFunnelHtml(myRegions);
+  if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
   _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin);
 }
 
@@ -765,7 +765,7 @@ function _ldSetCenter(val, filterId, stageId, meetId, funnelId, myRegions, isAdm
   const fw = document.getElementById(funnelId);
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
-  if (fw) fw.innerHTML = _buildFunnelHtml(myRegions);
+  if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
   _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin);
 }
 
@@ -776,7 +776,7 @@ function _asyncFillLd(stageId, meetId, filterId, funnelId, myRegions, isAdmin) {
   const fw = document.getElementById(funnelId);
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
-  if (fw) fw.innerHTML = _buildFunnelHtml(myRegions);
+  if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
   _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin);
 }
 
@@ -836,45 +836,24 @@ function _buildDashSummaryText() {
   ].join('\n');
 }
 
-// ─── 단계현황 + 만남현황 이미지 + 텍스트 동시 전송 ───
-async function sendDashTg(e, stageId, meetId) {
+// ─── 보유현황 텍스트 직접 전송 ───
+async function sendDashTg(e) {
   const btn = e.target;
   const origText = btn.textContent;
   btn.disabled = true;
+  btn.textContent = '전송 중...';
 
   try {
-    if (typeof html2canvas === 'undefined') throw new Error('html2canvas 라이브러리 로드 실패');
-
-    btn.textContent = '캡처 중...';
-    const stageEl = document.getElementById(stageId);
-    const meetEl  = document.getElementById(meetId);
-    if (!stageEl || !meetEl) throw new Error('캡처 대상 요소 없음');
-
-    const opts = { scale: 1.5, backgroundColor: '#ffffff', useCORS: true, logging: false };
-    const [c1, c2] = await Promise.all([html2canvas(stageEl, opts), html2canvas(meetEl, opts)]);
-
-    const pad = 16;
-    const combined = document.createElement('canvas');
-    combined.width  = Math.max(c1.width, c2.width) + pad * 2;
-    combined.height = c1.height + c2.height + pad * 3;
-    const ctx = combined.getContext('2d');
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(0, 0, combined.width, combined.height);
-    ctx.drawImage(c1, pad, pad);
-    ctx.drawImage(c2, pad, pad + c1.height + pad);
-
-    const base64  = combined.toDataURL('image/jpeg', 0.85).split(',')[1];
-    const caption = _buildDashSummaryText();
-
-    btn.textContent = '전송 중...';
-    const res  = await fetch(GAS_URL, {
+    if (!TELEGRAM_BOT_TOKEN) throw new Error('텔레그램 토큰 미설정 (config.js)');
+    const text = _buildDashSummaryText();
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'sendDashPhoto', base64, caption }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: LIVEDATA_TELEGRAM_CHAT, text }),
     });
     const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    showToast(data.success ? '📊 현황 전송 완료!' : '⚠️ 실패: ' + data.error, data.success ? '' : 'error');
+    if (!data.ok) throw new Error(data.description || '전송 실패');
+    showToast('📊 현황 전송 완료!');
   } catch(err) {
     showToast('⚠️ 실패: ' + err.message, 'error');
   }

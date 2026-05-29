@@ -91,9 +91,23 @@ function renderGoalTable(regionListArg) {
       </td>`;
     }).join('');
 
+    const senKey  = makeGoalKey(kaigang, center, '센등', region);
+    const senGoal = STATE.goals[senKey] || 0;
+    const senCell = `<td style="padding:6px 4px;border:1px solid var(--border);text-align:center;border-left:2px solid #d97706;">
+      <input
+        type="number" min="0" max="999"
+        value="${senGoal || ''}"
+        placeholder="0"
+        style="width:48px;text-align:center;border:1px solid #d97706;border-radius:4px;padding:3px;font-size:13px;font-weight:700;background:#fef3c7;"
+        onchange="updateGoal('${kaigang}','${center}','센등','${region}',this.value)"
+        onfocus="this.select()"
+      />
+    </td>`;
+
     return `<tr>
       <td style="padding:8px 12px;border:1px solid var(--border);font-weight:700;background:#f0f9ff;text-align:center;white-space:nowrap;">${region}</td>
       ${cells}
+      ${senCell}
     </tr>`;
   }).join('');
 
