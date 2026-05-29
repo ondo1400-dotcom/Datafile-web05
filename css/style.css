@@ -19,7 +19,7 @@
 body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text1);font-size:13px;padding:12px;}
 
 /* ─── SHELL ─── */
-.shell{max-width:1040px;margin:0 auto;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-md);}
+.shell{max-width:1040px;margin:0 auto;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-md);display:flex;flex-direction:column;height:100vh;}
 
 /* ─── ROLE BAR ─── */
 .role-bar{display:flex;align-items:center;padding:12px 20px;gap:10px;border-bottom:2px solid var(--border);background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.06);}
@@ -49,7 +49,7 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text1)
 .top-sel{font-size:12px;padding:5px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);color:var(--text2);}
 
 /* ─── LAYOUT ─── */
-.body{display:flex;min-height:580px;}
+.body{display:flex;flex:1;min-height:0;}
 .main{flex:1;overflow:auto;min-width:0;}
 .screen{display:none;padding:18px;}
 .screen.on{display:block;}
@@ -76,6 +76,13 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text1)
 .dash-subtab:hover:not(.active){color:var(--text1);background:rgba(0,0,0,.03);}
 .dash-subtab.active.adm{color:var(--adm2);border-bottom-color:var(--adm2);background:var(--adm-light);}
 .dash-subtab.active.reg{color:var(--reg2);border-bottom-color:var(--reg2);background:var(--reg-light);}
+
+/* ─── 대시보드 내부탭 (누적/보유) ─── */
+.dash-inner-tab-bar{display:flex;gap:6px;padding:12px 0 14px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.dash-inner-tab{padding:7px 22px;font-size:12px;font-weight:700;border:1.5px solid var(--border);border-radius:20px;background:var(--surface);cursor:pointer;color:var(--text3);transition:all .15s;font-family:inherit;letter-spacing:.01em;}
+.dash-inner-tab:hover:not(.active){color:var(--text1);background:var(--surface2);}
+.dash-inner-tab.active.adm{color:var(--adm2);background:var(--adm-light);border-color:var(--adm2);}
+.dash-inner-tab.active.reg{color:var(--reg2);background:var(--reg-light);border-color:var(--reg2);}
 
 /* ─── ROLE STRIPE ─── */
 .role-stripe{padding:10px 20px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:8px;}

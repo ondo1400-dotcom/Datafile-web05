@@ -6,6 +6,10 @@
 let _admDashTab = 'all'; // 'all' | 'reg'
 let _regDashTab = 'all';
 
+// ─── 내부탭 상태 (누적 / 보유) ───
+let _admInnerTab = 'nujeok'; // 'nujeok' | 'boyoo'
+let _regInnerTab = 'nujeok';
+
 // ─── 공통 체크 현황 HTML ───
 function _buildCheckSummaryHtml(checks, activeCount, accentClass) {
   if (!STATE.checkItems.length) {
@@ -32,29 +36,40 @@ function _buildCheckSummaryHtml(checks, activeCount, accentClass) {
 
 // ─── 서브탭 전환 ───
 function switchAdmDashTab(tab) {
-  _admDashTab = tab;
+  _admDashTab   = tab;
+  _admInnerTab  = 'nujeok';
   document.getElementById('adm-stab-all')?.classList.toggle('active', tab === 'all');
   document.getElementById('adm-stab-reg')?.classList.toggle('active', tab === 'reg');
   _renderDashContent('adm');
 }
 
 function switchRegDashTab(tab) {
-  _regDashTab = tab;
+  _regDashTab   = tab;
+  _regInnerTab  = 'nujeok';
   document.getElementById('reg-stab-all')?.classList.toggle('active', tab === 'all');
   document.getElementById('reg-stab-reg')?.classList.toggle('active', tab === 'reg');
   _renderDashContent('reg');
 }
 
+// ─── 내부탭 전환 (누적 / 보유) ───
+function switchDashInnerTab(role, tab) {
+  if (role === 'adm') _admInnerTab = tab;
+  else                _regInnerTab = tab;
+  _renderDashContent(role);
+}
+
 // ─── 진입점 ───
 function renderAdmDash() {
-  _admDashTab = 'all';
+  _admDashTab  = 'all';
+  _admInnerTab = 'nujeok';
   document.getElementById('adm-stab-all')?.classList.add('active');
   document.getElementById('adm-stab-reg')?.classList.remove('active');
   _renderDashContent('adm');
 }
 
 function renderRegDash() {
-  _regDashTab = 'all';
+  _regDashTab  = 'all';
+  _regInnerTab = 'nujeok';
   document.getElementById('reg-stab-all')?.classList.add('active');
   document.getElementById('reg-stab-reg')?.classList.remove('active');
   _renderDashContent('reg');
@@ -78,25 +93,17 @@ function _renderDashContent(role) {
   const filterRegions = _getDashFilterRegions(role);
   const accent        = isAdm ? 'adm' : 'reg';
   const pfx           = role + 'd'; // admd | regd  (고유 ID 접두사)
-  const tab           = isAdm ? _admDashTab : _regDashTab;
   const showFunnel    = isAdm;
+  const innerTab      = isAdm ? _admInnerTab : _regInnerTab;
 
   // ── 데이터 필터링 ──
   const nujeokAll = filterRegions
     ? STATE.nujeok.filter(r => filterRegions.includes(r['실적지역']))
     : STATE.nujeok;
   const active = nujeokAll.filter(r => !isTallag(r));
-  const tallag = filterRegions
-    ? (STATE.tallag || []).filter(r => filterRegions.includes(r['실적지역']))
-    : (STATE.tallag || []);
   const checks = filterRegions
     ? STATE.checks.filter(r => filterRegions.includes(r['실적지역']))
     : STATE.checks;
-
-  // ── 달성률 계산 (합자 목표 기준) ──
-  const regions   = filterRegions || [...new Set(STATE.nujeok.map(r => r['실적지역']).filter(Boolean))];
-  const goalTotal = regions.reduce((sum, r) => sum + _ldGetGoal(r, '합자'), 0);
-  const achRate   = goalTotal ? Math.round(active.length / goalTotal * 100) + '%' : '—';
 
   const activePeopleN    = [...new Set(active.map(r => makeKey(r)))].length;
   const checkSummaryHtml = _buildCheckSummaryHtml(checks, activePeopleN, accent + '-c');
@@ -110,28 +117,43 @@ function _renderDashContent(role) {
       </div>`
     : '';
 
-  el.innerHTML = `
-    ${regionBadge}
-
-    <div class="sl" style="margin:0 0 8px;">누적현황 (단계별 목표 대비)</div>
+  // ── 내부탭별 컨텐츠 ──
+  const nujeokContent = `
+    <div class="sl" style="margin:0 0 8px;">단계별 목표 대비 현황</div>
     <div id="${pfx}-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
-
     ${showFunnel ? `
-    <div class="sl" style="margin:0 0 8px;">지역별 단계 달성 현황</div>
-    <div id="${pfx}-funnel-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
+    <div class="sl" style="margin:0 0 8px;">지역별 누적 달성 현황</div>
+    <div id="${pfx}-funnel-wrap"><div class="loading-box">로딩 중...</div></div>
     ` : ''}
+  `;
 
-    <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
-      <div class="sl" style="margin:0;flex:1;">단계별 보유현황 (만남캘린더)</div>
-      <div id="${pfx}-filter-wrap" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
-    </div>
-    <div id="${pfx}-stage-wrap" style="margin-top:8px;"><div class="loading-box">로딩 중...</div></div>
+  const boyooContent = `
+    <div class="sl" style="margin:0 0 8px;">오늘 일일 결과 (${new Date().toISOString().slice(0,10)})</div>
+    <div id="${pfx}-daily-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
+
+    <div class="sl" style="margin:0 0 8px;">단계별 보유현황 (만남캘린더)</div>
+    <div id="${pfx}-stage-wrap"><div class="loading-box">로딩 중...</div></div>
 
     <div class="sl" style="margin-top:20px;">만남 현황 (단계별 · 오늘/내일/모레/이후)</div>
     <div id="${pfx}-meet-wrap"><div class="loading-box">로딩 중...</div></div>
 
     <div class="sl" style="margin-top:20px;">개강 준비 체크 현황</div>
     ${checkSummaryHtml}
+  `;
+
+  el.innerHTML = `
+    ${regionBadge}
+
+    <div id="${pfx}-filter-wrap" style="margin-bottom:6px;"></div>
+
+    <div class="dash-inner-tab-bar">
+      <button class="dash-inner-tab ${accent} ${innerTab === 'nujeok' ? 'active' : ''}"
+        onclick="switchDashInnerTab('${role}', 'nujeok')">누적 현황</button>
+      <button class="dash-inner-tab ${accent} ${innerTab === 'boyoo' ? 'active' : ''}"
+        onclick="switchDashInnerTab('${role}', 'boyoo')">보유 현황</button>
+    </div>
+
+    ${innerTab === 'nujeok' ? nujeokContent : boyooContent}
   `;
 
   _asyncFillLd(
@@ -143,6 +165,11 @@ function _renderDashContent(role) {
     isAdm && isAdmin,
     pfx + '-cards-wrap'
   );
+
+  if (innerTab === 'boyoo') {
+    const dw = document.getElementById(pfx + '-daily-wrap');
+    if (dw) dw.innerHTML = _buildTodayHtml(filterRegions);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -750,6 +777,119 @@ function _ldSetCenter(val, filterId, stageId, meetId, funnelId, myRegions, isAdm
   if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
   if (cw) cw.innerHTML = _buildFunnelHtml(myRegions);
   _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId);
+}
+
+// ══════════════════════════════════════════════════════
+//  오늘의 현황 (찾기 완료 · 만남 예정 · 만남 완료)
+// ══════════════════════════════════════════════════════
+
+function _buildTodayHtml(myRegions) {
+  const tod    = new Date(); tod.setHours(0, 0, 0, 0);
+  const todStr = tod.toISOString().slice(0, 10);
+
+  // ── 오늘 찾기 (등록일시 기준) ──
+  const todayFinds = (STATE.dbFindings || []).filter(r => {
+    if (r['구분'] !== '찾기') return false;
+    if (myRegions && !myRegions.includes(r['실적지역'])) return false;
+    return (r['등록일시'] || '').startsWith(todStr);
+  });
+
+  // ── 오늘 만남 ──
+  const todayMeets = (STATE.meets || []).filter(r => {
+    if (myRegions && !myRegions.includes(r['실적지역'])) return false;
+    if (!r._date) return false;
+    const d = new Date(r._date); d.setHours(0, 0, 0, 0);
+    return d.getTime() === tod.getTime();
+  });
+  const todaySchd = todayMeets.filter(r => !r['만남결과']);
+  const todayDone = todayMeets.filter(r =>  r['만남결과']);
+  const cntGood   = todayDone.filter(r => r['만남결과'] === '🎉').length;
+  const cntOk     = todayDone.filter(r => r['만남결과'] === '⭕️').length;
+  const cntNo     = todayDone.filter(r => r['만남결과'] === '❌').length;
+
+  // ── 요약 카드 3개 ──
+  const summaryCards = `
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div style="flex:1;background:var(--adm-light);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--adm-mid);">
+        <div class="stat-label">오늘 찾기</div>
+        <div style="font-size:22px;font-weight:700;color:var(--adm2);">${todayFinds.length}명</div>
+        <div class="stat-sub">${todStr}</div>
+      </div>
+      <div style="flex:1;background:var(--reg-light);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--reg-mid);">
+        <div class="stat-label">오늘 만남 예정</div>
+        <div style="font-size:22px;font-weight:700;color:var(--reg2);">${todaySchd.length}명</div>
+        <div class="stat-sub">${todStr}</div>
+      </div>
+      <div style="flex:1;background:var(--amber-light);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border);">
+        <div class="stat-label">오늘 만남 완료</div>
+        <div style="font-size:22px;font-weight:700;color:var(--amber);">${todayDone.length}명</div>
+        <div class="stat-sub">🎉 ${cntGood} &nbsp;⭕️ ${cntOk} &nbsp;❌ ${cntNo}</div>
+      </div>
+    </div>`;
+
+  // ── 찾기 완료 목록 ──
+  const findList = todayFinds.length
+    ? todayFinds.map(r => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--adm-light);border-radius:8px;border:1px solid var(--adm-mid);">
+        <span style="font-weight:700;color:var(--adm2);">${r['섭외자'] || '?'}</span>
+        <span style="font-size:10px;color:var(--text3);">${r['인도자'] || ''}</span>
+      </div>`).join('')
+    : '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px 0;">오늘 찾기 완료 없음</div>';
+
+  // ── 만남 예정 목록 ──
+  const schdList = todaySchd.length
+    ? todaySchd.map(r => {
+      const sc = STAGE_COLORS[r['단계']] || { bg: '#f0f0f0', c: '#555' };
+      return `
+        <div style="padding:7px 10px;background:var(--surface);border-radius:8px;border:1px solid var(--border);margin-bottom:4px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:700;">${r['섭외자'] || '?'}</span>
+            <span style="font-size:11px;color:var(--text3);font-weight:600;">${r['다음만남시간'] || ''}</span>
+          </div>
+          <div style="display:flex;gap:4px;margin-top:3px;align-items:center;">
+            <span style="font-size:9px;font-weight:800;background:${sc.bg};color:${sc.c};border-radius:4px;padding:1px 6px;">${r['단계'] || ''}</span>
+            <span style="font-size:11px;color:var(--text2);">${r['다음만남목적'] || ''}</span>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">인도자 ${r['인도자'] || ''}</div>
+        </div>`;
+    }).join('')
+    : '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px 0;">오늘 만남 예정 없음</div>';
+
+  // ── 만남 완료 결과 목록 ──
+  const doneList = todayDone.length
+    ? todayDone.map(r => {
+      const sc  = STAGE_COLORS[r['단계']] || { bg: '#f0f0f0', c: '#555' };
+      const res = r['만남결과'] || '?';
+      return `
+        <div style="padding:7px 10px;background:var(--surface);border-radius:8px;border:1px solid var(--border);margin-bottom:4px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:700;">${r['섭외자'] || '?'}</span>
+            <span style="font-size:20px;">${res}</span>
+          </div>
+          <div style="display:flex;gap:4px;margin-top:3px;align-items:center;">
+            <span style="font-size:9px;font-weight:800;background:${sc.bg};color:${sc.c};border-radius:4px;padding:1px 6px;">${r['단계'] || ''}</span>
+            <span style="font-size:10px;color:var(--text3);">인도자 ${r['인도자'] || ''}</span>
+          </div>
+        </div>`;
+    }).join('')
+    : '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px 0;">오늘 만남 완료 없음</div>';
+
+  return `
+    ${summaryCards}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--adm2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">찾기 완료 ${todayFinds.length}명</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">${findList}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--reg2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">만남 예정 ${todaySchd.length}명</div>
+        ${schdList}
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--amber);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">만남 완료 결과 ${todayDone.length}명</div>
+        ${doneList}
+      </div>
+    </div>`;
 }
 
 // ─── 렌더링 진입점 ───
