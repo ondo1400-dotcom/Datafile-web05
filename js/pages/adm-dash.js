@@ -80,6 +80,8 @@ function _renderDashContent(role) {
   const filterRegions = _getDashFilterRegions(role);
   const accent        = isAdm ? 'adm' : 'reg';
   const pfx           = role + 'd'; // admd | regd  (고유 ID 접두사)
+  const tab           = isAdm ? _admDashTab : _regDashTab;
+  const showFunnel    = tab === 'reg';
 
   // ── 데이터 필터링 ──
   const nujeokAll = filterRegions
@@ -112,7 +114,14 @@ function _renderDashContent(role) {
 
   el.innerHTML = `
     ${regionBadge}
-    <div class="stat-row c4">
+
+    ${showFunnel ? `
+    <div class="sl" style="margin:0 0 8px;">누적현황 (단계별 목표 대비)</div>
+    <div id="${pfx}-funnel-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
+    ` : ''}
+
+    <div class="sl" style="margin:0 0 8px;">보유현황</div>
+    <div class="stat-row c4" style="margin-bottom:18px;">
       <div class="stat-card ${accent}-c" style="text-align:center;">
         <div class="stat-label">전체 누적</div>
         <div class="stat-val ${accent}" style="font-size:22px;">${nujeokAll.length}</div>
@@ -152,10 +161,52 @@ function _renderDashContent(role) {
     pfx + '-stage-wrap',
     pfx + '-meet-wrap',
     pfx + '-filter-wrap',
-    null,
+    showFunnel ? pfx + '-funnel-wrap' : null,
     filterRegions,
     isAdm && isAdmin
   );
+}
+
+// ══════════════════════════════════════════════════════
+//  누적현황 퍼널 (단계별 목표 대비)
+// ══════════════════════════════════════════════════════
+
+function _buildFunnelHtml(myRegions) {
+  const allPeople = _ldAllPeople().filter(r => {
+    if (myRegions && !myRegions.includes(r['실적지역'])) return false;
+    if (_ldKaigang !== '전체' && r['목표개강(연도/월)'] !== _ldKaigang && r['이전개강'] !== _ldKaigang) return false;
+    if (_ldCenter  !== '전체' && r['목표센터'] !== _ldCenter) return false;
+    return true;
+  });
+
+  const regions = myRegions || [...new Set(allPeople.map(r => r['실적지역']).filter(Boolean))];
+
+  const counts = {};
+  STAGE_ORDER.forEach(s => counts[s] = 0);
+  allPeople.forEach(r => { if (STAGE_ORDER.includes(r['단계'])) counts[r['단계']]++; });
+
+  const cards = STAGE_ORDER.map(stage => {
+    const cnt  = counts[stage] || 0;
+    const goal = regions.reduce((sum, r) => sum + _ldGetGoal(r, stage), 0);
+    const pct  = goal ? Math.round(cnt / goal * 100) : null;
+    const sc   = STAGE_COLORS[stage] || { bg: '#f0f0f0', c: '#555' };
+    const barW = pct !== null ? Math.min(pct, 100) : 0;
+    const barColor = pct === null ? '#ccc' : pct >= 100 ? '#16a34a' : pct >= 70 ? '#d97706' : pct >= 40 ? '#ea580c' : '#dc2626';
+
+    return `<div style="flex:1;min-width:90px;background:var(--surface);border:2px solid ${sc.bg};border-radius:10px;padding:12px 8px;text-align:center;">
+      <div style="font-size:11px;font-weight:800;color:${sc.c};background:${sc.bg};border-radius:6px;padding:3px 8px;display:inline-block;margin-bottom:8px;">${stage}</div>
+      <div style="font-size:22px;font-weight:800;color:var(--text1);line-height:1.1;">${cnt}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">/ ${goal || '—'}</div>
+      ${goal ? `
+        <div style="background:var(--border);border-radius:4px;height:5px;margin-bottom:4px;">
+          <div style="width:${barW}%;height:5px;border-radius:4px;background:${barColor};"></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:${barColor};">${pct}%</div>
+      ` : '<div style="font-size:10px;color:var(--text3);">목표미설정</div>'}
+    </div>`;
+  }).join('');
+
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;">${cards}</div>`;
 }
 
 // ══════════════════════════════════════════════════════
@@ -522,7 +573,7 @@ function _buildLdMeetHtml(myRegions) {
 }
 
 // ─── 개강 + 센터 필터 UI ───
-function _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin) {
+function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin) {
   const wrap = document.getElementById(filterId);
   if (!wrap) return;
 
@@ -541,13 +592,13 @@ function _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin) {
 
   const mrJson = JSON.stringify(myRegions || null);
   const kaigangBtns = kaigangs.map(k =>
-    btn(k, _ldKaigang === k, `_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}',${mrJson},${!!isAdmin})`)
+    btn(k, _ldKaigang === k, `_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin})`)
   ).join('');
 
   const centerRow = centers.length ? `
     <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px;">
       <span style="font-size:10px;color:var(--text3);font-weight:700;">센터</span>
-      ${centers.map(c => btn(c, _ldCenter === c, `_ldSetCenter('${c}','${filterId}','${stageId}','${meetId}',${mrJson},${!!isAdmin})`)).join('')}
+      ${centers.map(c => btn(c, _ldCenter === c, `_ldSetCenter('${c}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin})`)).join('')}
     </div>` : '';
 
   const tgBtns = isAdmin ? `
@@ -562,32 +613,38 @@ function _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin) {
   `;
 }
 
-function _ldSetKaigang(val, filterId, stageId, meetId, myRegions, isAdmin) {
+function _ldSetKaigang(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin) {
   _ldKaigang = val;
   _ldCenter  = '전체';
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
+  const fw = document.getElementById(funnelId);
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin);
+  if (fw) fw.innerHTML = _buildFunnelHtml(myRegions);
+  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin);
 }
 
-function _ldSetCenter(val, filterId, stageId, meetId, myRegions, isAdmin) {
+function _ldSetCenter(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin) {
   _ldCenter = val;
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
+  const fw = document.getElementById(funnelId);
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin);
+  if (fw) fw.innerHTML = _buildFunnelHtml(myRegions);
+  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin);
 }
 
 // ─── 렌더링 진입점 ───
-function _asyncFillLd(stageId, meetId, filterId, _unused, myRegions, isAdmin) {
+function _asyncFillLd(stageId, meetId, filterId, funnelId, myRegions, isAdmin) {
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
+  const fw = document.getElementById(funnelId);
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin);
+  if (fw) fw.innerHTML = _buildFunnelHtml(myRegions);
+  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin);
 }
 
 // ─── 텔레그램 전송용 표 텍스트 빌더 ───
