@@ -11,7 +11,6 @@ const DROPDOWN_FIELDS = [
   { key: '따기주간횟수',   label: '따기주간횟수' },
   { key: '따기유형',       label: '따기유형' },
   { key: '따기단계',       label: '따기단계' },
-  { key: '컨설팅유무',     label: '컨설팅유무' },
 ];
 
 const DEFAULT_DROPDOWN_VALUES = {
@@ -23,7 +22,6 @@ const DEFAULT_DROPDOWN_VALUES = {
   '따기주간횟수': ['1회', '2회', '3회', '4회', '5회'],
   '따기유형': [],
   '따기단계': [],
-  '컨설팅유무': ['컨설팅', '인터뷰'],
 };
 
 let _dropdownEditState = {};
