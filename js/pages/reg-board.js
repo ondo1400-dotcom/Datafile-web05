@@ -415,9 +415,11 @@ function onReviewStageChange() {
 }
 
 function openRequestReviewModal(rowIndex, source) {
+  console.log('[심의요청] rowIndex=', rowIndex, 'source=', source, 'nujeok수=', STATE.nujeok?.length, 'dbFindings수=', STATE.dbFindings?.length);
   if (source === 'db') {
     _reviewRow = (STATE.dbFindings || []).find(r => r['__rowIndex'] === rowIndex)
               || (STATE.nujeok || []).find(r => r['__rowIndex'] === rowIndex);
+    console.log('[심의요청] _reviewRow=', _reviewRow ? _reviewRow['섭외자'] : 'NOT FOUND');
   } else if (source === 'nujeok') {
     _reviewRow = STATE.nujeok.find(r => r['__rowIndex'] === rowIndex);
   } else {
