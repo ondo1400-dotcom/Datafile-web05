@@ -27,6 +27,7 @@ function nav(screen) {
     'adm-board': renderBoardTable,
     'adm-check': renderAdmCheckTable,
     'adm-goal':  renderAdmGoal,
+    'adm-dropdown': renderAdmDropdown,
     'adm-field': renderItemManage,
     'adm-review': renderAdmReview,
     'adm-auth':  renderAdmAuth,
@@ -88,8 +89,8 @@ function setRole(role) {
 
   // 관리자: 모든 ADM 탭 보임
   // 지역 권한: ADM 탭 중 종합(dash)만 보임
-  const admIcons = ['si-adm-dash', 'si-adm-board', 'si-adm-db', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-auth', 'si-adm-review'];
-  const admOnlyForAdmin = ['si-adm-board', 'si-adm-db', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-auth', 'si-adm-review'];
+  const admIcons = ['si-adm-dash', 'si-adm-board', 'si-adm-db', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-dropdown', 'si-adm-auth', 'si-adm-review'];
+  const admOnlyForAdmin = ['si-adm-board', 'si-adm-db', 'si-adm-meet', 'si-adm-check', 'si-adm-goal', 'si-adm-field', 'si-adm-dropdown', 'si-adm-auth', 'si-adm-review'];
   const regIcons = ['si-reg-dash', 'si-reg-board', 'si-reg-db', 'si-reg-meet', 'si-reg-check'];
 
   admIcons.forEach(id => {

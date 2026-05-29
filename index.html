@@ -139,6 +139,9 @@ tailwind.config = {
       <div class="sico" id="si-adm-field" onclick="nav('adm-field')" title="항목 관리">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2"/></svg>설정
       </div>
+      <div class="sico" id="si-adm-dropdown" onclick="nav('adm-dropdown')" title="드롭다운 관리">
+        <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>목록
+      </div>
       <div class="sico" id="si-adm-auth" onclick="nav('adm-auth')" title="권한 관리">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>권한
       </div>
@@ -381,6 +384,21 @@ tailwind.config = {
             <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:12px;">데이터 기준 현황</div>
             <div id="goal-standards-content" style="font-size:12px;color:var(--text2);">로딩 중...</div>
           </div>
+        </div>
+      </div>
+
+      <!-- ══ ADM: 드롭다운 관리 ══ -->
+      <div id="sc-adm-dropdown" class="screen">
+        <div class="role-stripe adm">
+          <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          청년회 — 드롭다운 옵션 관리
+        </div>
+        <div class="p14">
+          <div style="margin-bottom:14px;">
+            <div style="font-size:15px;font-weight:700;">드롭다운 옵션 설정</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">테이블에서 사용되는 선택 항목을 관리합니다. 드래그하여 순서를 변경할 수 있습니다.</div>
+          </div>
+          <div id="adm-dropdown-content"><div class="loading-box">로딩 중...</div></div>
         </div>
       </div>
 
@@ -808,6 +826,7 @@ tailwind.config = {
 <script src="js/pages/adm-meet.js"></script>
 <script src="js/pages/adm-check.js"></script>
 <script src="js/pages/adm-goal.js"></script>
+<script src="js/pages/adm-dropdown.js"></script>
 <script src="js/pages/adm-field.js"></script>
 <script src="js/pages/adm-auth.js"></script>
 <script src="js/pages/adm-review.js"></script>

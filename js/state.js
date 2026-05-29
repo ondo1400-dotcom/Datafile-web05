@@ -17,7 +17,8 @@ const STATE = {
   authUsers:    [],
   authRequests: [],
   dbFindings:      [],
-  canonicalCenters: new Set(),   // goals 테이블 기준 표준 센터명
+  dropdownOptions: {},
+  canonicalCenters: new Set(),
   currentScreen: 'loading',
 };
 

@@ -679,8 +679,7 @@
     "\uB530\uAE30\uC720\uD615": [],
     "\uB530\uAE30\uB2E8\uACC4": [],
     "\uAD6C\uBD84": ["DB", "\uCC3E\uAE30"],
-    "\uB2E8\uACC4": ["\uCC3E\uAE30", "\uD569\uC790", "\uC721\uB530\uAE30", "\uC601\uB530\uAE30", "\uBCF5\uC74C\uBC29", "\uC13C\uD655", "\uC218\uC2E0"],
-    "\uCEE8\uC124\uD305\uC720\uBB34": ["\uCEE8\uC124\uD305", "\uC778\uD130\uBDF0"]
+    "\uB2E8\uACC4": ["\uCC3E\uAE30", "\uD569\uC790", "\uC721\uB530\uAE30", "\uC601\uB530\uAE30", "\uBCF5\uC74C\uBC29", "\uC13C\uD655", "\uC218\uC2E0"]
   };
   function getSelectOptions(key, dynamicOptions) {
     if (dynamicOptions && dynamicOptions[key]) return dynamicOptions[key];

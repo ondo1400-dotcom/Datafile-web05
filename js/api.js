@@ -59,6 +59,7 @@ async function loadData(manual = false) {
       if (notice) notice.style.display = 'none';
     }
 
+    await loadDropdownOptions();
     populateFilters();
 
     const firstScreen = STATE.role === 'adm' ? 'adm-dash' : 'reg-board';

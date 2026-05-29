@@ -66,7 +66,6 @@ export const DEFAULT_SELECT_OPTIONS = {
   '따기단계': [],
   '구분': ['DB', '찾기'],
   '단계': ['찾기', '합자', '육따기', '영따기', '복음방', '센확', '수신'],
-  '컨설팅유무': ['컨설팅', '인터뷰'],
 };
 
 export function getSelectOptions(key, dynamicOptions) {
