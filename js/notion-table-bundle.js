@@ -1523,7 +1523,7 @@
             }
           } else {
             if (typeof window.openPersonDetail === "function") {
-              window.openPersonDetail(row.__rowIndex ?? row.id, options.source || "adm-board");
+              window.openPersonDetail(row.__rowIndex ?? row.id, options.source || "adm-board", undefined, row._isTallag);
             }
           }
         },

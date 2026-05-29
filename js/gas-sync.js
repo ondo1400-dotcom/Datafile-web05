@@ -179,8 +179,30 @@ function syncSheetToSupabase() {
   _syncSheet(ssRead, NUJEOK_SHEET_NAME, 'nujeok');
   _syncSheet(ssRead, TALLAG_SHEET_NAME, 'tallag');
   _syncMeets(ssRead);
+  _syncDbFindings();
   reconcilePendingUpdates();
   Logger.log('Supabase sync 완료: ' + new Date().toLocaleString('ko-KR'));
+}
+
+// ── DB_찾기 시트 → db_findings 테이블 정기 sync ──────────
+function _syncDbFindings() {
+  const ss    = SpreadsheetApp.openById(SS_ID);
+  const sheet = ss.getSheetByName('DB_찾기');
+  if (!sheet) { Logger.log('DB_찾기 시트 없음'); return; }
+
+  const allData = sheet.getDataRange().getValues();
+  if (allData.length < 2) return;
+
+  const headers = allData[0].map(h => String(h).trim());
+  const rows = allData.slice(1)
+    .filter(row => row.some(cell => cell !== ''))
+    .map(row => _convertRow(headers, row))
+    .filter(r => r['섭외자']);
+
+  if (!rows.length) return;
+
+  const ok = _supabaseUpsert('db_findings', rows, '실적지역,섭외자,인도자');
+  if (ok) Logger.log('db_findings sync 완료: ' + rows.length + '행');
 }
 
 function _syncSheet(ss, sheetName, table) {
@@ -238,25 +260,9 @@ function migrateGoals() {
   if (ok) Logger.log('goals 이전 완료: 총 ' + rows.length + '행');
 }
 
-// ── DB_찾기 시트 일회성 이전 ───────────────────────────
+// ── DB_찾기 시트 일회성 이전 (기존 호환용 — _syncDbFindings 위임) ──
 function migrateDbFindings() {
-  const ss    = SpreadsheetApp.openById(SS_ID);
-  const sheet = ss.getSheetByName('DB_찾기');
-  if (!sheet) { Logger.log('DB_찾기 시트 없음'); return; }
-
-  const allData = sheet.getDataRange().getValues();
-  if (allData.length < 2) { Logger.log('데이터 없음'); return; }
-
-  const headers = allData[0].map(h => String(h).trim());
-  const rows = allData.slice(1)
-    .filter(row => row.some(cell => cell !== ''))
-    .map(row => _convertRow(headers, row))
-    .filter(r => r['섭외자']);
-
-  if (!rows.length) { Logger.log('유효 행 없음'); return; }
-
-  const ok = _supabaseUpsert('db_findings', rows, '실적지역,섭외자,인도자');
-  if (ok) Logger.log('db_findings 이전 완료: 총 ' + rows.length + '행');
+  _syncDbFindings();
 }
 
 // ── pending_updates 자동 reconcile ─────────────────────

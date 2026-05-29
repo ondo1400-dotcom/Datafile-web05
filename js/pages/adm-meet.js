@@ -95,6 +95,26 @@ function fmtValForEdit(field, val) {
 const WEEKDAYS = ['일','월','화','수','목','금','토'];
 const RESULT_EMOJI = { '🎉':'단계향상', '⭕️':'만남완료', '❌':'불발', '':'미입력' };
 
+function _hasMeetingReport(r) {
+  if (r['만남결과']) return true;
+  if (!r._date) return false;
+  const yr = r._date.getFullYear(), mo = r._date.getMonth() + 1, dy = r._date.getDate();
+  return (STATE.dbMeetings || []).some(m => {
+    if (m['섭외자'] !== r['섭외자'] || m['인도자'] !== r['인도자']) return false;
+    const d = parseMeetDate(m['만남일자']);
+    return d && d.getFullYear() === yr && d.getMonth() + 1 === mo && d.getDate() === dy;
+  });
+}
+
+function openPersonDetailFromCalendar(encodedName, encodedGuide, backScreen, tab) {
+  const name  = decodeURIComponent(encodedName);
+  const guide = decodeURIComponent(encodedGuide);
+  const person = (STATE.nujeok || []).find(p => p['섭외자'] === name && p['인도자'] === guide)
+              || (STATE.tallag || []).find(p => p['섭외자'] === name && p['인도자'] === guide);
+  if (!person) { showToast('인물 정보를 찾을 수 없습니다.', 'error'); return; }
+  openPersonDetail(person['__rowIndex'], backScreen, tab);
+}
+
 // ─── 현재 캘린더 상태 ───
 let calYear  = new Date().getFullYear();
 let calMonth = new Date().getMonth(); // 0-based
@@ -219,10 +239,12 @@ function renderCalendar() {
 
     // 사람 칩들
     const chips = dayMeets.slice(0,4).map(r => {
-      const result = r['만남결과'] || '';
-      const sc     = STAGE_COLORS[r['단계']] || {bg:'#f0f0f0',c:'#555'};
-      const dot    = result === '🎉' ? '🎉' : result === '⭕️' ? '✅' : result === '전티완료' ? '🟡' : result === '확티완료' ? '🟢' : '🔴';
-      return `<div onclick="openMeetResult('${encodeURIComponent(JSON.stringify(r))}')"
+      const result    = r['만남결과'] || '';
+      const hasReport = _hasMeetingReport(r);
+      const sc        = STAGE_COLORS[r['단계']] || {bg:'#f0f0f0',c:'#555'};
+      const dot       = hasReport ? '✅' : '📝';
+      const targetTab = hasReport ? 'meets' : 'basic';
+      return `<div onclick="openPersonDetailFromCalendar('${encodeURIComponent(r['섭외자']||'')}','${encodeURIComponent(r['인도자']||'')}','adm-meet','${targetTab}')"
         style="display:flex;align-items:center;gap:3px;font-size:10px;padding:2px 5px;border-radius:10px;background:${sc.bg};color:${sc.c};margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;"
         title="${r['섭외자']||''} · ${r['단계']||''} · ${r['인도자']||''}">
         ${dot} <span style="overflow:hidden;text-overflow:ellipsis;">${r['섭외자']||'—'}</span>

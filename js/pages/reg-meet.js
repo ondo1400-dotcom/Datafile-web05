@@ -139,10 +139,12 @@ function renderRegCalendar() {
     const numColor    = dow===0 ? 'var(--red)' : dow===6 ? 'var(--reg2)' : isToday ? 'var(--reg2)' : 'var(--text1)';
 
     const chips = dayMeets.slice(0,4).map(r => {
-      const result = r['만남결과'] || '';
-      const sc     = STAGE_COLORS[r['단계']] || {bg:'#f0f0f0',c:'#555'};
-      const dot    = result === '🎉' ? '🎉' : result === '⭕️' ? '✅' : result === '전티완료' ? '🟡' : result === '확티완료' ? '🟢' : '🔴';
-      return `<div onclick="openMeetResult('${encodeURIComponent(JSON.stringify(r))}')"
+      const result    = r['만남결과'] || '';
+      const hasReport = _hasMeetingReport(r);
+      const sc        = STAGE_COLORS[r['단계']] || {bg:'#f0f0f0',c:'#555'};
+      const dot       = hasReport ? '✅' : '📝';
+      const targetTab = hasReport ? 'meets' : 'basic';
+      return `<div onclick="openPersonDetailFromCalendar('${encodeURIComponent(r['섭외자']||'')}','${encodeURIComponent(r['인도자']||'')}','reg-meet','${targetTab}')"
         style="display:flex;align-items:center;gap:3px;font-size:10px;padding:2px 5px;border-radius:10px;background:${sc.bg};color:${sc.c};margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;"
         title="${r['섭외자']||''} · ${r['단계']||''} · ${r['인도자']||''}">
         ${dot} <span style="overflow:hidden;text-overflow:ellipsis;">${r['섭외자']||'—'}</span>
