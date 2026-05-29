@@ -310,7 +310,7 @@ function _buildNujeokAchHtml(myRegions) {
       rateCell(ach, goal),
     ];
   }).join('');
-  const ywSenGoal = _ldGetGoal('청년회', '수신') || '—';
+  const ywSenGoal = _ldGetGoal('청년회', '센등') || '—';
 
   return `<div class="dash-tbl-wrap">
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
