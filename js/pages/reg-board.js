@@ -26,10 +26,12 @@ function _buildMeetMap() {
 function _buildBaseData() {
   const kaigangF = document.getElementById('reg-kaigang-sel')?.value || '';
   const centerF  = document.getElementById('reg-center-sel')?.value  || '';
+  const allNujeok = [...STATE.nujeok, ...STATE.tallag.map(r => ({ ...r, _isTallag: true }))];
+  const nujeokKeys = new Set(allNujeok.map(r => (r['실적지역']||'')+'|'+(r['섭외자']||'')+'|'+(r['인도자']||'')));
   const findingRows = (STATE.dbFindings || [])
     .filter(r => r['구분'] === '찾기')
+    .filter(r => !nujeokKeys.has((r['실적지역']||'')+'|'+(r['섭외자']||'')+'|'+(r['인도자']||'')))
     .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));
-  const allNujeok = [...STATE.nujeok, ...STATE.tallag.map(r => ({ ...r, _isTallag: true }))];
   return [...allNujeok.filter(r => VALID_STAGES.includes(r['단계'])), ...findingRows]
     .filter(r => {
       const allowed = getAllowedRegions();
@@ -107,10 +109,13 @@ function renderRegBoardStageSummary() {
   const allowed = getAllowedRegions();
 
   // 찾기 포함 활성 인원
+  const _nujeokActive = STATE.nujeok.filter(r => !isTallag(r));
+  const _nujeokKeys   = new Set(_nujeokActive.map(r => (r['실적지역']||'')+'|'+(r['섭외자']||'')+'|'+(r['인도자']||'')));
   const findRows = (STATE.dbFindings || [])
     .filter(r => r['구분'] === '찾기')
+    .filter(r => !_nujeokKeys.has((r['실적지역']||'')+'|'+(r['섭외자']||'')+'|'+(r['인도자']||'')))
     .map(r => ({ ...r, '단계': '찾기' }));
-  const allData = [...STATE.nujeok.filter(r => !isTallag(r)), ...findRows];
+  const allData = [..._nujeokActive, ...findRows];
 
   const filtered = allData.filter(r => {
     if (allowed !== null && !allowed.includes(r['실적지역'])) return false;
@@ -162,14 +167,15 @@ function renderRegBoardStageSummary() {
 function renderRegBoard() {
   renderRegBoardStageSummary();
 
-  const findingRows = (STATE.dbFindings || [])
-    .filter(r => r['구분'] === '찾기')
-    .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));
-
   const tallagRows = _regBoardShowTallag
     ? (STATE.tallag || []).map(r => ({ ...r, _isTallag: true }))
     : [];
   const allNujeok = [...(STATE.nujeok || []), ...tallagRows];
+  const _nujeokKeys2 = new Set(allNujeok.map(r => (r['실적지역']||'')+'|'+(r['섭외자']||'')+'|'+(r['인도자']||'')));
+  const findingRows = (STATE.dbFindings || [])
+    .filter(r => r['구분'] === '찾기')
+    .filter(r => !_nujeokKeys2.has((r['실적지역']||'')+'|'+(r['섭외자']||'')+'|'+(r['인도자']||'')))
+    .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));
   let data = [...allNujeok.filter(r => VALID_STAGES.includes(r['단계'])), ...findingRows];
 
   const allowed = getAllowedRegions();
