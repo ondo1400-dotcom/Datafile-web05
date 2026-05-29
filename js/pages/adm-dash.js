@@ -728,8 +728,8 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
   const btn = (label, active, onclick) =>
     `<button onclick="${onclick}" style="padding:3px 10px;border-radius:12px;border:1px solid var(--border);font-size:11px;cursor:pointer;font-family:inherit;background:${active?'var(--adm2)':'var(--surface2)'};color:${active?'#fff':'var(--text2)'};">${label}</button>`;
 
-  const mrJson  = JSON.stringify(myRegions || null);
-  const cidJson = JSON.stringify(cardsId || null);
+  const mrJson  = JSON.stringify(myRegions || null).replace(/"/g, '&quot;');
+  const cidJson = JSON.stringify(cardsId  || null).replace(/"/g, '&quot;');
   const kaigangBtns = kaigangs.map(k =>
     btn(k, _ldKaigang === k, `_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson})`)
   ).join('');
