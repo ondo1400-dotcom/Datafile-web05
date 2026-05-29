@@ -42,6 +42,7 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text1)
 .btn.adm-pri:hover{background:var(--adm);}
 .btn.reg-pri{background:var(--reg2);color:#fff;border-color:var(--reg2);}
 .btn.reg-pri:hover{background:var(--reg);}
+.btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
 .btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;}
 
 /* ─── SELECTS / INPUTS ─── */
