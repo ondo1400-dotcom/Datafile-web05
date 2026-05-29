@@ -22,18 +22,18 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text1)
 .shell{max-width:1040px;margin:0 auto;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-md);}
 
 /* ─── ROLE BAR ─── */
-.role-bar{display:flex;align-items:center;padding:10px 16px;gap:8px;border-bottom:1px solid var(--border);background:var(--surface);}
-.role-logo{font-size:13px;font-weight:700;color:var(--text1);margin-right:8px;display:flex;align-items:center;gap:6px;}
-.role-logo-mark{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;}
-.role-logo-mark.adm{background:var(--adm);}
-.role-logo-mark.reg{background:var(--reg);}
-.role-logo-mark svg{width:13px;height:13px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
-.role-btn{font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;border:none;cursor:pointer;transition:all .18s;}
-.role-btn.adm{background:var(--adm-light);color:var(--adm2);border:1.5px solid var(--adm-border);}
-.role-btn.adm.on{background:var(--adm2);color:#fff;border-color:var(--adm2);}
-.role-btn.reg{background:var(--reg-light);color:var(--reg2);border:1.5px solid var(--reg-border);}
-.role-btn.reg.on{background:var(--reg2);color:#fff;border-color:var(--reg2);}
-.role-bar-right{margin-left:auto;display:flex;align-items:center;gap:7px;}
+.role-bar{display:flex;align-items:center;padding:12px 20px;gap:10px;border-bottom:2px solid var(--border);background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.role-logo{font-size:15px;font-weight:800;color:var(--text1);margin-right:12px;display:flex;align-items:center;gap:9px;}
+.role-logo-mark{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.15);}
+.role-logo-mark.adm{background:linear-gradient(135deg,var(--adm) 0%,var(--adm2) 100%);}
+.role-logo-mark.reg{background:linear-gradient(135deg,var(--reg) 0%,var(--reg2) 100%);}
+.role-logo-mark svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+.role-btn{font-size:12px;font-weight:700;padding:7px 18px;border-radius:20px;border:none;cursor:pointer;transition:all .18s;letter-spacing:.02em;}
+.role-btn.adm{background:var(--adm-light);color:var(--adm2);border:2px solid var(--adm-border);}
+.role-btn.adm.on{background:var(--adm2);color:#fff;border-color:var(--adm2);box-shadow:0 2px 8px rgba(43,92,230,.35);}
+.role-btn.reg{background:var(--reg-light);color:var(--reg2);border:2px solid var(--reg-border);}
+.role-btn.reg.on{background:var(--reg2);color:#fff;border-color:var(--reg2);box-shadow:0 2px 8px rgba(27,158,117,.35);}
+.role-bar-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
 
 /* ─── BUTTONS ─── */
 .btn{font-size:12px;font-weight:500;padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s;}
@@ -68,6 +68,13 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text1)
 .sico.on.reg{background:#fff;color:var(--reg2);box-shadow:var(--shadow);}
 .sico:hover:not(.on){background:rgba(0,0,0,.06);color:var(--text2);}
 .sico-div{width:24px;height:1px;background:var(--border);margin:4px 0;}
+
+/* ─── 대시보드 서브탭 ─── */
+.dash-subtab-bar{display:flex;padding:0 18px;background:var(--surface);border-bottom:2px solid var(--border);}
+.dash-subtab{padding:12px 24px;font-size:13px;font-weight:700;border:none;background:transparent;cursor:pointer;color:var(--text3);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;letter-spacing:.01em;font-family:inherit;}
+.dash-subtab:hover:not(.active){color:var(--text1);background:var(--surface2);}
+.dash-subtab.active.adm{color:var(--adm2);border-bottom-color:var(--adm2);}
+.dash-subtab.active.reg{color:var(--reg2);border-bottom-color:var(--reg2);}
 
 /* ─── ROLE STRIPE ─── */
 .role-stripe{padding:8px 18px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:8px;}

@@ -118,8 +118,8 @@ tailwind.config = {
     <!-- ─── SIDEBAR ─── -->
     <div class="sidebar adm" id="sidebar">
       <!-- 청년회(ADM) 아이콘 -->
-      <div class="sico on adm" id="si-adm-dash" onclick="nav('adm-dash')" title="종합 대시보드">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>종합
+      <div class="sico on adm" id="si-adm-dash" onclick="nav('adm-dash')" title="종합 대시보드 현황">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>대시보드
       </div>
       <div class="sico" id="si-adm-db" onclick="nav('adm-db')" title="DB/찾기">
         <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>DB
@@ -153,8 +153,8 @@ tailwind.config = {
       </div>
 
       <!-- 지역 담당자(REG) 아이콘 (기본 숨김) -->
-      <div class="sico" id="si-reg-dash" onclick="nav('reg-dash')" title="대시보드" style="display:none;">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>종합
+      <div class="sico" id="si-reg-dash" onclick="nav('reg-dash')" title="종합 대시보드 현황" style="display:none;">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>대시보드
       </div>
       <div class="sico" id="si-reg-db" onclick="nav('reg-db')" title="DB/찾기" style="display:none;">
         <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>DB
@@ -201,30 +201,14 @@ tailwind.config = {
       <div id="sc-adm-dash" class="screen">
         <div class="role-stripe adm">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          청년회 — 종합 대시보드
+          청년회 — 종합 대시보드 현황
         </div>
-        <div class="p14">
-          <div class="stat-row c4">
-            <div class="stat-card adm-c"><div class="stat-label">전체 인원</div><div class="stat-val adm" id="ds-total">—</div><div class="stat-sub">청년누적 전체</div></div>
-            <div class="stat-card base"><div class="stat-label">탈락 인원</div><div class="stat-val" id="ds-tallag" style="color:var(--red);">—</div><div class="stat-sub">청년탈락 시트</div></div>
-            <div class="stat-card reg-c"><div class="stat-label">활성 인원</div><div class="stat-val reg" id="ds-active">—</div><div class="stat-sub">누적 − 탈락</div></div>
-            <div class="stat-card base"><div class="stat-label">체크 완료율</div><div class="stat-val" id="ds-check-rate" style="color:var(--amber);">—</div><div class="stat-sub">개강체크 기준</div></div>
-          </div>
-
-          <!-- LD: 단계별 보유현황 (만남캘린더) -->
-          <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
-            <div class="sl" style="margin:0;flex:1;">단계별 보유현황 (만남캘린더)</div>
-            <div id="ld-adm-filter-wrap" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
-          </div>
-          <div id="ld-adm-stage-wrap" style="margin-top:8px;"><div class="loading-box">로딩 중...</div></div>
-
-          <!-- LD: 만남 현황 -->
-          <div class="sl" style="margin-top:20px;">만남 현황 (단계별 · 오늘/내일/모레/이후)</div>
-          <div id="ld-adm-meet-wrap"><div class="loading-box">로딩 중...</div></div>
-
-          <!-- 체크 현황 -->
-          <div class="sl" style="margin-top:20px;">개강 준비 체크 현황</div>
-          <div id="dash-check-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+        <div class="dash-subtab-bar">
+          <button class="dash-subtab active adm" id="adm-stab-all" onclick="switchAdmDashTab('all')">청년회 종합 현황</button>
+          <button class="dash-subtab adm" id="adm-stab-reg" onclick="switchAdmDashTab('reg')">지역 종합 현황</button>
+        </div>
+        <div id="adm-dash-content" class="p14">
+          <div class="loading-box">로딩 중...</div>
         </div>
       </div>
 
@@ -428,9 +412,13 @@ tailwind.config = {
       <div id="sc-reg-dash" class="screen">
         <div class="role-stripe reg">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          종합 현황
+          지역 담당자 — 종합 대시보드 현황
         </div>
-        <div class="p14" id="reg-dash-content">
+        <div class="dash-subtab-bar">
+          <button class="dash-subtab active reg" id="reg-stab-all" onclick="switchRegDashTab('all')">청년회 종합 현황</button>
+          <button class="dash-subtab reg" id="reg-stab-reg" onclick="switchRegDashTab('reg')">지역 종합 현황</button>
+        </div>
+        <div id="reg-dash-content" class="p14">
           <div class="loading-box">로딩 중...</div>
         </div>
       </div>
@@ -471,6 +459,9 @@ tailwind.config = {
         </div>
         <div class="flt-bar">
           <button id="reg-tallag-toggle" class="btn" onclick="toggleTallag()">탈락 보기</button>
+        </div>
+        <div class="p14" style="padding-bottom:0;">
+          <div id="reg-board-stage-summary"></div>
         </div>
         <div class="p14">
           <div id="reg-board-notion-root"></div>
@@ -852,8 +843,6 @@ tailwind.config = {
     if (e.key === 'Enter' && document.getElementById('add-item-modal').classList.contains('show')) addItemConfirm();
   });
 
-  // 5분마다 자동 갱신
-  setInterval(() => { if (USER_AUTH) loadData(); }, AUTO_REFRESH_MS);
 </script>
 <div id="col-filter-drop" style="display:none;position:fixed;z-index:9999;"></div>
 <script src="js/notion-table-bundle.js"></script>

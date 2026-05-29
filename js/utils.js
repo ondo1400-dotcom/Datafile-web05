@@ -14,10 +14,11 @@ function sortRegions(arr) {
   });
 }
 
-// 개강 정규화 (43/6 → 43/06)
+// 개강 정규화 (43/6 → 43/06, 43년/6월 → 43/06)
 function normalizeKaigang(val) {
   if (!val) return '';
-  return String(val).replace(/^(\d+)\/(\d)$/, '$1/0$2');
+  const s = String(val).replace(/년/g, '').replace(/월/g, '').trim();
+  return s.replace(/^(\d+)\/(\d)$/, '$1/0$2');
 }
 
 // 센터명 정규화 (goals 테이블 canonical 기준, prefix 매칭)

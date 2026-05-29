@@ -93,7 +93,75 @@ function _updateColIcons() {
   });
 }
 
+let _regBoardKaigang = '전체';
+
+function _regBoardSetKaigang(val) {
+  _regBoardKaigang = val;
+  renderRegBoardStageSummary();
+}
+
+function renderRegBoardStageSummary() {
+  const el = document.getElementById('reg-board-stage-summary');
+  if (!el) return;
+
+  const allowed = getAllowedRegions();
+
+  // 찾기 포함 활성 인원
+  const findRows = (STATE.dbFindings || [])
+    .filter(r => r['구분'] === '찾기')
+    .map(r => ({ ...r, '단계': '찾기' }));
+  const allData = [...STATE.nujeok.filter(r => !isTallag(r)), ...findRows];
+
+  const filtered = allData.filter(r => {
+    if (allowed !== null && !allowed.includes(r['실적지역'])) return false;
+    if (_regBoardKaigang !== '전체' && r['목표개강(연도/월)'] !== _regBoardKaigang && r['이전개강'] !== _regBoardKaigang) return false;
+    return true;
+  });
+
+  // 단계별 카운트
+  const counts = {};
+  STAGE_ORDER.forEach(s => counts[s] = 0);
+  filtered.forEach(r => { if (STAGE_ORDER.includes(r['단계'])) counts[r['단계']]++; });
+  const total = filtered.length;
+
+  // 지역 배지
+  const regionBadge = allowed && allowed.length
+    ? allowed.map(r =>
+        `<span style="background:var(--reg-light);padding:2px 8px;border-radius:10px;margin-right:4px;font-size:12px;color:var(--reg2);font-weight:700;">★ ${r}</span>`
+      ).join('')
+    : '';
+
+  // 개강 필터 버튼
+  const kaigangs = ['전체', ...[...new Set(STATE.nujeok.map(r => r['목표개강(연도/월)']).filter(Boolean))].sort()];
+  const kBtn = k => {
+    const active = _regBoardKaigang === k;
+    return `<button onclick="_regBoardSetKaigang('${k}')" style="padding:3px 10px;border-radius:12px;border:1px solid var(--border);font-size:11px;cursor:pointer;font-family:inherit;background:${active?'var(--reg2)':'var(--surface2)'};color:${active?'#fff':'var(--text2)'};">${k}</button>`;
+  };
+
+  // 단계 카드
+  const stageCards = STAGE_ORDER.map(stage => {
+    const sc  = STAGE_COLORS[stage] || { bg: '#f0f0f0', c: '#555' };
+    const cnt = counts[stage] || 0;
+    return `<div style="text-align:center;padding:8px 10px;border-radius:10px;background:${sc.bg};flex:1;min-width:46px;">
+      <div style="font-size:10px;font-weight:700;color:${sc.c};margin-bottom:3px;white-space:nowrap;">${stage}</div>
+      <div style="font-size:20px;font-weight:800;color:${sc.c};font-family:monospace;">${cnt}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+      <div>${regionBadge}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-left:auto;">${kaigangs.map(kBtn).join('')}</div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">${stageCards}</div>
+    <div style="font-size:11px;color:var(--text3);text-align:right;margin-top:6px;">합계 <strong style="color:var(--text1);">${total}</strong>명</div>
+    <div style="margin-top:12px;border-top:1px solid var(--border);"></div>
+  `;
+}
+
 function renderRegBoard() {
+  renderRegBoardStageSummary();
+
   const findingRows = (STATE.dbFindings || [])
     .filter(r => r['구분'] === '찾기')
     .map(r => ({ ...r, '단계': '찾기', _isDbFinding: true }));

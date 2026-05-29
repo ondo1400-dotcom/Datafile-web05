@@ -2,13 +2,17 @@
 //  pages/adm-dash.js — 종합 대시보드 (청년회 + 지역 공통)
 // ══════════════════════════════════════════════════════
 
-// 공통 체크 현황 HTML
+// ─── 서브탭 상태 ───
+let _admDashTab = 'all'; // 'all' | 'reg'
+let _regDashTab = 'all';
+
+// ─── 공통 체크 현황 HTML ───
 function _buildCheckSummaryHtml(checks, activeCount, accentClass) {
   if (!STATE.checkItems.length) {
     return '<div style="color:var(--text3);font-size:12px;padding:10px;">체크 항목을 설정탭에서 추가해주세요</div>';
   }
-  const cols = Math.min(STATE.checkItems.length, 4);
-  const colCls = cols === 4 ? 'c4' : cols === 3 ? 'c3' : 'c3';
+  const cols   = Math.min(STATE.checkItems.length, 4);
+  const colCls = cols === 4 ? 'c4' : 'c3';
   return `<div class="stat-row ${colCls}" style="margin-bottom:0;">
     ${STATE.checkItems.map(item => {
       const doneCount = checks.filter(c => c['항목명'] === item && c['체크여부'] === 'Y').length;
@@ -26,88 +30,132 @@ function _buildCheckSummaryHtml(checks, activeCount, accentClass) {
   </div>`;
 }
 
-// ─── 청년회 종합 대시보드 ───
-function renderAdmDash() {
-  const active = STATE.nujeok.filter(r => !isTallag(r));
-
-  document.getElementById('ds-total').textContent  = STATE.nujeok.length;
-  document.getElementById('ds-tallag').textContent = STATE.tallag.length;
-  document.getElementById('ds-active').textContent = active.length;
-
-  const totalChecks = STATE.checks.length;
-  const doneChecks  = STATE.checks.filter(c => c['체크여부'] === 'Y').length;
-  document.getElementById('ds-check-rate').textContent = totalChecks
-    ? Math.round(doneChecks / totalChecks * 100) + '%' : '—';
-
-  const activePeopleN = [...new Set(active.map(r => makeKey(r)))].length;
-  document.getElementById('dash-check-summary').innerHTML =
-    _buildCheckSummaryHtml(STATE.checks, activePeopleN, 'adm-c');
-
-  _asyncFillLd('ld-adm-stage-wrap', 'ld-adm-meet-wrap', 'ld-adm-filter-wrap', null, null, true);
+// ─── 서브탭 전환 ───
+function switchAdmDashTab(tab) {
+  _admDashTab = tab;
+  document.getElementById('adm-stab-all')?.classList.toggle('active', tab === 'all');
+  document.getElementById('adm-stab-reg')?.classList.toggle('active', tab === 'reg');
+  _renderDashContent('adm');
 }
 
-// ─── 지역 종합 현황 ───
+function switchRegDashTab(tab) {
+  _regDashTab = tab;
+  document.getElementById('reg-stab-all')?.classList.toggle('active', tab === 'all');
+  document.getElementById('reg-stab-reg')?.classList.toggle('active', tab === 'reg');
+  _renderDashContent('reg');
+}
+
+// ─── 진입점 ───
+function renderAdmDash() {
+  _admDashTab = 'all';
+  document.getElementById('adm-stab-all')?.classList.add('active');
+  document.getElementById('adm-stab-reg')?.classList.remove('active');
+  _renderDashContent('adm');
+}
+
 function renderRegDash() {
-  const el = document.getElementById('reg-dash-content');
+  _regDashTab = 'all';
+  document.getElementById('reg-stab-all')?.classList.add('active');
+  document.getElementById('reg-stab-reg')?.classList.remove('active');
+  _renderDashContent('reg');
+}
+
+// ─── 필터 지역 결정 ───
+function _getDashFilterRegions(role) {
+  const tab = role === 'adm' ? _admDashTab : _regDashTab;
+  if (tab === 'all') return null;
+  if (role === 'adm') {
+    return ADM_VIEW_REGION ? [ADM_VIEW_REGION] : getAllowedRegions();
+  }
+  return getAllowedRegions(); // null이면 전체
+}
+
+// ─── 공통 대시보드 렌더 ───
+function _renderDashContent(role) {
+  const isAdm = role === 'adm';
+  const el    = document.getElementById(role + '-dash-content');
   if (!el) return;
 
-  const allowed   = getAllowedRegions(); // null=전체관리자, 배열=지역담당자
-  const myRegions = allowed || [];
+  const isAdmin       = !!(USER_AUTH && USER_AUTH.role === 'admin');
+  const filterRegions = _getDashFilterRegions(role);
+  const accent        = isAdm ? 'adm' : 'reg';
+  const pfx           = role + 'd'; // admd | regd  (고유 ID 접두사)
 
-  // 전지역 데이터 (필터 없음)
-  const active      = STATE.nujeok.filter(r => !isTallag(r));
-  const totalChecks = STATE.checks.length;
-  const doneChecks  = STATE.checks.filter(c => c['체크여부'] === 'Y').length;
-  const checkRate   = totalChecks ? Math.round(doneChecks / totalChecks * 100) + '%' : '—';
-  const activePeopleN = [...new Set(active.map(r => makeKey(r)))].length;
-  const checkSummaryHtml = _buildCheckSummaryHtml(STATE.checks, activePeopleN, 'reg-c');
+  // ── 데이터 필터링 ──
+  const nujeokAll = filterRegions
+    ? STATE.nujeok.filter(r => filterRegions.includes(r['실적지역']))
+    : STATE.nujeok;
+  const active = nujeokAll.filter(r => !isTallag(r));
+  const tallag = filterRegions
+    ? (STATE.tallag || []).filter(r => filterRegions.includes(r['실적지역']))
+    : (STATE.tallag || []);
+  const checks = filterRegions
+    ? STATE.checks.filter(r => filterRegions.includes(r['실적지역']))
+    : STATE.checks;
 
-  const myRegionBadge = myRegions.length
-    ? `<div style="font-size:12px;color:var(--reg2);margin-bottom:12px;font-weight:700;">
-        내 지역: ${myRegions.map(r => `<span style="background:var(--reg-light);padding:2px 8px;border-radius:10px;margin-right:4px;">★ ${r}</span>`).join('')}
+  // ── 달성률 계산 (합자 목표 기준) ──
+  const regions   = filterRegions || [...new Set(STATE.nujeok.map(r => r['실적지역']).filter(Boolean))];
+  const goalTotal = regions.reduce((sum, r) => sum + _ldGetGoal(r, '합자'), 0);
+  const achRate   = goalTotal ? Math.round(active.length / goalTotal * 100) + '%' : '—';
+
+  const activePeopleN    = [...new Set(active.map(r => makeKey(r)))].length;
+  const checkSummaryHtml = _buildCheckSummaryHtml(checks, activePeopleN, accent + '-c');
+
+  // ── 지역 배지 ──
+  const regionBadge = filterRegions && filterRegions.length
+    ? `<div style="font-size:12px;color:var(--${accent}2);margin-bottom:12px;font-weight:700;">
+        내 지역:&nbsp;${filterRegions.map(r =>
+          `<span style="background:var(--${accent}-light);padding:2px 8px;border-radius:10px;margin-right:4px;">★ ${r}</span>`
+        ).join('')}
       </div>`
     : '';
 
   el.innerHTML = `
-    <div class="stat-row c4" style="margin-bottom:20px;">
-      <div class="stat-card adm-c" style="text-align:center;">
-        <div class="stat-label">전체 인원</div>
-        <div class="stat-val adm" style="font-size:22px;">${STATE.nujeok.length}</div>
-        <div class="stat-sub">청년누적 전체</div>
+    ${regionBadge}
+    <div class="stat-row c4">
+      <div class="stat-card ${accent}-c" style="text-align:center;">
+        <div class="stat-label">전체 누적</div>
+        <div class="stat-val ${accent}" style="font-size:22px;">${nujeokAll.length}</div>
+        <div class="stat-sub">청년누적 인원</div>
       </div>
       <div class="stat-card base" style="text-align:center;">
         <div class="stat-label">탈락 인원</div>
-        <div class="stat-val" style="font-size:22px;color:var(--red);">${STATE.tallag.length}</div>
-        <div class="stat-sub">청년탈락 시트</div>
+        <div class="stat-val" style="font-size:22px;color:var(--red);">${tallag.length}</div>
+        <div class="stat-sub">청년탈락</div>
       </div>
-      <div class="stat-card reg-c" style="text-align:center;">
-        <div class="stat-label">활성 인원</div>
-        <div class="stat-val reg" style="font-size:22px;">${active.length}</div>
+      <div class="stat-card ${accent}-c" style="text-align:center;">
+        <div class="stat-label">보유 (생존)</div>
+        <div class="stat-val ${accent}" style="font-size:22px;">${active.length}</div>
         <div class="stat-sub">누적 − 탈락</div>
       </div>
       <div class="stat-card base" style="text-align:center;">
-        <div class="stat-label">체크 완료율</div>
-        <div class="stat-val" style="font-size:22px;color:var(--amber);">${checkRate}</div>
-        <div class="stat-sub">개강체크 기준</div>
+        <div class="stat-label">달성률</div>
+        <div class="stat-val" style="font-size:22px;color:var(--amber);">${achRate}</div>
+        <div class="stat-sub">보유 / 합자목표</div>
       </div>
     </div>
 
-    ${myRegionBadge}
-
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
       <div class="sl" style="margin:0;flex:1;">단계별 보유현황 (만남캘린더)</div>
-      <div id="ld-reg-filter-wrap" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+      <div id="${pfx}-filter-wrap" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
     </div>
-    <div id="ld-reg-stage-wrap" style="margin-top:8px;"><div class="loading-box">로딩 중...</div></div>
+    <div id="${pfx}-stage-wrap" style="margin-top:8px;"><div class="loading-box">로딩 중...</div></div>
 
     <div class="sl" style="margin-top:20px;">만남 현황 (단계별 · 오늘/내일/모레/이후)</div>
-    <div id="ld-reg-meet-wrap"><div class="loading-box">로딩 중...</div></div>
+    <div id="${pfx}-meet-wrap"><div class="loading-box">로딩 중...</div></div>
 
     <div class="sl" style="margin-top:20px;">개강 준비 체크 현황</div>
     ${checkSummaryHtml}
   `;
 
-  _asyncFillLd('ld-reg-stage-wrap', 'ld-reg-meet-wrap', 'ld-reg-filter-wrap', null, myRegions.length ? myRegions : null, false);
+  _asyncFillLd(
+    pfx + '-stage-wrap',
+    pfx + '-meet-wrap',
+    pfx + '-filter-wrap',
+    null,
+    filterRegions,
+    isAdm && isAdmin
+  );
 }
 
 // ══════════════════════════════════════════════════════
@@ -132,7 +180,7 @@ function _ldAllPeople() {
 function _ldFiltered() {
   return _ldAllPeople().filter(r => {
     if (_ldKaigang !== '전체' && r['목표개강(연도/월)'] !== _ldKaigang && r['이전개강'] !== _ldKaigang) return false;
-    if (_ldCenter !== '전체' && r['목표센터'] !== _ldCenter) return false;
+    if (_ldCenter  !== '전체' && r['목표센터'] !== _ldCenter) return false;
     return true;
   });
 }
@@ -142,7 +190,7 @@ function _ldGetGoal(region, stage) {
     .filter(([k]) => {
       if (!k.endsWith('|' + stage + '|' + region)) return false;
       if (_ldKaigang !== '전체' && !k.startsWith(_ldKaigang + '|')) return false;
-      if (_ldCenter !== '전체') {
+      if (_ldCenter  !== '전체') {
         const parts = k.split('|');
         if (parts[1] !== _ldCenter) return false;
       }
@@ -155,7 +203,6 @@ function _ldRegions(people) {
   return sortRegions([...new Set(people.map(r => r['실적지역']).filter(Boolean))]);
 }
 
-// meetMap: (섭외자|인도자) → 최신 만남 row
 function _ldMeetMap() {
   const map = {};
   (STATE.meets || []).forEach(m => {
@@ -181,7 +228,9 @@ function _ldNormPurpose(raw) {
 // ─── 단계별 보유현황 (목표/달성%) ───
 function _buildLdStageHtml(myRegions) {
   const people  = _ldFiltered();
-  const regions = _ldRegions(people);
+  const regions = myRegions
+    ? sortRegions(myRegions.filter(r => people.some(p => p['실적지역'] === r)))
+    : _ldRegions(people);
   if (!people.length) return '<div style="color:var(--text3);font-size:12px;padding:10px;">데이터가 없습니다</div>';
 
   const countMap = {}, totRow = { total: 0 };
@@ -223,6 +272,7 @@ function _buildLdStageHtml(myRegions) {
 
   const regionRows = regions.map(region => {
     const c = countMap[region];
+    if (!c) return '';
     const isMine = myRegions && myRegions.includes(region);
     const rowBg  = isMine ? 'background:var(--reg-light,#f0fdf4);' : '';
     const regionLabel = isMine
@@ -303,7 +353,9 @@ function _buildLdMeetHtml(myRegions) {
 
   const d1 = addDays(1), d2 = addDays(2);
   const people  = _ldFiltered();
-  const regions = _ldRegions(people);
+  const regions = myRegions
+    ? sortRegions(myRegions.filter(r => people.some(p => p['실적지역'] === r)))
+    : _ldRegions(people);
   const meetMap = _ldMeetMap();
   if (!people.length) return '<div style="color:var(--text3);font-size:12px;padding:10px;">만남 데이터가 없습니다</div>';
 
@@ -311,7 +363,7 @@ function _buildLdMeetHtml(myRegions) {
     if (!date) return 'none';
     const d = new Date(date); d.setHours(0, 0, 0, 0);
     const diff = Math.round((d - tod) / 86400000);
-    if (diff < 0)  return 'none';
+    if (diff < 0)   return 'none';
     if (diff === 0) return 'today';
     if (diff === 1) return 'd1';
     if (diff === 2) return 'd2';
@@ -326,7 +378,7 @@ function _buildLdMeetHtml(myRegions) {
   ];
 
   const sections = STAGE_ORDER.map(stage => {
-    const sp = people.filter(r => r['단계'] === stage);
+    const sp = people.filter(r => r['단계'] === stage && (!myRegions || myRegions.includes(r['실적지역'])));
     if (!sp.length) return '';
     const sc = STAGE_COLORS[stage] || { bg: '#e0f2fe', c: '#0369a1' };
 
@@ -395,8 +447,8 @@ function _buildLdMeetHtml(myRegions) {
       });
 
       const cells = ALL_COLS.map(c => {
-        const list = buckets[c.key] || [];
-        const bgSt = c.cellBg ? `background:${c.cellBg};` : '';
+        const list  = buckets[c.key] || [];
+        const bgSt  = c.cellBg ? `background:${c.cellBg};` : '';
         if (!list.length) return `<td style="${bgSt}border:1px solid var(--border);padding:5px;text-align:center;"><span style="color:var(--text3)">—</span></td>`;
 
         if (c.key === 'none') {
@@ -499,7 +551,7 @@ function _buildLdFilterHtml(filterId, stageId, meetId, myRegions, isAdmin) {
     </div>` : '';
 
   const tgBtns = isAdmin ? `
-    <button onclick="sendDashTg(event)" style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;margin-left:4px;">📊 현황 전송</button>` : '';
+    <button onclick="sendDashTg(event,'${stageId}','${meetId}')" style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;margin-left:4px;">📊 현황 전송</button>` : '';
 
   wrap.innerHTML = `
     <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
@@ -595,7 +647,7 @@ function _buildDashSummaryText() {
 }
 
 // ─── 단계현황 + 만남현황 이미지 + 텍스트 동시 전송 ───
-async function sendDashTg(e) {
+async function sendDashTg(e, stageId, meetId) {
   const btn = e.target;
   const origText = btn.textContent;
   btn.disabled = true;
@@ -604,8 +656,8 @@ async function sendDashTg(e) {
     if (typeof html2canvas === 'undefined') throw new Error('html2canvas 라이브러리 로드 실패');
 
     btn.textContent = '캡처 중...';
-    const stageEl = document.getElementById('ld-adm-stage-wrap');
-    const meetEl  = document.getElementById('ld-adm-meet-wrap');
+    const stageEl = document.getElementById(stageId);
+    const meetEl  = document.getElementById(meetId);
     if (!stageEl || !meetEl) throw new Error('캡처 대상 요소 없음');
 
     const opts = { scale: 1.5, backgroundColor: '#ffffff', useCORS: true, logging: false };
@@ -625,7 +677,6 @@ async function sendDashTg(e) {
     const caption = _buildDashSummaryText();
 
     btn.textContent = '전송 중...';
-    // POST with text/plain Content-Type → 브라우저가 preflight 생략
     const res  = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },

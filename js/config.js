@@ -40,6 +40,3 @@ const STAGE_COLORS = {
   '센확':   { bg: '#eef2ff', c: '#3730a3' },
   '수신':   { bg: '#FDE8FF', c: '#7B00A0' },
 };
-
-// 자동 갱신 주기 (ms) — 5분
-const AUTO_REFRESH_MS = 5 * 60 * 1000;
