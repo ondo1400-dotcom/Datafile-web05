@@ -40,15 +40,15 @@
   function cn(...args) {
     return args.filter(Boolean).join(" ");
   }
-  function Badge({ className, variant = "default", children, ...props }) {
+  function Badge({ className, variant = "outline", children, ...props }) {
     const base = "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors";
     const variants = {
       default: "border-transparent bg-slate-900 text-white",
       secondary: "border-transparent bg-slate-100 text-slate-900",
       destructive: "border-transparent bg-red-500 text-white",
-      outline: "border-slate-200 text-slate-700"
+      outline: ""
     };
-    return /* @__PURE__ */ import_react.default.createElement("div", { className: cn(base, variants[variant] || variants.default, className), ...props }, children);
+    return /* @__PURE__ */ import_react.default.createElement("div", { className: cn(base, variants[variant], className), ...props }, children);
   }
   function Button({ className, variant = "default", size = "default", children, ...props }) {
     const base = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50";
@@ -728,7 +728,7 @@
       if (e.key === "Enter" && type !== "textarea") handleSave(editValue);
     };
     if (!isEditing) {
-      return /* @__PURE__ */ import_react6.default.createElement("div", null, /* @__PURE__ */ import_react6.default.createElement(
+      return /* @__PURE__ */ import_react6.default.createElement("div", { onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ import_react6.default.createElement(
         "button",
         {
           onClick: () => {
@@ -871,7 +871,12 @@
     if (value == null || value === "") return /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-slate-200 text-[12px]" }, "\u2014");
     if (badgeType) return /* @__PURE__ */ import_react6.default.createElement(StageBadge, { value: String(value), type: badgeType });
     if (type === "date") return /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-[11px] text-slate-500 whitespace-nowrap" }, formatDateShort(value));
-    if (type === "time") return /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-[11px] text-slate-500 whitespace-nowrap" }, String(value).slice(0, 5));
+    if (type === "time") {
+      const s = String(value);
+      const tIdx = s.indexOf("T");
+      const hhmm = tIdx !== -1 ? s.slice(tIdx + 1, tIdx + 6) : s.match(/\d{1,2}:\d{2}/)?.[0] || s.slice(0, 5);
+      return /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-[11px] text-slate-500 whitespace-nowrap" }, hhmm);
+    }
     if (type === "number") return /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-[12px] tabular-nums" }, value);
     if (type === "dayselect" && Array.isArray(value)) return /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-[12px]" }, value.join(""));
     if (type === "checklist" && Array.isArray(value)) return /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-[12px]" }, value.length > 0 ? `${value.length}\uAC1C` : "\u2014");

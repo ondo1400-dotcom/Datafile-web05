@@ -5,15 +5,15 @@ function cn(...args) {
 }
 
 // ── Badge ──
-function Badge({ className, variant = 'default', children, ...props }) {
+function Badge({ className, variant = 'outline', children, ...props }) {
   const base = 'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors';
   const variants = {
     default: 'border-transparent bg-slate-900 text-white',
     secondary: 'border-transparent bg-slate-100 text-slate-900',
     destructive: 'border-transparent bg-red-500 text-white',
-    outline: 'border-slate-200 text-slate-700',
+    outline: '',
   };
-  return <div className={cn(base, variants[variant] || variants.default, className)} {...props}>{children}</div>;
+  return <div className={cn(base, variants[variant], className)} {...props}>{children}</div>;
 }
 
 // ── Button ──

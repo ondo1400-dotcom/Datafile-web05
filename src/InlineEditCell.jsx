@@ -38,7 +38,7 @@ export default function InlineEditCell({
 
   if (!isEditing) {
     return (
-      <div>
+      <div onClick={e => e.stopPropagation()}>
         <button onClick={() => { setEditValue(value); setIsEditing(true); }} title="클릭하여 수정"
           className="group/cell flex w-full cursor-pointer items-center rounded px-1 py-0.5 text-left hover:bg-blue-50/30 transition-colors">
           <DisplayValue value={value} type={type} badgeType={badgeType} />
@@ -160,7 +160,12 @@ function DisplayValue({ value, type, badgeType }) {
   if (value == null || value === '') return <span className="text-slate-200 text-[12px]">—</span>;
   if (badgeType) return <StageBadge value={String(value)} type={badgeType} />;
   if (type === 'date') return <span className="text-[11px] text-slate-500 whitespace-nowrap">{formatDateShort(value)}</span>;
-  if (type === 'time') return <span className="text-[11px] text-slate-500 whitespace-nowrap">{String(value).slice(0, 5)}</span>;
+  if (type === 'time') {
+    const s = String(value);
+    const tIdx = s.indexOf('T');
+    const hhmm = tIdx !== -1 ? s.slice(tIdx + 1, tIdx + 6) : s.match(/\d{1,2}:\d{2}/)?.[0] || s.slice(0, 5);
+    return <span className="text-[11px] text-slate-500 whitespace-nowrap">{hhmm}</span>;
+  }
   if (type === 'number') return <span className="text-[12px] tabular-nums">{value}</span>;
   if (type === 'dayselect' && Array.isArray(value)) return <span className="text-[12px]">{value.join('')}</span>;
   if (type === 'checklist' && Array.isArray(value)) return <span className="text-[12px]">{value.length > 0 ? `${value.length}개` : '—'}</span>;
