@@ -81,7 +81,7 @@ function _renderDashContent(role) {
   const accent        = isAdm ? 'adm' : 'reg';
   const pfx           = role + 'd'; // admd | regd  (고유 ID 접두사)
   const tab           = isAdm ? _admDashTab : _regDashTab;
-  const showFunnel    = isAdm || tab === 'reg';
+  const showFunnel    = isAdm || tab === 'all' || tab === 'reg';
 
   // ── 데이터 필터링 ──
   const nujeokAll = filterRegions
@@ -555,14 +555,15 @@ function _buildLdMeetHtml(myRegions) {
         : [{ key: g.key, gKey: g.key, label: g.label, singleCol: true, cellBg: g.cellBg }];
       return { ...g, purs, cols };
     });
-    const ALL_COLS = [...grps.flatMap(g => g.cols), { key: 'none', gKey: 'none', label: '만남미정' }];
+    const SCHED_COLS = grps.flatMap(g => g.cols);
 
-    const colTots = { none: 0 };
-    ALL_COLS.forEach(c => { if (c.key !== 'none') colTots[c.key] = 0; });
+    const colTots = {};
+    SCHED_COLS.forEach(c => { colTots[c.key] = 0; });
+    let noneTotal = 0;
     sp.forEach(r => {
       const meet = getMeet(r);
       const gk   = grpKey(meet?._date);
-      if (gk === 'none') { colTots.none++; return; }
+      if (gk === 'none') { noneTotal++; return; }
       const nm = _ldNormPurpose(meet?.['다음만남목적']);
       const k  = `${gk}-${nm.label}`;
       if (colTots[k] !== undefined) colTots[k]++;
@@ -586,47 +587,32 @@ function _buildLdMeetHtml(myRegions) {
     const thead = `<tr>
       <th rowspan="2" style="background:#bde0f5;color:#0c2d42;border:1px solid var(--border);padding:6px 12px;text-align:center;">지역</th>
       ${row1}
-      <th rowspan="2" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);padding:6px 8px;text-align:center;white-space:nowrap;max-width:40%;width:40%;">만남미정</th>
     </tr><tr>${row2}</tr>`;
 
+    const noneMap = {};
     const regionRows = regions.map(region => {
       const rp = sp.filter(r => r['실적지역'] === region);
       if (!rp.length) return '';
       const isMine = myRegions && myRegions.includes(region);
 
-      const buckets = { none: [] };
-      ALL_COLS.forEach(c => { if (c.key !== 'none') buckets[c.key] = []; });
+      const buckets = {};
+      SCHED_COLS.forEach(c => { buckets[c.key] = []; });
+      const noneBucket = [];
       rp.forEach(r => {
         const meet = getMeet(r);
         const gk   = grpKey(meet?._date);
-        if (gk === 'none') { buckets.none.push(r); return; }
+        if (gk === 'none') { noneBucket.push(r); return; }
         const nm = _ldNormPurpose(meet?.['다음만남목적']);
         const k  = `${gk}-${nm.label}`;
         if (buckets[k]) buckets[k].push(r);
         else if (buckets[gk]) buckets[gk].push(r);
       });
+      noneMap[region] = noneBucket;
 
-      const cells = ALL_COLS.map(c => {
+      const cells = SCHED_COLS.map(c => {
         const list  = buckets[c.key] || [];
         const bgSt  = c.cellBg ? `background:${c.cellBg};` : '';
         if (!list.length) return `<td style="${bgSt}border:1px solid var(--border);padding:5px;text-align:center;"><span style="color:var(--text3)">—</span></td>`;
-
-        if (c.key === 'none') {
-          const groups = {};
-          list.forEach(r => {
-            const nm = _ldNormPurpose(getMeet(r)?.['다음만남목적']);
-            if (!groups[nm.label]) groups[nm.label] = { bg: nm.bg, color: nm.color, names: [] };
-            groups[nm.label].names.push(r['섭외자'] || '?');
-          });
-          const chips = _LD_PUR_ORDER.filter(k => groups[k]).map(k => {
-            const g = groups[k];
-            return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-bottom:2px;">
-              <span style="font-size:9px;font-weight:700;color:${g.color};">${k}</span>
-              ${g.names.map(n => `<span style="font-size:10px;padding:1px 5px;border-radius:8px;border:1px solid ${g.color}20;background:${g.bg};color:${g.color};">${n}</span>`).join('')}
-            </div>`;
-          }).join('');
-          return `<td style="border:1px solid var(--border);padding:5px;text-align:left;max-width:40%;overflow:hidden;"><div style="max-width:min(400px,40vw);overflow-wrap:break-word;word-break:break-word;">${chips || '<span style="color:var(--text3)">—</span>'}</div></td>`;
-        }
 
         const nm    = _ldNormPurpose(c.purpose || c.label);
         const chips = list.map(r => {
@@ -652,18 +638,42 @@ function _buildLdMeetHtml(myRegions) {
     }).filter(Boolean).join('');
 
     if (!regionRows) return '';
-    const totCells = ALL_COLS.map(c =>
+    const totCells = SCHED_COLS.map(c =>
       `<td style="border:1px solid var(--border);text-align:center;font-weight:700;background:#fef9c3;font-family:monospace;">${colTots[c.key] || 0}</td>`
     ).join('');
+
+    // 만남미정 별도 섹션 빌드
+    const noneGroups = {};
+    Object.values(noneMap).flat().forEach(r => {
+      const nm = _ldNormPurpose(getMeet(r)?.['다음만남목적']);
+      if (!noneGroups[nm.label]) noneGroups[nm.label] = { bg: nm.bg, color: nm.color, names: [] };
+      noneGroups[nm.label].names.push(r['섭외자'] || '?');
+    });
+    const noneChips = _LD_PUR_ORDER.filter(k => noneGroups[k]).map(k => {
+      const g = noneGroups[k];
+      const nameSpans = g.names.map(n =>
+        `<span style="font-size:10px;padding:1px 6px;border-radius:8px;border:1px solid ${g.color}25;background:${g.bg};color:${g.color};">${n}</span>`
+      ).join(' ');
+      return `<span style="font-size:9px;font-weight:800;color:${g.color};margin-right:3px;white-space:nowrap;">${k}</span>${nameSpans}`;
+    }).join('<span style="color:var(--border);margin:0 6px;">│</span>');
+
+    const noneSection = noneTotal ? `
+      <div style="padding:8px 14px 10px;background:var(--surface);border:1px solid var(--border);border-top:2px dashed var(--border);border-radius:0 0 8px 8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">만남미정
+          <span style="color:var(--red);font-family:monospace;margin-left:4px;">${noneTotal}명</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;line-height:1.9;">${noneChips}</div>
+      </div>` : '';
 
     return `<div style="margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px 8px 0 0;background:${sc.bg};cursor:pointer;user-select:none;"
            onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.querySelector('.ld-tog').textContent=this.nextElementSibling.style.display==='none'?'▼':'▲'">
         <span style="font-size:13px;font-weight:700;color:${sc.c};">${stage}</span>
         <span style="font-family:monospace;font-size:11px;padding:2px 8px;border-radius:10px;background:${sc.c}22;color:${sc.c};">${sp.length}명</span>
+        ${noneTotal ? `<span style="font-size:11px;color:var(--text3);">미정 ${noneTotal}명</span>` : ''}
         <span class="ld-tog" style="margin-left:auto;font-size:11px;color:${sc.c};opacity:.7;">▲</span>
       </div>
-      <div class="dash-tbl-wrap" style="border-radius:0 0 8px 8px;margin-bottom:0;border-top:none;">
+      <div class="dash-tbl-wrap" style="border-radius:${noneTotal?'0':'0 0 8px 8px'};margin-bottom:0;border-top:none;">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <thead>${thead}</thead>
           <tbody>
@@ -675,6 +685,7 @@ function _buildLdMeetHtml(myRegions) {
           </tbody>
         </table>
       </div>
+      ${noneSection}
     </div>`;
   }).filter(Boolean).join('');
 

@@ -189,8 +189,14 @@ function renderGoalStandards() {
   const chip = (txt, cls) =>
     `<span style="display:inline-block;background:${cls};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin:2px;">${txt}</span>`;
 
-  const nonStdHtml = (list, label) => list.length
-    ? list.map(([v, n]) => chip(`${v} (${n}건)`, '#fee2e2')).join('')
+  const nonStdToggleChip = (v, n, type) =>
+    `<span class="norm-chip" data-type="${type}" data-val="${v}"
+      style="display:inline-flex;align-items:center;gap:4px;background:#fee2e2;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin:2px;cursor:pointer;user-select:none;border:2px solid #fca5a5;"
+      title="클릭하여 정규화 대상에서 제외"
+    ><span class="norm-chip-check">✓</span>${v} (${n}건)</span>`;
+
+  const nonStdHtml = (list, type) => list.length
+    ? list.map(([v, n]) => nonStdToggleChip(v, n, type)).join('')
     : `<span style="font-size:11px;color:var(--text3);">없음 ✓</span>`;
 
   el.innerHTML = `
@@ -198,27 +204,62 @@ function renderGoalStandards() {
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">📌 표준 센터 (goals 기준)</div>
         <div>${canonicalCenterList.length ? canonicalCenterList.map(c => chip(c, '#dbeafe')).join('') : '<span style="font-size:11px;color:var(--text3);">미설정</span>'}</div>
-        <div style="font-size:11px;font-weight:700;color:var(--text2);margin:10px 0 6px;">⚠️ 비표준 센터</div>
-        <div>${nonStdHtml(nonStdCenters)}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin:10px 0 6px;">⚠️ 비표준 센터 <span style="font-size:10px;font-weight:400;color:var(--text3);">(클릭하면 제외)</span></div>
+        <div>${nonStdHtml(nonStdCenters, 'center')}</div>
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">📌 표준 개강 (goals 기준)</div>
         <div>${canonicalKaigangList.length ? canonicalKaigangList.map(k => chip(k, '#dcfce7')).join('') : '<span style="font-size:11px;color:var(--text3);">미설정</span>'}</div>
-        <div style="font-size:11px;font-weight:700;color:var(--text2);margin:10px 0 6px;">⚠️ 비표준 개강</div>
-        <div>${nonStdHtml(nonStdKaigangs)}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin:10px 0 6px;">⚠️ 비표준 개강 <span style="font-size:10px;font-weight:400;color:var(--text3);">(클릭하면 제외)</span></div>
+        <div>${nonStdHtml(nonStdKaigangs, 'kaigang')}</div>
       </div>
     </div>
     ${(nonStdCenters.length || nonStdKaigangs.length) ? `
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
       <button id="norm-run-btn" class="btn reg-pri" style="padding:8px 20px;" onclick="runDbNormalization()">DB 정규화 실행</button>
-      <span style="font-size:11px;color:var(--text3);margin-left:10px;">비표준 데이터를 표준값으로 일괄 수정합니다</span>
+      <span style="font-size:11px;color:var(--text3);margin-left:10px;">선택된 비표준 데이터를 표준값으로 수정합니다</span>
     </div>` : ''}
   `;
+
+  // 칩 토글 이벤트
+  el.querySelectorAll('.norm-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const excluded = chip.dataset.excluded === 'true';
+      chip.dataset.excluded = excluded ? 'false' : 'true';
+      if (!excluded) {
+        chip.style.background = '#e5e7eb';
+        chip.style.borderColor = '#d1d5db';
+        chip.style.color = '#9ca3af';
+        chip.style.textDecoration = 'line-through';
+        chip.querySelector('.norm-chip-check').textContent = '✗';
+        chip.title = '클릭하여 정규화 대상에 포함';
+      } else {
+        chip.style.background = '#fee2e2';
+        chip.style.borderColor = '#fca5a5';
+        chip.style.color = '';
+        chip.style.textDecoration = '';
+        chip.querySelector('.norm-chip-check').textContent = '✓';
+        chip.title = '클릭하여 정규화 대상에서 제외';
+      }
+    });
+  });
 }
 
 // ── DB 정규화 실행 ────────────────────────────────────
 async function runDbNormalization() {
-  if (!confirm('비표준 개강·센터 데이터를 표준값으로 일괄 수정합니다.\n계속할까요?')) return;
+  // 제외된(excluded=true) 값 수집
+  const excludedKaigangs = new Set();
+  const excludedCenters  = new Set();
+  document.querySelectorAll('.norm-chip[data-excluded="true"]').forEach(el => {
+    if (el.dataset.type === 'kaigang') excludedKaigangs.add(el.dataset.val);
+    if (el.dataset.type === 'center')  excludedCenters.add(el.dataset.val);
+  });
+
+  const excludeNote = (excludedKaigangs.size + excludedCenters.size) > 0
+    ? `\n제외 항목: ${[...excludedKaigangs, ...excludedCenters].join(', ')}`
+    : '';
+  if (!confirm(`선택된 비표준 데이터를 표준값으로 수정합니다.${excludeNote}\n계속할까요?`)) return;
+
   const btn = document.getElementById('norm-run-btn');
   if (btn) { btn.disabled = true; btn.textContent = '정규화 중...'; }
 
@@ -233,10 +274,12 @@ async function runDbNormalization() {
       const { data: rows, error } = await SUPA.from(table).select(cols);
       if (error) throw new Error(error.message);
       for (const r of (rows || [])) {
-        const normK = normalizeKaigang(r['목표개강(연도/월)'] || '');
-        const normC = normalizeCenter(r['목표센터'] || '', STATE.canonicalCenters);
-        const kChanged = normK !== (r['목표개강(연도/월)'] || '');
-        const cChanged = normC !== (r['목표센터'] || '');
+        const origK = r['목표개강(연도/월)'] || '';
+        const origC = r['목표센터'] || '';
+        const normK = excludedKaigangs.has(origK) ? origK : normalizeKaigang(origK);
+        const normC = excludedCenters.has(origC)  ? origC : normalizeCenter(origC, STATE.canonicalCenters);
+        const kChanged = normK !== origK;
+        const cChanged = normC !== origC;
         if (!kChanged && !cChanged) continue;
         const patch = {};
         if (kChanged) patch['목표개강(연도/월)'] = normK;
