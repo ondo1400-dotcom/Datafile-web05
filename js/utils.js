@@ -162,3 +162,10 @@ function populateFilters() {
 function parseMeetDateGas(raw) {
   return typeof parseMeetDate === 'function' ? parseMeetDate(raw) : null;
 }
+
+// 모달 배경 클릭 시 닫기
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-bg') && e.target.classList.contains('show')) {
+    e.target.classList.remove('show');
+  }
+});
