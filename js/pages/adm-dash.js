@@ -79,7 +79,7 @@ function _renderDashContent(role) {
   const accent        = isAdm ? 'adm' : 'reg';
   const pfx           = role + 'd'; // admd | regd  (고유 ID 접두사)
   const tab           = isAdm ? _admDashTab : _regDashTab;
-  const showFunnel    = isAdm || tab === 'all' || tab === 'reg';
+  const showFunnel    = isAdm;
 
   // ── 데이터 필터링 ──
   const nujeokAll = filterRegions
