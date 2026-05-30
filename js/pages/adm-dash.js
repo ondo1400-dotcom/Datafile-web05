@@ -1081,7 +1081,12 @@ async function sendSectionTg(e, idsStr, type) {
 
     const blob = await new Promise(resolve => combined.toBlob(resolve, 'image/jpeg', 0.85));
     const form = new FormData();
-    form.append('chat_id', REVIEW_TELEGRAM_CHAT);
+    if (type === 'daily') {
+      form.append('chat_id', DAILY_TELEGRAM_CHAT);
+    } else {
+      form.append('chat_id', REVIEW_TELEGRAM_CHAT);
+      form.append('message_thread_id', REVIEW_WEEKLY_THREAD_ID);
+    }
     form.append('photo', blob, 'dashboard.jpg');
     form.append('caption', caption);
 

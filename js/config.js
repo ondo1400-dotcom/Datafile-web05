@@ -16,9 +16,11 @@ function initSupabase() {
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx94rAb6olhwRaHds6EZsTzFS56dUq1xbeFpxv5ZOO7EhoS0ckavlKUYmkNM-p8AY7Y/exec';
 
 // ⚠️ 텔레그램 봇 설정 (심의 승인 전송용)
-const TELEGRAM_BOT_TOKEN    = '8887050175:AAHu-lTOzzy8YOi_9ibMydpqTA3PUGleVTE';
-const REVIEW_TELEGRAM_CHAT  = -1003943121521; // 행정보고창
+const TELEGRAM_BOT_TOKEN     = '8887050175:AAHu-lTOzzy8YOi_9ibMydpqTA3PUGleVTE';
+const REVIEW_TELEGRAM_CHAT   = -1003943121521; // 행정보고창
 const LIVEDATA_TELEGRAM_CHAT = -1003880979143; // 보유데이터 조회 전용창
+const DAILY_TELEGRAM_CHAT    = -1001372335891; // 일일달성 전용창
+const REVIEW_WEEKLY_THREAD_ID = 188;           // 행정보고창 주간·누적 주제
 
 // ⚠️ Google OAuth 클라이언트 ID
 const GOOGLE_CLIENT_ID = '930451155946-8ov88buetjcsql33qtl0v17aenfmkeru.apps.googleusercontent.com';
