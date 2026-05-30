@@ -151,8 +151,8 @@ function renderDetailTab() {
       const editFields = isStage
         ? (_STAGE_EDIT_FIELDS[r['단계']] || _STAGE_EDIT_FIELDS['찾기'])
         : _BASIC_EDIT_FIELDS;
-      const editLabel   = isStage ? `✏️ 단계 정보 수정 — ${r['단계']} 양식으로 보고됩니다` : '✏️ 기본 개인정보 수정';
-      const submitLabel = isStage ? '📤 수정 보고 (텔레그램 전송)' : '💾 저장 (조용히)';
+      const editLabel   = isStage ? `✏️ 단계 정보 수정 — 지파 보고 대상 항목 변경 시 자동 전송` : '✏️ 기본 개인정보 수정';
+      const submitLabel = isStage ? '💾 저장' : '💾 저장 (조용히)';
       el.innerHTML = `
         <div style="background:var(--reg-light);border:1px solid var(--reg-mid);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--reg2);font-weight:600;">
           ${editLabel}
@@ -392,6 +392,15 @@ const _STAGE_EDIT_FIELDS = {
   '지역장': ['인도자부서/지역/팀/구역','인도자','교사부서/지역/팀/구역','교사','섬김이부서/지역/팀/구역','섬김이','복음방총횟수','복음방체크리스트','개강진면접여부','신천지오픈여부','센터수강여부','재입교자여부','다음만남일','다음만남시간','다음만남목적'],
 };
 
+// 이 필드가 변경된 경우에만 지파에 수정 요청 전송
+const STAGE_REPORT_FIELDS = {
+  '합자':   ['실적지역','인도자부서/지역/팀/구역','인도자','목표개강(연도/월)','목표센터','섭외자','출생연도','성별','사는곳','하는일','종교','신앙년수','편입부서','섭외유형','2차연결유형','따기예정일'],
+  '육따기': ['실적지역','인도자부서/지역/팀/구역','인도자','섭외자','따기주간횟수','따기기간','고정요일'],
+  '따기':   ['실적지역','인도자부서/지역/팀/구역','인도자','섭외자','따기유형','따기주간횟수','따기기간','따기단계','첫수업예정일'],
+  '영따기': ['실적지역','인도자부서/지역/팀/구역','인도자','섭외자','따기유형','따기주간횟수','따기기간','따기단계','첫수업예정일'],
+  '복음방': ['실적지역','인도자부서/지역/팀/구역','인도자','섭외자','교사부서/지역/팀/구역','교사','마팔수강번호','복음방수업방식','첫수업진행일','첫수업과목'],
+};
+
 function toggleEditMode() {
   _isEditMode = !_isEditMode;
   const btn = document.getElementById('detail-edit-toggle');
@@ -425,39 +434,41 @@ async function submitInlineEdit() {
   try {
     if (USE_SAMPLE) {
       Object.assign(_detailRow, payload);
-      showToast(isStage ? '📤 수정 보고 전송 완료!' : '💾 저장 완료!');
+      showToast('💾 저장 완료!');
       _isEditMode = false;
       renderRegDetail();
       return;
     }
 
-    if (isStage) {
-      // pending_updates에 저장 + GAS로 텔레그램 전송
+    const clean = Object.fromEntries(Object.entries(payload).filter(([k]) => !k.startsWith('__') && k !== 'id' && k !== 'synced_at'));
+    const { error } = await SUPA.from('db_findings').upsert(clean, { onConflict: '실적지역,섭외자,인도자' });
+    if (error) throw new Error(error.message);
+    const { data: refreshed } = await SUPA.from('db_findings').select('*');
+    STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
+
+    const reportFields = STAGE_REPORT_FIELDS[stage] || [];
+    const reportChanged = changed.filter(f => reportFields.includes(f));
+    if (reportChanged.length > 0) {
       await SUPA.from('pending_updates').insert({
-        '섭외자':    payload['섭외자']    || '',
-        '인도자':    payload['인도자']    || '',
-        '실적지역':  payload['실적지역']  || '',
-        changes:     payload,
-        source:      'app',
+        '섭외자':   payload['섭외자']   || '',
+        '인도자':   payload['인도자']   || '',
+        '실적지역': payload['실적지역'] || '',
+        changes:    payload,
+        source:     'app',
         requested_by: USER_AUTH?.email || '',
       });
       const encoded = encodeURIComponent(JSON.stringify({ action: 'requestEdit', ...payload, 단계: stage }));
       fetch(GAS_URL + '?payload=' + encoded + '&t=' + Date.now()).catch(() => {});
-      showToast('📤 수정 요청 전송 완료!');
+      showToast('📤 수정 완료! 지파에 수정 요청 전송됨');
     } else {
-      const clean = Object.fromEntries(Object.entries(payload).filter(([k]) => !k.startsWith('__') && k !== 'id' && k !== 'synced_at'));
-      const { error } = await SUPA.from('db_findings').upsert(clean, { onConflict: '실적지역,섭외자,인도자' });
-      if (error) throw new Error(error.message);
-      const { data: refreshed } = await SUPA.from('db_findings').select('*');
-      STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
-      showToast('💾 기본 정보 저장 완료!');
+      showToast('💾 저장 완료!');
     }
     Object.assign(_detailRow, payload);
     _isEditMode = false;
     renderRegDetail();
   } catch(e) {
     showToast('⚠️ 실패: ' + e.message, 'error');
-    if (btn) { btn.textContent = isStage ? '📤 수정 보고 (텔레그램 전송)' : '💾 저장 (조용히)'; btn.disabled = false; }
+    if (btn) { btn.textContent = isStage ? '💾 저장' : '💾 저장 (조용히)'; btn.disabled = false; }
   }
 }
 

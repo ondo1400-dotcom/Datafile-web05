@@ -122,11 +122,10 @@ function _renderDashContent(role) {
     ${isAdm ? `
     <div class="sl" style="margin:0 0 8px;">청년회 전체 목표 대비 현황</div>
     <div id="${pfx}-yw-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
-    <div class="sl" style="margin:0 0 8px;">내 지역 단계별 목표 대비 현황</div>
     ` : `
-    <div class="sl" style="margin:0 0 8px;">단계별 목표 대비 현황</div>
-    `}
+    <div class="sl" style="margin:0 0 8px;">내 지역 단계별 목표 대비 현황</div>
     <div id="${pfx}-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
+    `}
     ${showFunnel ? `
     <div class="sl" style="margin:0 0 8px;">지역별 누적 달성 현황</div>
     <div id="${pfx}-funnel-wrap"><div class="loading-box">로딩 중...</div></div>
