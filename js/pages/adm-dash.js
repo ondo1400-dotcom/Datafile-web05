@@ -214,11 +214,12 @@ function _renderDashContent(role) {
 // ══════════════════════════════════════════════════════
 
 function _buildFunnelHtml(myRegions, useYwGoal = false) {
+  const eff = _effKaigang();
   const effectiveRegions = useYwGoal ? null : myRegions;
   const allPeople = _ldAllPeople().filter(r => {
     if (effectiveRegions && !effectiveRegions.includes(r['실적지역'])) return false;
-    if (_ldKaigang !== '전체' && normalizeKaigang(r['목표개강(연도/월)']) !== _ldKaigang && normalizeKaigang(r['이전개강']) !== _ldKaigang) return false;
-    if (_ldCenter  !== '전체' && r['목표센터'] !== _ldCenter) return false;
+    if (eff !== '전체' && normalizeKaigang(r['목표개강(연도/월)']) !== eff && normalizeKaigang(r['이전개강']) !== eff) return false;
+    if (_ldCenter !== '전체' && r['목표센터'] !== _ldCenter) return false;
     return true;
   });
 
@@ -301,7 +302,7 @@ function _buildNujeokAchHtml(myRegions) {
   }
 
   const COLS   = 2 + SHOW_STAGES.length * 3;
-  const kLabel = _ldKaigang !== '전체' ? _ldKaigang : '전체';
+  const kLabel = _effKaigang() !== '전체' ? _effKaigang() : '전체';
 
   const hdr1 = SHOW_STAGES.map(s => {
     const sc = STAGE_COLORS[s] || { bg: '#dbeafe', c: '#1e40af' };
@@ -404,6 +405,11 @@ const _LD_DOW       = ['일', '월', '화', '수', '목', '금', '토'];
 let _ldKaigang = '전체';
 let _ldCenter  = '전체';
 
+// 집중개강 반영: 필터가 '전체'일 때 focusKaigang을 기준으로 사용
+function _effKaigang() {
+  return _ldKaigang !== '전체' ? _ldKaigang : (STATE.focusKaigang || '전체');
+}
+
 // 활성 인원 (청년누적 + 찾기) — 전지역
 function _ldAllPeople() {
   const active = STATE.nujeok.filter(r => !isTallag(r));
@@ -416,19 +422,21 @@ function _ldAllPeople() {
 }
 
 function _ldFiltered() {
+  const eff = _effKaigang();
   return _ldAllPeople().filter(r => {
-    if (_ldKaigang !== '전체' && normalizeKaigang(r['목표개강(연도/월)']) !== _ldKaigang) return false;
-    if (_ldCenter  !== '전체' && r['목표센터'] !== _ldCenter) return false;
+    if (eff !== '전체' && normalizeKaigang(r['목표개강(연도/월)']) !== eff) return false;
+    if (_ldCenter !== '전체' && r['목표센터'] !== _ldCenter) return false;
     return true;
   });
 }
 
 function _ldGetGoal(region, stage) {
+  const eff = _effKaigang();
   return Object.entries(STATE.goals)
     .filter(([k]) => {
       if (!k.endsWith('|' + stage + '|' + region)) return false;
-      if (_ldKaigang !== '전체' && !k.startsWith(_ldKaigang + '|')) return false;
-      if (_ldCenter  !== '전체') {
+      if (eff !== '전체' && !k.startsWith(eff + '|')) return false;
+      if (_ldCenter !== '전체') {
         const parts = k.split('|');
         if (parts[1] !== _ldCenter) return false;
       }
@@ -805,11 +813,16 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
       ${centers.map(c => cBtn(c)).join('')}
     </div>` : '';
 
+  const focusBadge = (_ldKaigang === '전체' && STATE.focusKaigang)
+    ? `<span style="font-size:11px;color:var(--adm2);background:var(--adm-light);padding:2px 9px;border-radius:10px;border:1px solid var(--adm2);white-space:nowrap;">★ 기준: ${STATE.focusKaigang}</span>`
+    : '';
+
   wrap.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:8px;padding:10px 14px;background:var(--surface2);border-radius:12px;margin-bottom:2px;">
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <span style="font-size:11px;font-weight:700;color:var(--text3);min-width:26px;">개강</span>
         ${kaigangs.map(k => kBtn(k)).join('')}
+        ${focusBadge}
       </div>
       ${centerRow}
     </div>
@@ -981,7 +994,7 @@ function _buildDashSummaryText() {
   const meetMap = _ldMeetMap();
   const now     = new Date();
   const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  const kLabel  = _ldKaigang !== '전체' ? _ldKaigang : '전체';
+  const kLabel  = _effKaigang() !== '전체' ? _effKaigang() : '전체';
   const cLabel  = _ldCenter  !== '전체' ? _ldCenter  : '청년';
 
   const tod = new Date(); tod.setHours(0, 0, 0, 0);
@@ -1225,7 +1238,7 @@ function _buildDailySectionInner(filterRegions, readOnly) {
   if (!regions.length) return '<div style="color:var(--text3);font-size:12px;padding:10px;">데이터가 없습니다</div>';
 
   // 투명 입력 스타일: 숫자처럼 보이고 클릭 시만 밑줄
-  const inpBase = 'width:46px;text-align:center;border:none;border-bottom:1.5px solid transparent;background:transparent;font-size:14px;font-weight:700;font-family:inherit;padding:2px 0;cursor:pointer;outline:none;display:block;margin:0 auto;';
+  const inpBase = 'width:46px;text-align:center;border:none;border-bottom:1.5px solid transparent;background:transparent;font-size:14px;font-weight:700;font-family:inherit;padding:2px 0;cursor:pointer;outline:none;';
   const safe    = s => String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   const B       = 'border:1px solid var(--border);';
 
