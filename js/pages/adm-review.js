@@ -95,9 +95,9 @@ function openReviewPersonDetail(rowIndex) {
   const r = (STATE.dbFindings || []).find(d => d.id === rowIndex);
   if (!r) return;
 
-  // nujeok에서 같은 사람 찾기
+  // nujeok에서 같은 사람 찾기 (실적지역까지 일치해야 다른 지역 행 오매칭 방지)
   const nujeokRow = STATE.nujeok.find(n =>
-    n['섭외자'] === r['섭외자'] && n['인도자'] === r['인도자']
+    n['섭외자'] === r['섭외자'] && n['인도자'] === r['인도자'] && n['실적지역'] === r['실적지역']
   );
 
   if (nujeokRow) {

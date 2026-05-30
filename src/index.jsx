@@ -31,7 +31,8 @@ function renderReviewCell(row) {
     onClick: (e) => {
       e.stopPropagation();
       if (typeof window.openRequestReviewModal === 'function') {
-        window.openRequestReviewModal(ri, 'db');
+        // _isDbFinding 행이면 db_findings 기준으로, nujeok 행이면 nujeok 기준으로 탐색
+        window.openRequestReviewModal(ri, row._isDbFinding ? 'db' : 'nujeok');
       }
     }
   }, '심의요청');

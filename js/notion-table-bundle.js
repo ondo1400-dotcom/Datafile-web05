@@ -239,7 +239,7 @@
   // src/columnConfig.js
   var BOARD_COLUMNS = [
     { key: "\uB2E8\uACC4", label: "\uB2E8\uACC4", type: "select", width: 72, readonly: true, badgeType: "stage" },
-    { key: "\uC2E4\uC801\uC9C0\uC5ED", label: "\uC9C0\uC5ED", type: "select", width: 72, readonly: true, badgeType: "region" },
+    { key: "\uC2E4\uC801\uC9C0\uC5ED", label: "\uC9C0\uC5ED", type: "select", width: 72, badgeType: "region" },
     { key: "\uBAA9\uD45C\uAC1C\uAC15(\uC5F0\uB3C4/\uC6D4)", label: "\uBAA9\uD45C\uAC1C\uAC15", type: "text", width: 90, readonly: true },
     { key: "\uBAA9\uD45C\uC13C\uD130", label: "\uBAA9\uD45C\uC13C\uD130", type: "select", width: 90 },
     { key: "\uC12D\uC678\uC720\uD615", label: "\uC12D\uC678\uC720\uD615", type: "select", width: 100 },
@@ -271,7 +271,7 @@
   ];
   var DB_COLUMNS = [
     { key: "\uAD6C\uBD84", label: "\uB2E8\uACC4", type: "select", width: 80, readonly: true, badgeType: "stage" },
-    { key: "\uC2E4\uC801\uC9C0\uC5ED", label: "\uC9C0\uC5ED", type: "select", width: 80, readonly: true, badgeType: "region" },
+    { key: "\uC2E4\uC801\uC9C0\uC5ED", label: "\uC9C0\uC5ED", type: "select", width: 80, badgeType: "region" },
     { key: "\uBAA9\uD45C\uAC1C\uAC15(\uC5F0\uB3C4/\uC6D4)", label: "\uBAA9\uD45C\uAC1C\uAC15", type: "text", width: 90, readonly: true },
     { key: "\uBAA9\uD45C\uC13C\uD130", label: "\uBAA9\uD45C\uC13C\uD130", type: "select", width: 90 },
     { key: "\uC12D\uC678\uC720\uD615", label: "\uC12D\uC678\uC720\uD615", type: "select", width: 80 },
@@ -1438,7 +1438,7 @@
       onClick: (e) => {
         e.stopPropagation();
         if (typeof window.openRequestReviewModal === "function") {
-          window.openRequestReviewModal(ri, "db");
+          window.openRequestReviewModal(ri, row._isDbFinding ? "db" : "nujeok");
         }
       }
     }, "\uC2EC\uC758\uC694\uCCAD");
@@ -1523,7 +1523,7 @@
             }
           } else {
             if (typeof window.openPersonDetail === "function") {
-              window.openPersonDetail(row.__rowIndex ?? row.id, options.source || "adm-board", undefined, row._isTallag);
+              window.openPersonDetail(row.__rowIndex ?? row.id, options.source || "adm-board");
             }
           }
         },

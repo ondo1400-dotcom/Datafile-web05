@@ -821,9 +821,15 @@ def fetch_livedata(개강: str, 센터: str, 지역: str) -> list[dict]:
         .ilike('목표센터', f'%{센터}%')
         .execute()
     )
+    def _match_kaigang(r: dict) -> bool:
+        return (
+            _norm(str(r.get('목표개강(연도/월)') or '')) == 개강
+            or _norm(str(r.get('이전개강') or '')) == 개강
+        )
+
     nujeok_rows = [
         r for r in (res2.data or [])
-        if _norm(str(r.get('목표개강(연도/월)') or '')) == 개강
+        if _match_kaigang(r)
         and str(r.get('단계') or '') != '탈락'
     ]
     log.info(f'[livedata] nujeok 조회: 전체 {len(res2.data or [])}건 → 개강필터 후 {len(nujeok_rows)}건')

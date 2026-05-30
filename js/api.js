@@ -13,15 +13,25 @@ async function loadData(manual = false) {
       const notice = document.getElementById('gas-notice');
       if (notice) notice.style.display = 'block';
     } else {
+      // 현재 주의 월요일 계산
+      const _now = new Date();
+      const _dow = _now.getDay();
+      const _mon = new Date(_now);
+      _mon.setDate(_now.getDate() - (_dow === 0 ? 6 : _dow - 1));
+      const _weekStart = _mon.toISOString().slice(0, 10);
+
       const [
-        { data: nujeok,      error: e1 },
-        { data: tallag,      error: e2 },
-        { data: dbFindings,  error: e3 },
-        { data: meets,       error: e4 },
-        { data: checks,      error: e5 },
-        { data: checkItems,  error: e6 },
-        { data: goalsRows,   error: e7 },
-        { data: dbMeetings,  error: e8 },
+        { data: nujeok,        error: e1 },
+        { data: tallag,        error: e2 },
+        { data: dbFindings,    error: e3 },
+        { data: meets,         error: e4 },
+        { data: checks,        error: e5 },
+        { data: checkItems,    error: e6 },
+        { data: goalsRows,     error: e7 },
+        { data: dbMeetings,    error: e8 },
+        { data: dailyGoalRows, error: e9 },
+        { data: dailyRepRows,  error: e10 },
+        { data: weeklyGoalRows,error: e11 },
       ] = await Promise.all([
         SUPA.from('nujeok').select('*'),
         SUPA.from('tallag').select('*'),
@@ -31,6 +41,9 @@ async function loadData(manual = false) {
         SUPA.from('check_items').select('항목명').order('sort_order'),
         SUPA.from('goals').select('*'),
         SUPA.from('db_meetings').select('*').order('보고일시', { ascending: false }),
+        SUPA.from('daily_goals').select('*'),
+        SUPA.from('daily_reports').select('*'),
+        SUPA.from('weekly_goals').select('*').gte('week_start', _weekStart),
       ]);
 
       const firstErr = e1 || e2 || e3 || e4 || e5 || e6 || e7;
@@ -43,16 +56,33 @@ async function loadData(manual = false) {
         goalsMap[key] = r.target;
       });
 
+      // daily/weekly goals 맵 변환
+      const dailyGoalsMap = {};
+      (dailyGoalRows || []).forEach(r => {
+        dailyGoalsMap[`${r.date}|${r.region}|${r.stage}`] = r.target;
+      });
+      const dailyReportsMap = {};
+      (dailyRepRows || []).forEach(r => {
+        dailyReportsMap[`${r.date}|${r.region}|${r.stage}`] = r.count;
+      });
+      const weeklyGoalsMap = {};
+      (weeklyGoalRows || []).forEach(r => {
+        weeklyGoalsMap[`${r.week_start}|${r.region}|${r.stage}`] = r.target;
+      });
+
       _applyData({
-        nujeok:     nujeok     || [],
-        tallag:     tallag     || [],
-        dbFindings: dbFindings || [],
-        meets:      meets      || [],
-        dbMeetings: dbMeetings || [],
-        checks:     checks     || [],
-        checkItems: (checkItems || []).map(r => r['항목명']),
-        goals:      goalsMap,
-        syncedAt:   new Date().toISOString(),
+        nujeok:       nujeok       || [],
+        tallag:       tallag       || [],
+        dbFindings:   dbFindings   || [],
+        meets:        meets        || [],
+        dbMeetings:   dbMeetings   || [],
+        checks:       checks       || [],
+        checkItems:   (checkItems || []).map(r => r['항목명']),
+        goals:        goalsMap,
+        dailyGoals:   dailyGoalsMap,
+        dailyReports: dailyReportsMap,
+        weeklyGoals:  weeklyGoalsMap,
+        syncedAt:     new Date().toISOString(),
       });
 
       const notice = document.getElementById('gas-notice');
@@ -104,9 +134,12 @@ function _applyData(data) {
     '목표센터':          normalizeCenter(r['목표센터'], canonicalCenters),
     __rowIndex: parseInt(r.id) || i,
   }));
-  STATE.checks     = data.checks     || [];
-  STATE.checkItems = data.checkItems || [];
-  STATE.goals      = data.goals      || {};
+  STATE.checks        = data.checks        || [];
+  STATE.checkItems    = data.checkItems    || [];
+  STATE.goals         = data.goals         || {};
+  STATE.dailyGoals    = data.dailyGoals    || {};
+  STATE.dailyReports  = data.dailyReports  || {};
+  STATE.weeklyGoals   = data.weeklyGoals   || {};
   STATE.dbFindings = (data.dbFindings || []).map((r, i) => ({
     ...r,
     '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
