@@ -1237,18 +1237,19 @@ function _buildDailySectionInner(filterRegions, readOnly) {
   const regions = _getDailyRegions(filterRegions);
   if (!regions.length) return '<div style="color:var(--text3);font-size:12px;padding:10px;">데이터가 없습니다</div>';
 
-  const inpBase = 'width:46px;text-align:center;border:none;border-bottom:2px solid transparent;background:transparent;font-size:14px;font-weight:700;font-family:inherit;padding:1px 0;cursor:pointer;outline:none;';
+  const inpBase = 'width:52px;text-align:center;border:none;border-bottom:2px solid transparent;background:transparent;font-size:16px;font-weight:700;font-family:inherit;padding:1px 0;cursor:pointer;outline:none;';
   const safe    = s => String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   const B       = 'border:1px solid #e2e8f0;';
 
-  // % 텍스트 색만 (배경 없음)
-  const pctColor = pct => {
-    if (pct === null) return '#94a3b8';
-    if (pct === 0)    return '#ef4444';
-    if (pct >= 100)   return '#16a34a';
-    if (pct >= 70)    return '#15803d';
-    if (pct >= 50)    return '#d97706';
-    return '#dc2626';
+  // % 배경색 (진빨→연주황→연노랑→초록→진초록) + 흰 글씨
+  const pctStyle = pct => {
+    if (pct === null) return 'background:#e2e8f0;color:#94a3b8;';
+    if (pct === 0)    return 'background:#991b1b;color:#fff;';
+    if (pct < 30)     return 'background:#dc2626;color:#fff;';
+    if (pct < 50)     return 'background:#ea580c;color:#fff;';
+    if (pct < 70)     return 'background:#ca8a04;color:#fff;';
+    if (pct < 100)    return 'background:#16a34a;color:#fff;';
+    return 'background:#15803d;color:#fff;';
   };
 
   const inp = (val, color, onchange) =>
@@ -1265,16 +1266,16 @@ function _buildDailySectionInner(filterRegions, readOnly) {
 
   const stageHdrs = _DAILY_STAGES.map(s => {
     const sc = STAGE_COLORS[s] || { bg: '#dbeafe', c: '#1d4ed8' };
-    return `<th colspan="4" style="padding:9px 8px;background:${sc.c};color:#fff;${B}text-align:center;font-size:13px;font-weight:700;letter-spacing:0.3px;">${_DAILY_ABBR[s]}</th>`;
+    return `<th colspan="4" style="padding:10px 8px;background:${sc.c};color:#fff;${B}text-align:center;font-size:14px;font-weight:700;letter-spacing:0.5px;">${_DAILY_ABBR[s]}</th>`;
   }).join('');
 
   const subHdrs = _DAILY_STAGES.flatMap(s => {
     const sc = STAGE_COLORS[s] || { bg: '#dbeafe', c: '#1d4ed8' };
     return [
-      `<th style="padding:5px 4px;background:${sc.bg};color:${sc.c};${B}text-align:center;font-size:11px;font-weight:600;min-width:54px;">목표</th>`,
-      `<th style="padding:5px 4px;background:${sc.bg};color:${sc.c};${B}text-align:center;font-size:11px;font-weight:600;min-width:54px;">달성</th>`,
-      `<th style="padding:5px 4px;background:${sc.bg};color:#0369a1;${B}text-align:center;font-size:11px;font-weight:600;min-width:54px;">웹보고</th>`,
-      `<th style="padding:5px 4px;background:#f1f5f9;color:#475569;${B}text-align:center;font-size:11px;font-weight:600;min-width:50px;">%</th>`,
+      `<th style="padding:6px 4px;background:${sc.bg};color:${sc.c};${B}text-align:center;font-size:12px;font-weight:600;min-width:62px;">목표</th>`,
+      `<th style="padding:6px 4px;background:${sc.bg};color:${sc.c};${B}text-align:center;font-size:12px;font-weight:600;min-width:62px;">달성</th>`,
+      `<th style="padding:6px 4px;background:${sc.bg};color:#0369a1;${B}text-align:center;font-size:12px;font-weight:600;min-width:62px;">웹보고</th>`,
+      `<th style="padding:6px 4px;background:#1e293b;color:#94a3b8;${B}text-align:center;font-size:12px;font-weight:600;min-width:58px;">%</th>`,
     ];
   }).join('');
 
@@ -1285,20 +1286,20 @@ function _buildDailySectionInner(filterRegions, readOnly) {
       const web    = _calcDailyAch(date, region, stage);
       const pct    = goal > 0 ? Math.round(rep / goal * 100) : (rep > 0 ? null : 0);
       const pctTxt = pct === null ? '—' : pct + '%';
-      const pc     = pctColor(pct);
+      const ps     = pctStyle(pct);
       const goalCell = readOnly
-        ? `<td style="${B}text-align:center;font-size:14px;font-weight:700;color:#1e293b;">${goal || 0}</td>`
+        ? `<td style="${B}text-align:center;font-size:16px;font-weight:700;color:#1e293b;">${goal || 0}</td>`
         : `<td style="${B}text-align:center;padding:3px 2px;">${inp(goal, '#334155', `onDailyGoalChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
       const achCell = readOnly
-        ? `<td style="${B}text-align:center;font-size:14px;font-weight:700;color:#0369a1;">${rep || 0}</td>`
+        ? `<td style="${B}text-align:center;font-size:16px;font-weight:700;color:#0369a1;">${rep || 0}</td>`
         : `<td style="${B}text-align:center;padding:3px 2px;">${inp(rep, '#0369a1', `onDailyReportChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
       return `${goalCell}
         ${achCell}
-        <td style="${B}text-align:center;font-size:14px;font-weight:600;color:#0284c7;">${web || 0}</td>
-        <td style="${B}text-align:center;font-size:13px;font-weight:800;color:${pc};">${pctTxt}</td>`;
+        <td style="${B}text-align:center;font-size:16px;font-weight:600;color:#0284c7;">${web || 0}</td>
+        <td style="${B}text-align:center;font-size:15px;font-weight:800;padding:0;${ps}">${pctTxt}</td>`;
     }).join('');
     return `<tr style="border-bottom:1px solid #e2e8f0;">
-      <td style="font-weight:700;font-size:14px;padding:9px 16px;${B}background:#f8fafc;text-align:center;color:#1e293b;white-space:nowrap;">${region}</td>
+      <td style="font-weight:700;font-size:15px;padding:10px 18px;${B}background:#f8fafc;text-align:center;color:#1e293b;white-space:nowrap;">${region}</td>
       ${cells}
     </tr>`;
   }).join('');
@@ -1309,23 +1310,23 @@ function _buildDailySectionInner(filterRegions, readOnly) {
     const totWeb  = regions.reduce((s, r) => s + _calcDailyAch(date, r, stage), 0);
     const totPct  = totGoal > 0 ? Math.round(totRep / totGoal * 100) : (totRep > 0 ? null : 0);
     const totTxt  = totPct === null ? '—' : totPct + '%';
-    const pc      = pctColor(totPct);
-    return `<td style="${B}text-align:center;font-size:15px;font-weight:800;background:#fbbf24;color:#1a1400;">${totGoal}</td>
-      <td style="${B}text-align:center;font-size:15px;font-weight:800;background:#fbbf24;color:#1a1400;">${totRep}</td>
-      <td style="${B}text-align:center;font-size:15px;font-weight:700;background:#fbbf24;color:#0369a1;">${totWeb}</td>
-      <td style="${B}text-align:center;font-size:14px;font-weight:800;background:#fbbf24;color:${pc};">${totTxt}</td>`;
+    const ps      = pctStyle(totPct);
+    return `<td style="${B}text-align:center;font-size:17px;font-weight:800;background:#fbbf24;color:#1a1400;">${totGoal}</td>
+      <td style="${B}text-align:center;font-size:17px;font-weight:800;background:#fbbf24;color:#1a1400;">${totRep}</td>
+      <td style="${B}text-align:center;font-size:17px;font-weight:700;background:#fbbf24;color:#0369a1;">${totWeb}</td>
+      <td style="${B}text-align:center;font-size:16px;font-weight:800;padding:0;${ps}">${totTxt}</td>`;
   }).join('');
 
   return `<div class="dash-tbl-wrap" style="border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.10);">
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
       <thead>
         <tr>
-          <td colspan="${COLS}" style="padding:11px 18px;background:linear-gradient(135deg,#1e3a5f,#1d4ed8);color:#fff;font-weight:700;font-size:14px;text-align:center;letter-spacing:0.5px;">
+          <td colspan="${COLS}" style="padding:12px 18px;background:linear-gradient(135deg,#1e3a5f,#1d4ed8);color:#fff;font-weight:700;font-size:15px;text-align:center;letter-spacing:0.5px;">
             📅 일일달성 현황 &nbsp;·&nbsp; ${date} (${dow}) &nbsp;·&nbsp; ${kLabel}
           </td>
         </tr>
         <tr>
-          <th rowspan="2" style="padding:10px 16px;background:#e2e8f0;color:#1e293b;${B}text-align:center;font-size:13px;font-weight:700;">지역</th>
+          <th rowspan="2" style="padding:10px 18px;background:#e2e8f0;color:#1e293b;${B}text-align:center;font-size:14px;font-weight:700;">지역</th>
           ${stageHdrs}
         </tr>
         <tr>${subHdrs}</tr>
