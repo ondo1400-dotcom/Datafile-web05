@@ -389,7 +389,7 @@ function _ldAllPeople() {
 
 function _ldFiltered() {
   return _ldAllPeople().filter(r => {
-    if (_ldKaigang !== '전체' && normalizeKaigang(r['목표개강(연도/월)']) !== _ldKaigang && normalizeKaigang(r['이전개강']) !== _ldKaigang) return false;
+    if (_ldKaigang !== '전체' && normalizeKaigang(r['목표개강(연도/월)']) !== _ldKaigang) return false;
     if (_ldCenter  !== '전체' && r['목표센터'] !== _ldCenter) return false;
     return true;
   });
