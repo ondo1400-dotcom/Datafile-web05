@@ -117,7 +117,7 @@ function renderGoalTable(regionListArg) {
 }
 
 function setGoalFilter(key, val) {
-  goalFilter[key] = val.trim();
+  goalFilter[key] = key === 'kaigang' ? normalizeKaigang(val) : val.trim();
   if (!goalFilter.kaigang || !goalFilter.center) {
     const status = document.getElementById('goal-save-status');
     if (status) status.textContent = '개강과 센터를 모두 입력해주세요';

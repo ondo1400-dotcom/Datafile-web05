@@ -39,7 +39,7 @@ async function loadData(manual = false) {
       // goals: 배열 → { 'kaigang|center|stage|region': count } 형태로 변환
       const goalsMap = {};
       (goalsRows || []).forEach(r => {
-        const key = `${r.kaigang}|${r.center}|${r.stage}|${r.region}`;
+        const key = `${normalizeKaigang(r.kaigang)}|${r.center}|${r.stage}|${r.region}`;
         goalsMap[key] = r.target;
       });
 

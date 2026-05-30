@@ -187,7 +187,7 @@ function _buildFunnelHtml(myRegions, useYwGoal = false) {
   const effectiveRegions = useYwGoal ? null : myRegions;
   const allPeople = _ldAllPeople().filter(r => {
     if (effectiveRegions && !effectiveRegions.includes(r['실적지역'])) return false;
-    if (_ldKaigang !== '전체' && r['목표개강(연도/월)'] !== _ldKaigang && r['이전개강'] !== _ldKaigang) return false;
+    if (_ldKaigang !== '전체' && normalizeKaigang(r['목표개강(연도/월)']) !== _ldKaigang && normalizeKaigang(r['이전개강']) !== _ldKaigang) return false;
     if (_ldCenter  !== '전체' && r['목표센터'] !== _ldCenter) return false;
     return true;
   });
@@ -378,7 +378,7 @@ function _ldAllPeople() {
 
 function _ldFiltered() {
   return _ldAllPeople().filter(r => {
-    if (_ldKaigang !== '전체' && r['목표개강(연도/월)'] !== _ldKaigang && r['이전개강'] !== _ldKaigang) return false;
+    if (_ldKaigang !== '전체' && normalizeKaigang(r['목표개강(연도/월)']) !== _ldKaigang && normalizeKaigang(r['이전개강']) !== _ldKaigang) return false;
     if (_ldCenter  !== '전체' && r['목표센터'] !== _ldCenter) return false;
     return true;
   });
@@ -726,12 +726,12 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
   if (!wrap) return;
 
   const kaigangs = ['전체', ...[...new Set(
-    STATE.nujeok.map(r => r['목표개강(연도/월)']).filter(Boolean)
+    STATE.nujeok.map(r => normalizeKaigang(r['목표개강(연도/월)'])).filter(Boolean)
   )].sort()];
 
   const relevantNujeok = _ldKaigang === '전체'
     ? STATE.nujeok
-    : STATE.nujeok.filter(r => r['목표개강(연도/월)'] === _ldKaigang);
+    : STATE.nujeok.filter(r => normalizeKaigang(r['목표개강(연도/월)']) === _ldKaigang);
   const centerSet = [...new Set(relevantNujeok.map(r => r['목표센터']).filter(Boolean))].sort();
   const centers = centerSet.length > 1 ? ['전체', ...centerSet] : [];
 
@@ -764,7 +764,7 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
 }
 
 function _ldSetKaigang(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId, ywCardsId) {
-  _ldKaigang = val;
+  _ldKaigang = val === '전체' ? '전체' : normalizeKaigang(val);
   _ldCenter  = '전체';
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);

@@ -14,11 +14,14 @@ function sortRegions(arr) {
   });
 }
 
-// 개강 정규화 (43/6 → 43/06, 43년/6월 → 43/06)
+// 개강 정규화 (43/6 → 43/06, 43년/6월 → 43/06, "43/06 홍대 개강" → "43/06 홍대")
 function normalizeKaigang(val) {
   if (!val) return '';
-  const s = String(val).replace(/년/g, '').replace(/월/g, '').trim();
-  return s.replace(/^(\d+)\/(\d)$/, '$1/0$2');
+  let s = String(val).replace(/년/g, '/').replace(/월/g, '').replace(/\s*개강\s*/g, '').trim();
+  // 한 자리 월 → 두 자리 (문자열 중간에 있어도 처리)
+  s = s.replace(/^(\d+)\/(\d)(\s|$)/, (_, y, m, after) => `${y}/0${m}${after}`).trim();
+  s = s.replace(/^(\d+)\/(\d)$/, '$1/0$2');
+  return s;
 }
 
 // 센터명 정규화 (goals 테이블 canonical 기준, prefix 매칭)
