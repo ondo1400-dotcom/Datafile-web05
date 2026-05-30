@@ -119,26 +119,33 @@ function _renderDashContent(role) {
       </div>`
     : '';
 
+  // ── 섹션 전송 버튼 헬퍼 ──
+  const _tgBtn = (ids, type, label) => isAdmin
+    ? `<button onclick="sendSectionTg(event,'${ids}','${type}')" style="padding:2px 10px;border-radius:10px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;flex-shrink:0;">📤 ${label}</button>`
+    : '';
+  const _slRow = (title, btn, mt = '0 0 8px') =>
+    `<div class="sl" style="margin:${mt};display:flex;align-items:center;justify-content:space-between;">${title}${btn}</div>`;
+
   // ── 내부탭별 컨텐츠 ──
   const nujeokContent = `
     ${(isAdm || _regDashTab === 'all') ? `
-    <div class="sl" style="margin:0 0 8px;">청년회 전체 목표 대비 현황</div>
+    ${_slRow('청년회 전체 목표 대비 현황', _tgBtn(pfx+'-yw-cards-wrap', 'weekly', '주간달성'))}
     <div id="${pfx}-yw-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
     ` : `
-    <div class="sl" style="margin:0 0 8px;">내 지역 단계별 목표 대비 현황</div>
+    ${_slRow('내 지역 단계별 목표 대비 현황', _tgBtn(pfx+'-cards-wrap', 'weekly', '주간달성'))}
     <div id="${pfx}-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
     `}
     ${showFunnel ? `
-    <div class="sl" style="margin:0 0 8px;">지역별 누적 달성 현황</div>
+    ${_slRow('지역별 누적 달성 현황', _tgBtn(pfx+'-funnel-wrap', 'nujeok', '누적달성'))}
     <div id="${pfx}-funnel-wrap"><div class="loading-box">로딩 중...</div></div>
     ` : ''}
   `;
 
   const boyooContent = `
-    <div class="sl" style="margin:0 0 8px;">오늘 일일 결과 (${new Date().toISOString().slice(0,10)})</div>
+    ${_slRow(`오늘 일일 결과 (${new Date().toISOString().slice(0,10)})`, _tgBtn(pfx+'-daily-wrap', 'daily', '일일달성'))}
     <div id="${pfx}-daily-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
 
-    <div class="sl" style="margin:0 0 8px;">단계별 보유현황 (만남캘린더)</div>
+    ${_slRow('단계별 보유현황 (만남캘린더)', _tgBtn(pfx+'-stage-wrap,'+pfx+'-meet-wrap', 'boyoo', '보유현황'))}
     <div id="${pfx}-stage-wrap"><div class="loading-box">로딩 중...</div></div>
 
     <div class="sl" style="margin-top:20px;">만남 현황 (단계별 · 오늘/내일/모레/이후)</div>
@@ -764,10 +771,6 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
       color:${active?'#fff':'var(--text2)'};white-space:nowrap;">${c}</button>`;
   };
 
-  const tgBtn = isAdmin
-    ? `<button onclick="sendDashTg(event,'${stageId}','${meetId}')" style="padding:4px 14px;border-radius:20px;border:none;background:#229ED9;color:#fff;font-size:12px;cursor:pointer;font-weight:700;white-space:nowrap;">📊 전송</button>`
-    : '';
-
   const centerRow = centers.length > 1 ? `
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
       <span style="font-size:11px;font-weight:700;color:var(--text3);min-width:26px;">센터</span>
@@ -779,7 +782,6 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <span style="font-size:11px;font-weight:700;color:var(--text3);min-width:26px;">개강</span>
         ${kaigangs.map(k => kBtn(k)).join('')}
-        ${tgBtn}
       </div>
       ${centerRow}
     </div>
@@ -948,61 +950,57 @@ function _asyncFillLd(stageId, meetId, filterId, funnelId, myRegions, isAdmin, c
 // ─── 텔레그램 전송용 표 텍스트 빌더 ───
 function _buildDashSummaryText() {
   const people  = _ldFiltered();
-  const regions = _ldRegions(people);
+  const meetMap = _ldMeetMap();
   const now     = new Date();
-  const dateStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   const kLabel  = _ldKaigang !== '전체' ? _ldKaigang : '전체';
   const cLabel  = _ldCenter  !== '전체' ? _ldCenter  : '청년';
 
-  const countMap = {}, totRow = { total: 0 };
-  STAGE_ORDER.forEach(s => totRow[s] = 0);
-  regions.forEach(r => { countMap[r] = { total: 0 }; STAGE_ORDER.forEach(s => countMap[r][s] = 0); });
-  people.forEach(p => {
-    const reg = p['실적지역'], stg = p['단계'];
-    if (!reg || !countMap[reg] || !STAGE_ORDER.includes(stg)) return;
-    countMap[reg][stg]++; countMap[reg].total++;
-    totRow[stg]++;        totRow.total++;
+  const tod = new Date(); tod.setHours(0, 0, 0, 0);
+  function addDays(n) { const d = new Date(tod); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+  const d1 = addDays(1), d2 = addDays(2);
+
+  function grpKey(date) {
+    if (!date) return 'none';
+    const d = new Date(date); d.setHours(0, 0, 0, 0);
+    const diff = Math.round((d - tod) / 86400000);
+    if (diff < 0)   return 'none';
+    if (diff === 0) return 'today';
+    if (diff === 1) return 'd1';
+    if (diff === 2) return 'd2';
+    return 'after';
+  }
+
+  function getMeet(r) {
+    return meetMap[(r['섭외자'] || '') + '|' + (r['인도자'] || '')] || null;
+  }
+
+  const SHOW = ['찾기', '합자', '육따기', '영따기', '복음방'];
+  const ABBR = { '찾기': '찾기', '합자': '합자', '육따기': '육따', '영따기': '영따', '복음방': '복음방' };
+  const total = people.filter(p => SHOW.includes(p['단계'])).length;
+
+  const lines = [
+    `📊 보유데이터 현황 ${dateStr}`,
+    '',
+    `📈 단계별 보유현황 (${kLabel}/${cLabel})`,
+    `📌 총 인원: ${total}명`,
+  ];
+
+  SHOW.forEach(stage => {
+    const sp = people.filter(p => p['단계'] === stage);
+    const c  = { today: 0, d1: 0, d2: 0, after: 0, none: 0 };
+    sp.forEach(r => { c[grpKey(getMeet(r)?._date)]++; });
+    lines.push('');
+    lines.push(`■${ABBR[stage]} : ${sp.length}명`);
+    lines.push(`오늘 ${c.today} | 내일 ${c.d1} | 모레 ${c.d2}`);
+    lines.push(`이후 ${c.after} | 미정 ${c.none}`);
   });
 
-  const RATE_STAGES = ['합자', '육따기', '영따기'];
-  const cumul    = (region, stage) => { const fi = STAGE_ORDER.indexOf(stage); return STAGE_ORDER.slice(fi).reduce((s, st) => s + (countMap[region]?.[st]||0), 0); };
-  const cumulTot = stage           => { const fi = STAGE_ORDER.indexOf(stage); return STAGE_ORDER.slice(fi).reduce((s, st) => s + (totRow[st]||0), 0); };
-  const goalSum  = s => regions.reduce((sum, r) => sum + _ldGetGoal(r, s), 0);
-  const pct      = (cnt, goal) => goal ? Math.round(cnt / goal * 100) + '%' : '—';
-  const totGoals = RATE_STAGES.map(goalSum);
-
-  const ABBR = ['찾', '합', '육', '영', '복', '센', '수'];
-  const SEP  = '────────────────────────────────────';
-
-  const hdr = `지역 | ${ABBR.join('│')} | 합 | 합%│육%│영%`;
-
-  const mkRow = (label, c, cumulFn) => {
-    const sv = STAGE_ORDER.map(s => c[s] || 0).join('│');
-    const rs = RATE_STAGES.map(s => pct(cumulFn(s), goalSum(s))).join('│');
-    return `${label} | ${sv} | ${c.total || 0} | ${rs}`;
-  };
-
-  const regionRows = regions.map(r => mkRow(r, countMap[r], s => cumul(r, s)));
-  const totLine    = (() => {
-    const sv = STAGE_ORDER.map(s => totRow[s] || 0).join('│');
-    return `합계 | ${sv} | ${totRow.total} | ${RATE_STAGES.map(s => pct(cumulTot(s), goalSum(s))).join('│')}`;
-  })();
-
-  return [
-    `📊 단계별 보유현황 (${kLabel} · ${cLabel})`,
-    `📅 ${dateStr}`,
-    `목표 합자:${totGoals[0]} | 육따기:${totGoals[1]} | 영따기:${totGoals[2]}`,
-    '',
-    hdr,
-    SEP,
-    ...regionRows,
-    SEP,
-    totLine,
-  ].join('\n');
+  return lines.join('\n');
 }
 
-// ─── 보유현황 이미지 + 텍스트 전송 ───
-async function sendDashTg(e, stageId, meetId) {
+// ─── 섹션별 이미지 + 텍스트 전송 ───
+async function sendSectionTg(e, idsStr, type) {
   const btn = e.target;
   const origText = btn.textContent;
   btn.disabled = true;
@@ -1012,38 +1010,44 @@ async function sendDashTg(e, stageId, meetId) {
     if (typeof html2canvas === 'undefined') throw new Error('html2canvas 라이브러리 로드 실패');
 
     btn.textContent = '캡처 중...';
-    const stageEl = document.getElementById(stageId);
-    const meetEl  = document.getElementById(meetId);
-    if (!stageEl || !meetEl) throw new Error('캡처 대상 요소 없음');
+    const ids = idsStr.split(',').map(s => s.trim());
+    const els = ids.map(id => document.getElementById(id));
+    if (els.some(el => !el)) throw new Error('캡처 대상 요소 없음');
 
     const opts = { scale: 1.5, backgroundColor: '#ffffff', useCORS: true, logging: false };
-    const [c1, c2] = await Promise.all([html2canvas(stageEl, opts), html2canvas(meetEl, opts)]);
+    const canvases = await Promise.all(els.map(el => html2canvas(el, opts)));
 
     const pad = 16;
     const combined = document.createElement('canvas');
-    combined.width  = Math.max(c1.width, c2.width) + pad * 2;
-    combined.height = c1.height + c2.height + pad * 3;
+    combined.width  = Math.max(...canvases.map(c => c.width)) + pad * 2;
+    combined.height = canvases.reduce((h, c) => h + c.height, 0) + pad * (canvases.length + 1);
     const ctx = combined.getContext('2d');
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, combined.width, combined.height);
-    ctx.drawImage(c1, pad, pad);
-    ctx.drawImage(c2, pad, pad + c1.height + pad);
+    let y = pad;
+    canvases.forEach(c => { ctx.drawImage(c, pad, y); y += c.height + pad; });
 
     btn.textContent = '전송 중...';
-    const caption = _buildDashSummaryText();
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    const captions = {
+      daily  : `📅 일일달성 ${dateStr}`,
+      weekly : `📊 주간달성 ${dateStr}`,
+      nujeok : `📈 누적달성 ${dateStr}`,
+      boyoo  : _buildDashSummaryText(),
+    };
+    const caption = captions[type] || `📤 현황 ${dateStr}`;
+
     const blob = await new Promise(resolve => combined.toBlob(resolve, 'image/jpeg', 0.85));
     const form = new FormData();
     form.append('chat_id', REVIEW_TELEGRAM_CHAT);
     form.append('photo', blob, 'dashboard.jpg');
     form.append('caption', caption);
 
-    const res  = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-      method: 'POST',
-      body: form,
-    });
+    const res  = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: 'POST', body: form });
     const data = await res.json();
     if (!data.ok) throw new Error(data.description || '전송 실패');
-    showToast('📊 현황 전송 완료!');
+    showToast('📤 전송 완료!');
   } catch(err) {
     showToast('⚠️ 실패: ' + err.message, 'error');
   }
