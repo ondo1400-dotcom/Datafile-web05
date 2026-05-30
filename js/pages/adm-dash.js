@@ -150,9 +150,6 @@ function _renderDashContent(role) {
   `;
 
   const boyooContent = `
-    ${_slRow(`오늘 일일 결과 (${new Date().toISOString().slice(0,10)})`, _tgBtn(pfx+'-daily-wrap', 'daily', '일일달성'))}
-    <div id="${pfx}-daily-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
-
     ${_slRow('단계별 보유현황 (만남캘린더)', _tgBtn(pfx+'-stage-wrap,'+pfx+'-meet-wrap', 'boyoo', '보유현황'))}
     <div id="${pfx}-stage-wrap"><div class="loading-box">로딩 중...</div></div>
 
@@ -166,6 +163,17 @@ function _renderDashContent(role) {
   // 주간-일일 탭: 지역 담당자의 청년회 종합(all) 탭에서는 읽기전용
   const outerTab   = isAdm ? _admDashTab : _regDashTab;
   const isReadOnly = !isAdm && outerTab === 'all';
+
+  // 주간-일일 탭 컨텐츠 사전 계산 (오류 시 탭 전환 자체가 막히지 않도록)
+  let _dailyBody = '';
+  if (innerTab === 'daily') {
+    try {
+      _dailyBody = _buildDailyTabHtml(filterRegions, isReadOnly);
+    } catch(e) {
+      console.error('[주간-일일 탭 오류]', e);
+      _dailyBody = `<div style="color:#dc2626;padding:16px;font-size:12px;background:#fee2e2;border-radius:8px;margin-top:8px;">주간-일일 탭 오류: ${e.message}</div>`;
+    }
+  }
 
   el.innerHTML = `
     ${regionBadge}
@@ -182,7 +190,7 @@ function _renderDashContent(role) {
     </div>
 
     ${innerTab === 'nujeok' ? nujeokContent
-      : innerTab === 'daily' ? _buildDailyTabHtml(filterRegions, isReadOnly)
+      : innerTab === 'daily' ? _dailyBody
       : boyooContent}
   `;
 
@@ -198,11 +206,6 @@ function _renderDashContent(role) {
       _showYwCards ? null : pfx + '-cards-wrap',
       _showYwCards ? pfx + '-yw-cards-wrap' : null
     );
-  }
-
-  if (innerTab === 'boyoo') {
-    const dw = document.getElementById(pfx + '-daily-wrap');
-    if (dw) dw.innerHTML = _buildTodayHtml(filterRegions);
   }
 }
 
@@ -1215,72 +1218,88 @@ function _pctStyle(pct) {
   return 'background:#fee2e2;color:#dc2626;';
 }
 
-// ─── 일일달성 섹션 내부 HTML (단계별 테이블) ───
+// ─── 일일달성 섹션 내부 HTML (통합 테이블) ───
 function _buildDailySectionInner(filterRegions, readOnly) {
   const date    = _dailyDate;
   const regions = _getDailyRegions(filterRegions);
   if (!regions.length) return '<div style="color:var(--text3);font-size:12px;padding:10px;">데이터가 없습니다</div>';
 
-  const inpSt = 'width:38px;text-align:center;border:1px solid var(--border2);border-radius:3px;padding:2px 1px;font-size:12px;font-weight:700;font-family:inherit;';
+  const inpSt = 'width:36px;text-align:center;border:1px solid var(--border2);border-radius:3px;padding:2px 1px;font-size:12px;font-weight:700;font-family:inherit;';
   const safe  = s => String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const B = 'border:1px solid var(--border);';
 
-  const sections = _DAILY_STAGES.map(stage => {
-    const sc = STAGE_COLORS[stage] || { bg: '#e0f2fe', c: '#0369a1' };
-    const wid = `daily-stg-${stage}-wrap`;
-    const regionRows = regions.map(region => {
-      const goal = _getDailyGoal(date, region, stage);
-      const ach  = _calcDailyAch(date, region, stage);
-      const rep  = _getDailyReport(date, region, stage);
-      const pct  = goal > 0 ? Math.round(ach / goal * 100) : (ach > 0 ? null : 0);
+  const stageHdrs = _DAILY_STAGES.map(s => {
+    const sc = STAGE_COLORS[s] || { bg: '#e0f2fe', c: '#0369a1' };
+    return `<th colspan="4" style="padding:6px 8px;background:${sc.bg};color:${sc.c};${B}text-align:center;font-size:12px;">${_DAILY_ABBR[s]}</th>`;
+  }).join('');
+
+  const subHdrs = _DAILY_STAGES.flatMap(s => {
+    const sc = STAGE_COLORS[s] || { bg: '#e0f2fe', c: '#0369a1' };
+    const bg = sc.bg + '88';
+    return [
+      `<th style="padding:3px 4px;background:${bg};color:${sc.c};${B}text-align:center;font-size:10px;font-weight:500;min-width:44px;">목표</th>`,
+      `<th style="padding:3px 4px;background:${bg};color:${sc.c};${B}text-align:center;font-size:10px;font-weight:500;min-width:40px;">달성</th>`,
+      `<th style="padding:3px 4px;background:${bg};color:#0284c7;${B}text-align:center;font-size:10px;font-weight:500;min-width:40px;">보고</th>`,
+      `<th style="padding:3px 4px;background:#f8fafc;color:var(--text2);${B}text-align:center;font-size:10px;font-weight:500;min-width:40px;">%</th>`,
+    ];
+  }).join('');
+
+  const regionRows = regions.map(region => {
+    const cells = _DAILY_STAGES.map(stage => {
+      const goal   = _getDailyGoal(date, region, stage);
+      const ach    = _calcDailyAch(date, region, stage);
+      const rep    = _getDailyReport(date, region, stage);
+      const pct    = goal > 0 ? Math.round(ach / goal * 100) : (ach > 0 ? null : 0);
       const pctTxt = pct === null ? '—' : pct + '%';
+      const pctSt  = pct === null ? '' : _pctStyle(pct);
       const goalCell = readOnly
-        ? `<td style="border:1px solid var(--border);text-align:center;font-weight:700;">${goal}</td>`
-        : `<td style="border:1px solid var(--border);text-align:center;padding:3px 2px;"><input type="number" min="0" value="${goal||''}" placeholder="0" style="${inpSt}" onchange="onDailyGoalChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')" onfocus="this.select()"></td>`;
+        ? `<td style="${B}text-align:center;color:var(--text3);font-size:11px;">${goal || 0}</td>`
+        : `<td style="${B}text-align:center;padding:2px;"><input type="number" min="0" value="${goal||''}" placeholder="0" style="${inpSt}" onchange="onDailyGoalChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')" onfocus="this.select()"></td>`;
       const repCell = readOnly
-        ? `<td style="border:1px solid var(--border);text-align:center;color:#0284c7;font-weight:600;">${rep}</td>`
-        : `<td style="border:1px solid var(--border);text-align:center;padding:3px 2px;"><input type="number" min="0" value="${rep||''}" placeholder="0" style="${inpSt};color:#0284c7;" onchange="onDailyReportChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')" onfocus="this.select()"></td>`;
-      return `<tr>
-        <td style="font-weight:700;padding:6px 10px;border:1px solid var(--border);background:#f0f9ff;white-space:nowrap;">${region}</td>
-        ${goalCell}
-        <td style="border:1px solid var(--border);text-align:center;font-weight:700;font-family:monospace;">${ach}</td>
+        ? `<td style="${B}text-align:center;color:#0284c7;font-weight:600;">${rep}</td>`
+        : `<td style="${B}text-align:center;padding:2px;"><input type="number" min="0" value="${rep||''}" placeholder="0" style="${inpSt}color:#0284c7;" onchange="onDailyReportChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')" onfocus="this.select()"></td>`;
+      return `${goalCell}
+        <td style="${B}text-align:center;font-weight:700;">${ach}</td>
         ${repCell}
-        <td style="border:1px solid var(--border);text-align:center;font-weight:700;font-size:11px;${_pctStyle(pct)}">${pctTxt}</td>
-      </tr>`;
+        <td style="${B}text-align:center;font-weight:700;font-size:11px;${pctSt}">${pctTxt}</td>`;
     }).join('');
+    return `<tr>
+      <td style="font-weight:700;padding:6px 10px;${B}background:#f1f5f9;white-space:nowrap;">${region}</td>
+      ${cells}
+    </tr>`;
+  }).join('');
 
+  const totCells = _DAILY_STAGES.map(stage => {
     const totGoal = regions.reduce((s, r) => s + _getDailyGoal(date, r, stage), 0);
     const totAch  = regions.reduce((s, r) => s + _calcDailyAch(date, r, stage), 0);
     const totRep  = regions.reduce((s, r) => s + _getDailyReport(date, r, stage), 0);
     const totPct  = totGoal > 0 ? Math.round(totAch / totGoal * 100) : (totAch > 0 ? null : 0);
     const totTxt  = totPct === null ? '—' : totPct + '%';
-
-    return `<div style="margin-bottom:14px;">
-      <div style="display:inline-block;background:${sc.bg};color:${sc.c};font-size:12px;font-weight:700;padding:4px 14px;border-radius:6px;margin-bottom:6px;">${_DAILY_ABBR[stage]}</div>
-      <div class="dash-tbl-wrap" style="margin-bottom:0;">
-        <table style="width:auto;border-collapse:collapse;font-size:12px;">
-          <thead><tr>
-            <th style="padding:6px 10px;background:#bde0f5;color:#0c2d42;border:1px solid var(--border);text-align:center;min-width:80px;">지역</th>
-            <th style="padding:4px 6px;background:#eef6ff;color:#0369a1;border:1px solid var(--border);text-align:center;min-width:52px;">일일목표</th>
-            <th style="padding:4px 6px;background:#eef6ff;color:#0369a1;border:1px solid var(--border);text-align:center;min-width:44px;">달성</th>
-            <th style="padding:4px 6px;background:#e0f2fe;color:#0284c7;border:1px solid var(--border);text-align:center;min-width:44px;">보고</th>
-            <th style="padding:4px 6px;background:#fef9c3;color:#854d0e;border:1px solid var(--border);text-align:center;min-width:44px;">달성률</th>
-          </tr></thead>
-          <tbody>
-            ${regionRows}
-            <tr>
-              <td style="font-weight:700;background:#FAC608;color:#1a1400;padding:6px 10px;border:1px solid var(--border);">청년회</td>
-              <td style="border:1px solid var(--border);text-align:center;font-weight:700;background:#FAC608;color:#1a1400;">${totGoal}</td>
-              <td style="border:1px solid var(--border);text-align:center;font-weight:700;font-family:monospace;background:#FAC608;color:#1a1400;">${totAch}</td>
-              <td style="border:1px solid var(--border);text-align:center;font-weight:600;color:#0284c7;background:#FAC608;">${totRep}</td>
-              <td style="border:1px solid var(--border);text-align:center;font-weight:700;font-size:11px;${_pctStyle(totPct)}background:#FAC608;">${totTxt}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>`;
+    const pctSt   = totPct === null ? '' : (totPct >= 70 ? 'color:#15803d;' : totPct >= 50 ? 'color:#92400e;' : 'color:#991b1b;');
+    return `<td style="${B}text-align:center;background:#FAC608;color:#1a1400;font-size:11px;">${totGoal}</td>
+      <td style="${B}text-align:center;font-weight:700;background:#FAC608;color:#1a1400;">${totAch}</td>
+      <td style="${B}text-align:center;font-weight:600;background:#FAC608;color:#0369a1;">${totRep}</td>
+      <td style="${B}text-align:center;font-weight:700;font-size:11px;background:#FAC608;${pctSt}">${totTxt}</td>`;
   }).join('');
 
-  return `<div style="display:flex;flex-wrap:wrap;gap:16px;">${sections}</div>`;
+  return `<div class="dash-tbl-wrap">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+      <thead>
+        <tr>
+          <th rowspan="2" style="padding:8px 12px;background:#f1f5f9;color:#334155;${B}text-align:center;font-size:11px;">지역</th>
+          ${stageHdrs}
+        </tr>
+        <tr>${subHdrs}</tr>
+      </thead>
+      <tbody>
+        ${regionRows}
+        <tr>
+          <td style="font-weight:700;background:#FAC608;color:#1a1400;padding:8px 12px;${B}text-align:center;">청년회</td>
+          ${totCells}
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
 }
 
 // ─── 주간달성 섹션 내부 HTML ───
