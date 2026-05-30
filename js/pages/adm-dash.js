@@ -137,10 +137,10 @@ function _renderDashContent(role) {
   // ── 내부탭별 컨텐츠 ──
   const nujeokContent = `
     ${(isAdm || _regDashTab === 'all') ? `
-    ${_slRow('청년회 전체 목표 대비 현황', _tgBtn(pfx+'-yw-cards-wrap', 'weekly', '주간달성'))}
+    ${_slRow('청년회 전체 목표 대비 현황', '')}
     <div id="${pfx}-yw-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
     ` : `
-    ${_slRow('내 지역 단계별 목표 대비 현황', _tgBtn(pfx+'-cards-wrap', 'weekly', '주간달성'))}
+    ${_slRow('내 지역 단계별 목표 대비 현황', '')}
     <div id="${pfx}-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
     `}
     ${showFunnel ? `
@@ -1368,6 +1368,7 @@ function _buildDailyTabHtml(filterRegions, readOnly) {
           onchange="onDailyDateChange(this.value,'daily-section-wrap')"
           style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer;">
         ${editNote}
+        ${!readOnly && !!(USER_AUTH && USER_AUTH.role === 'admin') ? `<button onclick="sendSectionTg(event,'daily-section-wrap','daily')" style="padding:2px 10px;border-radius:10px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;">📤 일일달성</button>` : ''}
       </div>
       <div id="daily-section-wrap" data-regions="${frAttr}" data-readonly="${roAttr}">
         ${_buildDailySectionInner(filterRegions, readOnly)}
@@ -1387,6 +1388,7 @@ function _buildDailyTabHtml(filterRegions, readOnly) {
           onchange="onWeekStartChange(this.value,'weekly-section-wrap')"
           style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer;">
         ${editNote}
+        ${!readOnly && !!(USER_AUTH && USER_AUTH.role === 'admin') ? `<button onclick="sendSectionTg(event,'weekly-section-wrap','weekly')" style="padding:2px 10px;border-radius:10px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;">📤 주간달성</button>` : ''}
       </div>
       <div id="weekly-section-wrap" data-regions="${frAttr}" data-readonly="${roAttr}">
         ${_buildWeeklySectionInner(filterRegions, readOnly)}
