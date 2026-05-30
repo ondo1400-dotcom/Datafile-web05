@@ -102,11 +102,31 @@ function _regBoardSetKaigang(val) {
   renderRegBoardStageSummary();
 }
 
+// focusKaigang을 기본값으로 사용 (adm-dash의 _effKaigang과 동일한 패턴)
+function _effRegKaigang() {
+  return _regBoardKaigang !== '전체' ? _regBoardKaigang : (STATE.focusKaigang || '전체');
+}
+
+// 담당 지역 목표 합산
+function _regBoardGetGoal(stage, kaigang) {
+  const allowed = getAllowedRegions() || [];
+  return allowed.reduce((sum, region) => {
+    return sum + Object.entries(STATE.goals || {})
+      .filter(([k]) => {
+        if (!k.endsWith('|' + stage + '|' + region)) return false;
+        if (kaigang && kaigang !== '전체' && !k.startsWith(kaigang + '|')) return false;
+        return true;
+      })
+      .reduce((acc, [, v]) => acc + v, 0);
+  }, 0);
+}
+
 function renderRegBoardStageSummary() {
   const el = document.getElementById('reg-board-stage-summary');
   if (!el) return;
 
   const allowed = getAllowedRegions();
+  const effK    = _effRegKaigang();
 
   // 찾기 포함 활성 인원
   const _nujeokActive = STATE.nujeok.filter(r => !isTallag(r));
@@ -119,7 +139,7 @@ function renderRegBoardStageSummary() {
 
   const filtered = allData.filter(r => {
     if (allowed !== null && !allowed.includes(r['실적지역'])) return false;
-    if (_regBoardKaigang !== '전체' && r['목표개강(연도/월)'] !== _regBoardKaigang && r['이전개강'] !== _regBoardKaigang) return false;
+    if (effK !== '전체' && r['목표개강(연도/월)'] !== effK && r['이전개강'] !== effK) return false;
     return true;
   });
 
@@ -136,29 +156,45 @@ function renderRegBoardStageSummary() {
       ).join('')
     : '';
 
-  // 개강 필터 버튼
-  const kaigangs = ['전체', ...[...new Set(STATE.nujeok.map(r => r['목표개강(연도/월)']).filter(Boolean))].sort()];
+  // 개강 필터 버튼 (클릭한 버튼 재클릭 시 해제 → focusKaigang으로 복귀)
+  const kaigangs = [...new Set(STATE.nujeok.map(r => r['목표개강(연도/월)']).filter(Boolean))].sort();
   const kBtn = k => {
-    const active = _regBoardKaigang === k;
-    return `<button onclick="_regBoardSetKaigang('${k}')" style="padding:3px 10px;border-radius:12px;border:1px solid var(--border);font-size:11px;cursor:pointer;font-family:inherit;background:${active?'var(--reg2)':'var(--surface2)'};color:${active?'#fff':'var(--text2)'};">${k}</button>`;
+    const active  = _regBoardKaigang === k;
+    const nextVal = active ? '전체' : k;
+    return `<button onclick="_regBoardSetKaigang('${nextVal}')"
+      style="padding:3px 10px;border-radius:12px;border:1.5px solid ${active?'var(--reg2)':'var(--border2)'};font-size:11px;cursor:pointer;font-family:inherit;
+      background:${active?'var(--reg2)':'var(--surface)'};color:${active?'#fff':'var(--text2)'};">${k}</button>`;
   };
 
-  // 단계 카드
-  const stageCards = STAGE_ORDER.map(stage => {
-    const sc  = STAGE_COLORS[stage] || { bg: '#f0f0f0', c: '#555' };
-    const cnt = counts[stage] || 0;
-    return `<div style="text-align:center;padding:8px 10px;border-radius:10px;background:${sc.bg};flex:1;min-width:46px;">
-      <div style="font-size:10px;font-weight:700;color:${sc.c};margin-bottom:3px;white-space:nowrap;">${stage}</div>
-      <div style="font-size:20px;font-weight:800;color:${sc.c};font-family:monospace;">${cnt}</div>
+  // 수동 선택 없을 때 focusKaigang 표시 배지
+  const focusBadge = (_regBoardKaigang === '전체' && STATE.focusKaigang)
+    ? `<span style="font-size:11px;color:var(--reg2);background:var(--reg-light);padding:2px 9px;border-radius:10px;border:1px solid var(--reg2);white-space:nowrap;">★ 기준: ${STATE.focusKaigang}</span>`
+    : '';
+
+  // 파이프라인 디자인 (단계별 파이프라인 스타일)
+  const pipelineItems = STAGE_ORDER.map((stage, i) => {
+    const sc    = STAGE_COLORS[stage] || { bg: '#f0f0f0', c: '#555' };
+    const cnt   = counts[stage] || 0;
+    const goal  = _regBoardGetGoal(stage, effK);
+    const color = cnt > 0 ? sc.c : '#9ca3af';
+    const sep   = i > 0 ? `<span style="color:#d1d5db;font-size:16px;flex-shrink:0;padding:0 2px;align-self:center;">›</span>` : '';
+    return `${sep}<div style="text-align:center;padding:6px 10px;flex-shrink:0;">
+      <div style="font-size:11px;font-weight:700;color:${color};margin-bottom:2px;white-space:nowrap;">${stage}</div>
+      <div style="font-size:22px;font-weight:800;color:${color};line-height:1.1;">${cnt}</div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:2px;">/ ${goal || '—'}</div>
     </div>`;
   }).join('');
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
       <div>${regionBadge}</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-left:auto;">${kaigangs.map(kBtn).join('')}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-left:auto;">
+        ${kaigangs.map(kBtn).join('')}${focusBadge}
+      </div>
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;">${stageCards}</div>
+    <div style="background:var(--surface2);border-radius:12px;padding:12px 16px;display:flex;align-items:center;overflow-x:auto;">
+      ${pipelineItems}
+    </div>
     <div style="font-size:11px;color:var(--text3);text-align:right;margin-top:6px;">합계 <strong style="color:var(--text1);">${total}</strong>명</div>
     <div style="margin-top:12px;border-top:1px solid var(--border);"></div>
   `;

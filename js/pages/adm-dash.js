@@ -160,9 +160,8 @@ function _renderDashContent(role) {
     ${checkSummaryHtml}
   `;
 
-  // 주간-일일 탭: 지역 담당자의 청년회 종합(all) 탭에서는 읽기전용
-  const outerTab   = isAdm ? _admDashTab : _regDashTab;
-  const isReadOnly = !isAdm && outerTab === 'all';
+  // 주간-일일 탭: 지역 담당자는 항상 읽기전용 (청년회 담당자만 수정)
+  const isReadOnly = !isAdm;
 
   // 주간-일일 탭 컨텐츠 사전 계산 (오류 시 탭 전환 자체가 막히지 않도록)
   let _dailyBody = '';
@@ -509,9 +508,9 @@ function _buildLdStageHtml(myRegions) {
     return 'background:#fee2e2;color:#dc2626;';
   }
   function rateCell(cnt, goal) {
-    if (!goal) return `<td style="border:1px solid var(--border);text-align:center;color:var(--text3);">—</td>`;
+    if (!goal) return `<td style="border:1px solid var(--border);text-align:center;color:var(--text3);font-size:13px;padding:8px 6px;">—</td>`;
     const rv = Math.round(cnt / goal * 100);
-    return `<td style="border:1px solid var(--border);text-align:center;font-weight:700;font-size:12px;${rateStyle(rv)}">${rv}%</td>`;
+    return `<td style="border:1px solid var(--border);text-align:center;font-weight:700;font-size:13px;padding:8px 6px;${rateStyle(rv)}">${rv}%</td>`;
   }
 
   const RATE_STAGES = ['합자', '육따기', '영따기'];
@@ -526,28 +525,28 @@ function _buildLdStageHtml(myRegions) {
       : region;
 
     const goalCells = RATE_STAGES.map(s =>
-      `<td style="border:1px solid var(--border);text-align:center;background:#eef6ff;font-size:11px;">${getGoal(region, s) || '—'}</td>`
+      `<td style="border:1px solid var(--border);text-align:center;background:#eef6ff;font-size:13px;padding:8px 6px;color:#1e40af;">${getGoal(region, s) || '—'}</td>`
     ).join('');
     const stageCells = STAGE_ORDER.map(s => {
       const sc = STAGE_COLORS[s] || { bg: '#f0f0f0', c: '#555' };
-      return `<td style="border:1px solid var(--border);text-align:center;font-family:monospace;font-size:13px;background:${sc.bg};color:${sc.c};">${c[s] || 0}</td>`;
+      return `<td style="border:1px solid var(--border);text-align:center;font-family:monospace;font-size:14px;font-weight:600;padding:8px 6px;background:${sc.bg};color:${sc.c};">${c[s] || 0}</td>`;
     }).join('');
     const rateCells = RATE_STAGES.map(s => rateCell(cumulCount(region, s), getGoal(region, s))).join('');
 
     return `<tr style="${rowBg}">
-      <td style="font-weight:700;background:#f0f9ff;padding:8px 12px;border:1px solid var(--border);text-align:center;${isMine?'background:var(--reg-light,#f0fdf4);':''}">${regionLabel}</td>
+      <td style="font-weight:700;font-size:13px;background:#f0f9ff;padding:10px 14px;border:1px solid var(--border);text-align:center;${isMine?'background:var(--reg-light,#f0fdf4);':''}">${regionLabel}</td>
       ${goalCells}${stageCells}
-      <td style="border:1px solid var(--border);text-align:center;font-weight:700;font-family:monospace;background:var(--adm-light);color:var(--adm2);">${c.total}</td>
+      <td style="border:1px solid var(--border);text-align:center;font-weight:700;font-size:15px;font-family:monospace;padding:8px 6px;background:var(--adm-light);color:var(--adm2);">${c.total}</td>
       ${rateCells}
     </tr>`;
   }).join('');
 
   const totGoalCells = RATE_STAGES.map(s => {
     const g = regions.reduce((sum, r) => sum + getGoal(r, s), 0);
-    return `<td style="border:1px solid var(--border);text-align:center;background:#fef9c3;font-size:11px;">${g || '—'}</td>`;
+    return `<td style="border:1px solid var(--border);text-align:center;background:#fef9c3;font-size:13px;padding:9px 6px;font-weight:600;">${g || '—'}</td>`;
   }).join('');
   const totStageCells = STAGE_ORDER.map(s =>
-    `<td style="border:1px solid var(--border);text-align:center;font-weight:700;font-family:monospace;background:#fef9c3;">${totRow[s] || 0}</td>`
+    `<td style="border:1px solid var(--border);text-align:center;font-weight:700;font-size:15px;font-family:monospace;padding:9px 6px;background:#fef9c3;">${totRow[s] || 0}</td>`
   ).join('');
   const totRateCells = RATE_STAGES.map(s => {
     const g = regions.reduce((sum, r) => sum + getGoal(r, s), 0);
@@ -555,32 +554,32 @@ function _buildLdStageHtml(myRegions) {
   }).join('');
 
   const totRowHtml = `<tr>
-    <td style="font-weight:700;background:#FAC608;color:#1a1400;padding:8px 12px;border:1px solid var(--border);text-align:center;">합계</td>
+    <td style="font-weight:700;font-size:14px;background:#FAC608;color:#1a1400;padding:10px 14px;border:1px solid var(--border);text-align:center;">합계</td>
     ${totGoalCells}${totStageCells}
-    <td style="border:1px solid var(--border);text-align:center;font-weight:700;background:#FAC608;color:#1a1400;font-family:monospace;">${totRow.total}</td>
+    <td style="border:1px solid var(--border);text-align:center;font-weight:700;font-size:16px;background:#FAC608;color:#1a1400;font-family:monospace;padding:9px 6px;">${totRow.total}</td>
     ${totRateCells}
   </tr>`;
 
   const goalHeaders = RATE_STAGES.map(s =>
-    `<th style="padding:4px;background:#dbeafe;color:#1e40af;border:1px solid var(--border);text-align:center;font-size:10px;">${s}</th>`
+    `<th style="padding:7px 8px;background:#dbeafe;color:#1e40af;border:1px solid var(--border);text-align:center;font-size:12px;font-weight:600;">${s}</th>`
   ).join('');
   const stageHeaders = STAGE_ORDER.map(s => {
     const sc = STAGE_COLORS[s] || { bg: '#e0f2fe', c: '#0369a1' };
-    return `<th rowspan="2" style="padding:6px 8px;background:${sc.bg};color:${sc.c};border:1px solid var(--border);text-align:center;">${s}</th>`;
+    return `<th rowspan="2" style="padding:8px 10px;background:${sc.bg};color:${sc.c};border:1px solid var(--border);text-align:center;font-size:13px;font-weight:700;">${s}</th>`;
   }).join('');
   const rateHeaders = RATE_STAGES.map(s =>
-    `<th style="padding:4px;background:#fef9c3;color:#854d0e;border:1px solid var(--border);text-align:center;font-size:10px;">${s}%</th>`
+    `<th style="padding:7px 8px;background:#fef9c3;color:#854d0e;border:1px solid var(--border);text-align:center;font-size:12px;font-weight:600;">${s}%</th>`
   ).join('');
 
   return `<div class="dash-tbl-wrap">
-    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.5;">
       <thead>
         <tr>
-          <th rowspan="2" style="padding:8px 12px;background:#bde0f5;color:#0c2d42;border:1px solid var(--border);text-align:center;">지역</th>
-          <th colspan="${RATE_STAGES.length}" style="padding:5px 8px;background:#dbeafe;color:#1e40af;border:1px solid var(--border);text-align:center;font-size:11px;">목표</th>
+          <th rowspan="2" style="padding:10px 14px;background:#bde0f5;color:#0c2d42;border:1px solid var(--border);text-align:center;font-size:14px;font-weight:700;">지역</th>
+          <th colspan="${RATE_STAGES.length}" style="padding:7px 10px;background:#dbeafe;color:#1e40af;border:1px solid var(--border);text-align:center;font-size:13px;font-weight:700;letter-spacing:.03em;">목표</th>
           ${stageHeaders}
-          <th rowspan="2" style="padding:6px;background:var(--adm-light);color:var(--adm2);border:1px solid var(--border);text-align:center;font-weight:700;">합계</th>
-          <th colspan="${RATE_STAGES.length}" style="padding:5px 8px;background:#fef9c3;color:#854d0e;border:1px solid var(--border);text-align:center;font-size:11px;">달성%</th>
+          <th rowspan="2" style="padding:8px 10px;background:var(--adm-light);color:var(--adm2);border:1px solid var(--border);text-align:center;font-size:13px;font-weight:700;">합계</th>
+          <th colspan="${RATE_STAGES.length}" style="padding:7px 10px;background:#fef9c3;color:#854d0e;border:1px solid var(--border);text-align:center;font-size:13px;font-weight:700;letter-spacing:.03em;">달성%</th>
         </tr>
         <tr>${goalHeaders}${rateHeaders}</tr>
       </thead>
