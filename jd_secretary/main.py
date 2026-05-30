@@ -767,11 +767,11 @@ def _livedata_team(field: str) -> str:
 _DOW_KO = ['월', '화', '수', '목', '금', '토', '일']
 
 def _fmt_date(val: str) -> str:
-    """'2026-05-21' → '5/21(수)', 이미 다른 형식이면 그대로."""
+    """'2026-05-21' → '5.21(수)', 이미 다른 형식이면 그대로."""
     try:
         from datetime import date as _date
         d = _date.fromisoformat(val.strip())
-        return f'{d.month}/{d.day}({_DOW_KO[d.weekday()]})'
+        return f'{d.month}.{d.day}({_DOW_KO[d.weekday()]})'
     except Exception:
         return val
 
@@ -787,15 +787,31 @@ def _livedata_person_line(row: dict) -> str:
 
 
 def fetch_livedata(개강: str, 센터: str, 지역: str) -> list[dict]:
+    def _norm(val: str) -> str:
+        if '/' in val:
+            y, m = val.split('/', 1)
+            return f'{y}/{m.zfill(2)}'
+        return val
+
+    def _match_region(r: dict) -> bool:
+        return (
+            지역 in str(r.get('실적지역') or '')
+            or 지역 in str(r.get('인도자부서/지역/팀/구역') or '')
+        )
+
     # db_findings: 찾기/DB 단계
     res1 = (
         supa.table('db_findings')
         .select('*')
-        .ilike('실적지역', f'%{지역}%')
         .ilike('목표센터', f'%{센터}%')
         .execute()
     )
-    findings = [r for r in (res1.data or []) if str(r.get('목표개강(연도/월)') or '') == 개강]
+    findings = [
+        r for r in (res1.data or [])
+        if _norm(str(r.get('목표개강(연도/월)') or '')) == 개강
+        and _match_region(r)
+    ]
+    log.info(f'[livedata] findings 조회: 전체 {len(res1.data or [])}건 → 필터 후 {len(findings)}건')
 
     # nujeok: 합자 이상 단계 — 단계 필드를 구분으로 매핑
     res2 = (
@@ -805,12 +821,6 @@ def fetch_livedata(개강: str, 센터: str, 지역: str) -> list[dict]:
         .ilike('목표센터', f'%{센터}%')
         .execute()
     )
-    def _norm(val: str) -> str:
-        if '/' in val:
-            y, m = val.split('/', 1)
-            return f'{y}/{m.zfill(2)}'
-        return val
-
     nujeok_rows = [
         r for r in (res2.data or [])
         if _norm(str(r.get('목표개강(연도/월)') or '')) == 개강
