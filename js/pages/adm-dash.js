@@ -119,7 +119,13 @@ function _renderDashContent(role) {
 
   // ── 내부탭별 컨텐츠 ──
   const nujeokContent = `
+    ${isAdm ? `
+    <div class="sl" style="margin:0 0 8px;">청년회 전체 목표 대비 현황</div>
+    <div id="${pfx}-yw-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
+    <div class="sl" style="margin:0 0 8px;">내 지역 단계별 목표 대비 현황</div>
+    ` : `
     <div class="sl" style="margin:0 0 8px;">단계별 목표 대비 현황</div>
+    `}
     <div id="${pfx}-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
     ${showFunnel ? `
     <div class="sl" style="margin:0 0 8px;">지역별 누적 달성 현황</div>
@@ -163,7 +169,8 @@ function _renderDashContent(role) {
     showFunnel ? pfx + '-funnel-wrap' : null,
     filterRegions,
     isAdm && isAdmin,
-    pfx + '-cards-wrap'
+    pfx + '-cards-wrap',
+    isAdm ? pfx + '-yw-cards-wrap' : null
   );
 
   if (innerTab === 'boyoo') {
@@ -176,15 +183,16 @@ function _renderDashContent(role) {
 //  누적현황 퍼널 (단계별 목표 대비)
 // ══════════════════════════════════════════════════════
 
-function _buildFunnelHtml(myRegions) {
+function _buildFunnelHtml(myRegions, useYwGoal = false) {
+  const effectiveRegions = useYwGoal ? null : myRegions;
   const allPeople = _ldAllPeople().filter(r => {
-    if (myRegions && !myRegions.includes(r['실적지역'])) return false;
+    if (effectiveRegions && !effectiveRegions.includes(r['실적지역'])) return false;
     if (_ldKaigang !== '전체' && r['목표개강(연도/월)'] !== _ldKaigang && r['이전개강'] !== _ldKaigang) return false;
     if (_ldCenter  !== '전체' && r['목표센터'] !== _ldCenter) return false;
     return true;
   });
 
-  const regions = myRegions || [...new Set(allPeople.map(r => r['실적지역']).filter(Boolean))];
+  const regions = effectiveRegions || [...new Set(allPeople.map(r => r['실적지역']).filter(Boolean))];
 
   const counts = {};
   STAGE_ORDER.forEach(s => counts[s] = 0);
@@ -192,7 +200,9 @@ function _buildFunnelHtml(myRegions) {
 
   const cards = STAGE_ORDER.map(stage => {
     const cnt  = counts[stage] || 0;
-    const goal = regions.reduce((sum, r) => sum + _ldGetGoal(r, stage), 0);
+    const goal = useYwGoal
+      ? _ldGetGoal('청년회', stage)
+      : regions.reduce((sum, r) => sum + _ldGetGoal(r, stage), 0);
     const pct  = goal ? Math.round(cnt / goal * 100) : null;
     const sc   = STAGE_COLORS[stage] || { bg: '#f0f0f0', c: '#555' };
     const barW = pct !== null ? Math.min(pct, 100) : 0;
@@ -711,7 +721,7 @@ function _buildLdMeetHtml(myRegions) {
 }
 
 // ─── 개강 + 센터 필터 UI ───
-function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId) {
+function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId, ywCardsId) {
   const wrap = document.getElementById(filterId);
   if (!wrap) return;
 
@@ -728,16 +738,17 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
   const btn = (label, active, onclick) =>
     `<button onclick="${onclick}" style="padding:3px 10px;border-radius:12px;border:1px solid var(--border);font-size:11px;cursor:pointer;font-family:inherit;background:${active?'var(--adm2)':'var(--surface2)'};color:${active?'#fff':'var(--text2)'};">${label}</button>`;
 
-  const mrJson  = JSON.stringify(myRegions || null).replace(/"/g, '&quot;');
-  const cidJson = JSON.stringify(cardsId  || null).replace(/"/g, '&quot;');
+  const mrJson    = JSON.stringify(myRegions  || null).replace(/"/g, '&quot;');
+  const cidJson   = JSON.stringify(cardsId    || null).replace(/"/g, '&quot;');
+  const ywCidJson = JSON.stringify(ywCardsId  || null).replace(/"/g, '&quot;');
   const kaigangBtns = kaigangs.map(k =>
-    btn(k, _ldKaigang === k, `_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson})`)
+    btn(k, _ldKaigang === k, `_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson},${ywCidJson})`)
   ).join('');
 
   const centerRow = centers.length ? `
     <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px;">
       <span style="font-size:10px;color:var(--text3);font-weight:700;">센터</span>
-      ${centers.map(c => btn(c, _ldCenter === c, `_ldSetCenter('${c}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson})`)).join('')}
+      ${centers.map(c => btn(c, _ldCenter === c, `_ldSetCenter('${c}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson},${ywCidJson})`)).join('')}
     </div>` : '';
 
   const tgBtns = isAdmin ? `
@@ -752,31 +763,35 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
   `;
 }
 
-function _ldSetKaigang(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId) {
+function _ldSetKaigang(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId, ywCardsId) {
   _ldKaigang = val;
   _ldCenter  = '전체';
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
   const fw = document.getElementById(funnelId);
-  const cw = cardsId ? document.getElementById(cardsId) : null;
+  const cw = cardsId   ? document.getElementById(cardsId)   : null;
+  const yw = ywCardsId ? document.getElementById(ywCardsId) : null;
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
   if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
   if (cw) cw.innerHTML = _buildFunnelHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId);
+  if (yw) yw.innerHTML = _buildFunnelHtml(null, true);
+  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId, ywCardsId);
 }
 
-function _ldSetCenter(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId) {
+function _ldSetCenter(val, filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId, ywCardsId) {
   _ldCenter = val;
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
   const fw = document.getElementById(funnelId);
-  const cw = cardsId ? document.getElementById(cardsId) : null;
+  const cw = cardsId   ? document.getElementById(cardsId)   : null;
+  const yw = ywCardsId ? document.getElementById(ywCardsId) : null;
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
   if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
   if (cw) cw.innerHTML = _buildFunnelHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId);
+  if (yw) yw.innerHTML = _buildFunnelHtml(null, true);
+  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId, ywCardsId);
 }
 
 // ══════════════════════════════════════════════════════
@@ -893,16 +908,18 @@ function _buildTodayHtml(myRegions) {
 }
 
 // ─── 렌더링 진입점 ───
-function _asyncFillLd(stageId, meetId, filterId, funnelId, myRegions, isAdmin, cardsId) {
+function _asyncFillLd(stageId, meetId, filterId, funnelId, myRegions, isAdmin, cardsId, ywCardsId) {
   const sw = document.getElementById(stageId);
   const mw = document.getElementById(meetId);
   const fw = document.getElementById(funnelId);
-  const cw = cardsId ? document.getElementById(cardsId) : null;
+  const cw = cardsId   ? document.getElementById(cardsId)   : null;
+  const yw = ywCardsId ? document.getElementById(ywCardsId) : null;
   if (sw) sw.innerHTML = _buildLdStageHtml(myRegions);
   if (mw) mw.innerHTML = _buildLdMeetHtml(myRegions);
   if (fw) fw.innerHTML = _buildNujeokAchHtml(myRegions);
   if (cw) cw.innerHTML = _buildFunnelHtml(myRegions);
-  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId);
+  if (yw) yw.innerHTML = _buildFunnelHtml(null, true);
+  _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAdmin, cardsId, ywCardsId);
 }
 
 // ─── 텔레그램 전송용 표 텍스트 빌더 ───

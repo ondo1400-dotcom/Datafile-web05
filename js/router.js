@@ -65,12 +65,13 @@ function setAdmViewRegion(val) {
 function _fillAdmRegViewSel() {
   const sel = document.getElementById('adm-reg-region-sel');
   if (!sel) return;
-  const regions = [...new Set([
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  const regions = sortRegions([...new Set([
     ...STATE.nujeok.map(r => r['실적지역']),
     ...(STATE.tallag || []).map(r => r['실적지역']),
     ...(STATE.meets || []).map(r => r['실적지역']),
     ...(STATE.dbFindings || []).map(r => r['실적지역']),
-  ].filter(Boolean))].sort();
+  ].filter(v => v && !datePattern.test(v)))]);
   const cur = ADM_VIEW_REGION;
   sel.innerHTML = '<option value="">전체</option>' +
     regions.map(r => `<option${r === cur ? ' selected' : ''}>${r}</option>`).join('');
