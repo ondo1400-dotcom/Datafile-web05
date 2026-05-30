@@ -3,9 +3,13 @@
 // ══════════════════════════════════════════════════════
 
 // GAS 호출 헬퍼 (탈락/이월/clist 등 GAS 경유 작업에 사용)
+// no-cors: GAS가 googleusercontent.com으로 리다이렉트하면 CORS 헤더 없어 응답 읽기 불가.
+// 요청 자체는 GAS에 정상 도달해 처리되므로 fire-and-forget으로 success 반환.
 async function gasPost(payload) {
-  const res = await fetch(GAS_URL + '?payload=' + encodeURIComponent(JSON.stringify(payload)) + '&t=' + Date.now());
-  return res.json();
+  await fetch(GAS_URL + '?payload=' + encodeURIComponent(JSON.stringify(payload)) + '&t=' + Date.now(), {
+    mode: 'no-cors',
+  });
+  return { success: true };
 }
 
 let _detailRow = null;
