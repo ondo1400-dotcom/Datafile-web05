@@ -10,6 +10,7 @@ import logging
 import os
 import re
 from datetime import datetime
+from typing import Optional, Tuple
 
 import pytz
 from dotenv import load_dotenv
@@ -61,7 +62,7 @@ def _set_topic(chat_id: int, thread_id: int, name: str):
     _save_topic_cache()
     log.info(f'[topic] 등록: {name} (chat={chat_id}, thread={thread_id})')
 
-def _get_topic(chat_id: int, thread_id: int | None) -> str | None:
+def _get_topic(chat_id: int, thread_id: Optional[int]) -> Optional[str]:
     if thread_id is None:
         return None
     return _topic_cache.get(_topic_key(chat_id, thread_id))
@@ -80,16 +81,16 @@ CHECKLIST_FIELDS = {'합자체크리스트', '따기체크리스트', '센터확
 # ── 만남보고 파싱 ───────────────────────────────────────
 _MEET_MARKERS = ('▫️', '🌈', '✅', '▫')
 
-def _split_key_val(s: str) -> tuple[str, str] | None:
+def _split_key_val(s: str) -> Optional[Tuple[str, str]]:
     """'key : val' 또는 'key:val' 등 콜론 구분자 유연 파싱."""
     m = re.match(r'^(.+?)\s*:\s*(.*)', s)
     if m:
         return m.group(1).strip(), m.group(2).strip()
     return None
 
-def parse_meeting_report(text: str) -> dict | None:
+def parse_meeting_report(text: str) -> Optional[dict]:
     data: dict = {}
-    current_key: str | None = None
+    current_key: Optional[str] = None
     buffer: list[str] = []
 
     def flush():
@@ -121,7 +122,7 @@ def parse_meeting_report(text: str) -> dict | None:
 
 
 # ── 만남보고 db_findings 검증 ────────────────────────────
-def verify_meeting_target(지역: str, 섭외자: str, 인도자: str) -> str | None:
+def verify_meeting_target(지역: str, 섭외자: str, 인도자: str) -> Optional[str]:
     """
     db_findings에서 실적지역+섭외자+인도자 조합 확인.
     반환값: 'OK' | '데이터없음' | '인도자불일치:실제인도자' | '지역불일치:실제지역'
@@ -189,7 +190,7 @@ def update_next_meeting(섭외자: str, next_date: str):
 
 
 # ── 양식 파싱 ───────────────────────────────────────────
-def parse_form(text: str) -> dict | None:
+def parse_form(text: str) -> Optional[dict]:
     lines = text.split('\n')
     data  = {}
     for line in lines:
@@ -232,7 +233,7 @@ def save_to_supabase(data: dict, type_: str) -> bool:
 
 
 # ── Supabase 업데이트 (정보 업데이트) ────────────────────
-def update_db_findings(data: dict) -> dict | None:
+def update_db_findings(data: dict) -> Optional[dict]:
     """
     db_findings에서 실적지역+섭외자+인도자로 찾아 업데이트.
     반환값: 업데이트된 행 (없으면 None)
@@ -763,6 +764,17 @@ def _livedata_team(field: str) -> str:
     return parts[2].strip() if len(parts) >= 3 else '—'
 
 
+_DOW_KO = ['월', '화', '수', '목', '금', '토', '일']
+
+def _fmt_date(val: str) -> str:
+    """'2026-05-21' → '5/21(수)', 이미 다른 형식이면 그대로."""
+    try:
+        from datetime import date as _date
+        d = _date.fromisoformat(val.strip())
+        return f'{d.month}/{d.day}({_DOW_KO[d.weekday()]})'
+    except Exception:
+        return val
+
 def _livedata_person_line(row: dict) -> str:
     emoji = _livedata_emoji(str(row.get('섭외유형') or ''))
     팀    = _livedata_team(str(row.get('인도자부서/지역/팀/구역') or ''))
@@ -770,7 +782,7 @@ def _livedata_person_line(row: dict) -> str:
     i     = str(row.get('인도자') or '')
     t     = str(row.get('교사') or '')
     목적  = str(row.get('다음만남목적') or '')
-    날짜  = str(row.get('다음만남일') or '')
+    날짜  = _fmt_date(str(row.get('다음만남일') or ''))
     return f'{emoji}/{팀}/{s}-{i}-{t}/{목적}/{날짜}'
 
 
@@ -793,7 +805,17 @@ def fetch_livedata(개강: str, 센터: str, 지역: str) -> list[dict]:
         .ilike('목표센터', f'%{센터}%')
         .execute()
     )
-    nujeok_rows = [r for r in (res2.data or []) if str(r.get('목표개강(연도/월)') or '') == 개강]
+    def _norm(val: str) -> str:
+        if '/' in val:
+            y, m = val.split('/', 1)
+            return f'{y}/{m.zfill(2)}'
+        return val
+
+    nujeok_rows = [
+        r for r in (res2.data or [])
+        if _norm(str(r.get('목표개강(연도/월)') or '')) == 개강
+        and str(r.get('단계') or '') != '탈락'
+    ]
     log.info(f'[livedata] nujeok 조회: 전체 {len(res2.data or [])}건 → 개강필터 후 {len(nujeok_rows)}건')
     for r in nujeok_rows:
         r['구분'] = r.get('단계', '')
