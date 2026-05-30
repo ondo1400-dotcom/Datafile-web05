@@ -1237,56 +1237,68 @@ function _buildDailySectionInner(filterRegions, readOnly) {
   const regions = _getDailyRegions(filterRegions);
   if (!regions.length) return '<div style="color:var(--text3);font-size:12px;padding:10px;">데이터가 없습니다</div>';
 
-  // 투명 입력 스타일: 숫자처럼 보이고 클릭 시만 밑줄
-  const inpBase = 'width:46px;text-align:center;border:none;border-bottom:1.5px solid transparent;background:transparent;font-size:14px;font-weight:700;font-family:inherit;padding:2px 0;cursor:pointer;outline:none;';
+  const inpBase = 'width:46px;text-align:center;border:none;border-bottom:2px solid transparent;background:transparent;font-size:14px;font-weight:700;font-family:inherit;padding:1px 0;cursor:pointer;outline:none;';
   const safe    = s => String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-  const B       = 'border:1px solid var(--border);';
+  const B       = 'border:1px solid #e2e8f0;';
+
+  // % 텍스트 색만 (배경 없음)
+  const pctColor = pct => {
+    if (pct === null) return '#94a3b8';
+    if (pct === 0)    return '#ef4444';
+    if (pct >= 100)   return '#16a34a';
+    if (pct >= 70)    return '#15803d';
+    if (pct >= 50)    return '#d97706';
+    return '#dc2626';
+  };
 
   const inp = (val, color, onchange) =>
-    `<input type="number" min="0" value="${val||''}" placeholder="—"
+    `<input type="number" min="0" value="${val||''}" placeholder="0"
       style="${inpBase}color:${color};"
       onfocus="this.style.borderBottomColor='${color}';this.select();"
       onblur="this.style.borderBottomColor='transparent';"
       onchange="${onchange}">`;
 
+  const COLS = 1 + _DAILY_STAGES.length * 4;
+  const now  = new Date();
+  const dow  = ['일','월','화','수','목','금','토'][now.getDay()];
+  const kLabel = _ldKaigang !== '전체' ? _ldKaigang : '전체';
+
   const stageHdrs = _DAILY_STAGES.map(s => {
-    const sc = STAGE_COLORS[s] || { bg: '#e0f2fe', c: '#0369a1' };
-    return `<th colspan="4" style="padding:8px;background:${sc.bg};color:${sc.c};${B}text-align:center;font-size:13px;font-weight:700;">${_DAILY_ABBR[s]}</th>`;
+    const sc = STAGE_COLORS[s] || { bg: '#dbeafe', c: '#1d4ed8' };
+    return `<th colspan="4" style="padding:9px 8px;background:${sc.c};color:#fff;${B}text-align:center;font-size:13px;font-weight:700;letter-spacing:0.3px;">${_DAILY_ABBR[s]}</th>`;
   }).join('');
 
   const subHdrs = _DAILY_STAGES.flatMap(s => {
-    const sc = STAGE_COLORS[s] || { bg: '#e0f2fe', c: '#0369a1' };
-    const bg = sc.bg + '55';
+    const sc = STAGE_COLORS[s] || { bg: '#dbeafe', c: '#1d4ed8' };
     return [
-      `<th style="padding:4px 6px;background:${bg};color:${sc.c};${B}text-align:center;font-size:11px;font-weight:600;min-width:52px;">목표</th>`,
-      `<th style="padding:4px 6px;background:${bg};color:${sc.c};${B}text-align:center;font-size:11px;font-weight:600;min-width:52px;">달성</th>`,
-      `<th style="padding:4px 6px;background:${bg};color:#0284c7;${B}text-align:center;font-size:11px;font-weight:600;min-width:52px;">웹보고</th>`,
-      `<th style="padding:4px 6px;background:#f8fafc;color:#64748b;${B}text-align:center;font-size:11px;font-weight:600;min-width:48px;">%</th>`,
+      `<th style="padding:5px 4px;background:${sc.bg};color:${sc.c};${B}text-align:center;font-size:11px;font-weight:600;min-width:54px;">목표</th>`,
+      `<th style="padding:5px 4px;background:${sc.bg};color:${sc.c};${B}text-align:center;font-size:11px;font-weight:600;min-width:54px;">달성</th>`,
+      `<th style="padding:5px 4px;background:${sc.bg};color:#0369a1;${B}text-align:center;font-size:11px;font-weight:600;min-width:54px;">웹보고</th>`,
+      `<th style="padding:5px 4px;background:#f1f5f9;color:#475569;${B}text-align:center;font-size:11px;font-weight:600;min-width:50px;">%</th>`,
     ];
   }).join('');
 
-  const regionRows = regions.map((region, ri) => {
-    const rowBg = ri % 2 === 0 ? '' : 'background:#fafafa;';
+  const regionRows = regions.map(region => {
     const cells = _DAILY_STAGES.map(stage => {
       const goal   = _getDailyGoal(date, region, stage);
-      const rep    = _getDailyReport(date, region, stage);  // 수동 달성
-      const web    = _calcDailyAch(date, region, stage);    // 웹 자동
+      const rep    = _getDailyReport(date, region, stage);
+      const web    = _calcDailyAch(date, region, stage);
       const pct    = goal > 0 ? Math.round(rep / goal * 100) : (rep > 0 ? null : 0);
       const pctTxt = pct === null ? '—' : pct + '%';
-      const pctSt  = pct === null ? 'color:var(--text3);' : _pctStyle(pct);
+      const pc     = pctColor(pct);
       const goalCell = readOnly
-        ? `<td style="${B}text-align:center;font-size:14px;font-weight:700;${rowBg}">${goal || 0}</td>`
-        : `<td style="${B}text-align:center;padding:4px 2px;${rowBg}">${inp(goal, '#334155', `onDailyGoalChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
+        ? `<td style="${B}text-align:center;font-size:14px;font-weight:700;color:#1e293b;">${goal || 0}</td>`
+        : `<td style="${B}text-align:center;padding:3px 2px;">${inp(goal, '#334155', `onDailyGoalChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
       const achCell = readOnly
-        ? `<td style="${B}text-align:center;font-size:14px;font-weight:700;${rowBg}">${rep || 0}</td>`
-        : `<td style="${B}text-align:center;padding:4px 2px;${rowBg}">${inp(rep, '#0369a1', `onDailyReportChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
+        ? `<td style="${B}text-align:center;font-size:14px;font-weight:700;color:#0369a1;">${rep || 0}</td>`
+        : `<td style="${B}text-align:center;padding:3px 2px;">${inp(rep, '#0369a1', `onDailyReportChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
       return `${goalCell}
         ${achCell}
-        <td style="${B}text-align:center;font-size:14px;font-weight:700;color:#0284c7;${rowBg}">${web}</td>
-        <td style="${B}text-align:center;font-size:13px;font-weight:700;${pctSt}${rowBg}">${pctTxt}</td>`;
+        <td style="${B}text-align:center;font-size:14px;font-weight:600;color:#0284c7;">${web || 0}</td>
+        <td style="${B}text-align:center;font-size:13px;font-weight:800;color:${pc};">${pctTxt}</td>`;
     }).join('');
-    return `<tr>
-      <td style="font-weight:700;font-size:14px;padding:8px 14px;${B}background:#f1f5f9;white-space:nowrap;text-align:center;">${region}</td>
+    return `<tr style="border-bottom:1px solid #e2e8f0;">
+      <td style="font-weight:700;font-size:14px;padding:9px 16px;${B}background:#f8fafc;text-align:center;color:#1e293b;white-space:nowrap;">${region}</td>
       ${cells}
     </tr>`;
   }).join('');
@@ -1297,18 +1309,23 @@ function _buildDailySectionInner(filterRegions, readOnly) {
     const totWeb  = regions.reduce((s, r) => s + _calcDailyAch(date, r, stage), 0);
     const totPct  = totGoal > 0 ? Math.round(totRep / totGoal * 100) : (totRep > 0 ? null : 0);
     const totTxt  = totPct === null ? '—' : totPct + '%';
-    const pctSt   = totPct === null ? '' : (totPct >= 70 ? 'color:#15803d;' : totPct >= 50 ? 'color:#92400e;' : 'color:#991b1b;');
-    return `<td style="${B}text-align:center;font-size:14px;font-weight:700;background:#FAC608;color:#1a1400;">${totGoal}</td>
-      <td style="${B}text-align:center;font-size:14px;font-weight:700;background:#FAC608;color:#1a1400;">${totRep}</td>
-      <td style="${B}text-align:center;font-size:14px;font-weight:700;background:#FAC608;color:#0369a1;">${totWeb}</td>
-      <td style="${B}text-align:center;font-size:13px;font-weight:700;background:#FAC608;${pctSt}">${totTxt}</td>`;
+    const pc      = pctColor(totPct);
+    return `<td style="${B}text-align:center;font-size:15px;font-weight:800;background:#fbbf24;color:#1a1400;">${totGoal}</td>
+      <td style="${B}text-align:center;font-size:15px;font-weight:800;background:#fbbf24;color:#1a1400;">${totRep}</td>
+      <td style="${B}text-align:center;font-size:15px;font-weight:700;background:#fbbf24;color:#0369a1;">${totWeb}</td>
+      <td style="${B}text-align:center;font-size:14px;font-weight:800;background:#fbbf24;color:${pc};">${totTxt}</td>`;
   }).join('');
 
-  return `<div class="dash-tbl-wrap">
+  return `<div class="dash-tbl-wrap" style="border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.10);">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr>
-          <th rowspan="2" style="padding:10px 14px;background:#e2e8f0;color:#1e293b;${B}text-align:center;font-size:13px;">지역</th>
+          <td colspan="${COLS}" style="padding:11px 18px;background:linear-gradient(135deg,#1e3a5f,#1d4ed8);color:#fff;font-weight:700;font-size:14px;text-align:center;letter-spacing:0.5px;">
+            📅 일일달성 현황 &nbsp;·&nbsp; ${date} (${dow}) &nbsp;·&nbsp; ${kLabel}
+          </td>
+        </tr>
+        <tr>
+          <th rowspan="2" style="padding:10px 16px;background:#e2e8f0;color:#1e293b;${B}text-align:center;font-size:13px;font-weight:700;">지역</th>
           ${stageHdrs}
         </tr>
         <tr>${subHdrs}</tr>
@@ -1316,7 +1333,7 @@ function _buildDailySectionInner(filterRegions, readOnly) {
       <tbody>
         ${regionRows}
         <tr>
-          <td style="font-weight:700;font-size:14px;background:#FAC608;color:#1a1400;padding:10px 14px;${B}text-align:center;">청년회</td>
+          <td style="font-weight:800;font-size:15px;background:#fbbf24;color:#1a1400;padding:10px 16px;${B}text-align:center;">청년회</td>
           ${totCells}
         </tr>
       </tbody>
