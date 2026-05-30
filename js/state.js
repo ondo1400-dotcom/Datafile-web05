@@ -23,6 +23,7 @@ const STATE = {
   dailyGoals:   {},  // { 'date|region|stage': target }
   dailyReports: {},  // { 'date|region|stage': count }
   weeklyGoals:  {},  // { 'week_start|region|stage': target }
+  focusKaigang: '',  // 집중개강 (개강 필터 없을 때 기준값)
 };
 
 const SAMPLE_DATA = {

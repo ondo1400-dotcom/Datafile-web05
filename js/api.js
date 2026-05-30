@@ -32,6 +32,7 @@ async function loadData(manual = false) {
         { data: dailyGoalRows, error: e9 },
         { data: dailyRepRows,  error: e10 },
         { data: weeklyGoalRows,error: e11 },
+        { data: configRows,    error: e12 },
       ] = await Promise.all([
         SUPA.from('nujeok').select('*'),
         SUPA.from('tallag').select('*'),
@@ -44,10 +45,14 @@ async function loadData(manual = false) {
         SUPA.from('daily_goals').select('*'),
         SUPA.from('daily_reports').select('*'),
         SUPA.from('weekly_goals').select('*').gte('week_start', _weekStart),
+        SUPA.from('config').select('*'),
       ]);
 
       const firstErr = e1 || e2 || e3 || e4 || e5 || e6 || e7;
       if (firstErr) throw new Error(firstErr.message);
+
+      const configMap = {};
+      (configRows || []).forEach(r => { configMap[r.key] = r.value; });
 
       // goals: 배열 → { 'kaigang|center|stage|region': count } 형태로 변환
       const goalsMap = {};
@@ -82,6 +87,7 @@ async function loadData(manual = false) {
         dailyGoals:   dailyGoalsMap,
         dailyReports: dailyReportsMap,
         weeklyGoals:  weeklyGoalsMap,
+        focusKaigang: configMap['focus_kaigang'] || '',
         syncedAt:     new Date().toISOString(),
       });
 
@@ -140,6 +146,7 @@ function _applyData(data) {
   STATE.dailyGoals    = data.dailyGoals    || {};
   STATE.dailyReports  = data.dailyReports  || {};
   STATE.weeklyGoals   = data.weeklyGoals   || {};
+  if (data.focusKaigang !== undefined) STATE.focusKaigang = data.focusKaigang;
   STATE.dbFindings = (data.dbFindings || []).map((r, i) => ({
     ...r,
     '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
@@ -186,6 +193,19 @@ async function supaInsert(table, data) {
   const { data: row, error } = await SUPA.from(table).insert(data).select().single();
   if (error) throw new Error(error.message);
   return row;
+}
+
+// ── 집중개강 저장 ──
+async function saveFocusKaigang(val) {
+  STATE.focusKaigang = val || '';
+  if (USE_SAMPLE) return;
+  try {
+    if (val) {
+      await SUPA.from('config').upsert({ key: 'focus_kaigang', value: val }, { onConflict: 'key' });
+    } else {
+      await SUPA.from('config').delete().eq('key', 'focus_kaigang');
+    }
+  } catch(e) { showToast('⚠️ 저장 실패: ' + e.message, 'error'); }
 }
 
 // ── 탈락 동기화 (GAS → Supabase로 마이그레이션 예정, 임시 유지) ──

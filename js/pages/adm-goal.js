@@ -214,6 +214,13 @@ function makeGoalKey(kaigang, center, stage, region) {
   return [kaigang, center, stage, region].join('|');
 }
 
+// ── 집중개강 지정 ─────────────────────────────────────
+async function setFocusKaigang(val) {
+  await saveFocusKaigang(val ? normalizeKaigang(val) : '');
+  showToast(val ? `★ 집중개강: ${val}` : '집중개강 해제');
+  renderGoalStandards();
+}
+
 // ── 기준 현황 렌더링 ──────────────────────────────────
 function renderGoalStandards() {
   const el = document.getElementById('goal-standards-content');
@@ -255,7 +262,25 @@ function renderGoalStandards() {
     ? list.map(([v, n]) => nonStdToggleChip(v, n, type)).join('')
     : `<span style="font-size:11px;color:var(--text3);">없음 ✓</span>`;
 
+  const focusKaigangBtns = canonicalKaigangList.map(k => {
+    const isActive = STATE.focusKaigang === k;
+    return `<button onclick="setFocusKaigang('${k}')"
+      style="padding:5px 16px;border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;
+      border:2px solid ${isActive ? '#d97706' : 'var(--border2)'};
+      background:${isActive ? '#fef3c7' : 'var(--surface)'};
+      color:${isActive ? '#92400e' : 'var(--text2)'};white-space:nowrap;">
+      ${isActive ? '★ ' : ''}${k}
+    </button>`;
+  }).join('');
+
   el.innerHTML = `
+    <div style="padding:12px 14px;background:#fffbeb;border:1.5px solid #d97706;border-radius:10px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px;">⭐ 집중개강 설정 <span style="font-size:11px;font-weight:400;color:var(--text3);">— 대시보드 개강 필터 미선택 시 이 개강을 기준으로 표시</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        ${focusKaigangBtns || '<span style="font-size:11px;color:var(--text3);">목표 설정된 개강이 없습니다</span>'}
+        ${STATE.focusKaigang ? `<button onclick="setFocusKaigang('')" style="padding:4px 12px;border-radius:20px;font-size:11px;border:1px solid var(--border2);background:var(--surface);color:var(--text3);cursor:pointer;">해제</button>` : ''}
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">📌 표준 센터 (goals 기준)</div>
