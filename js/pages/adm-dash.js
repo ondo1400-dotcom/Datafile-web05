@@ -77,7 +77,9 @@ function renderRegDash() {
 
 // ─── 필터 지역 결정 ───
 function _getDashFilterRegions(role) {
-  if (role === 'reg') return getAllowedRegions();
+  if (role === 'reg') {
+    return _regDashTab === 'all' ? null : getAllowedRegions();
+  }
   const tab = _admDashTab;
   if (tab === 'all') return ADM_VIEW_REGION ? [ADM_VIEW_REGION] : null;
   return ADM_VIEW_REGION ? [ADM_VIEW_REGION] : getAllowedRegions();
@@ -93,7 +95,7 @@ function _renderDashContent(role) {
   const filterRegions = _getDashFilterRegions(role);
   const accent        = isAdm ? 'adm' : 'reg';
   const pfx           = role + 'd'; // admd | regd  (고유 ID 접두사)
-  const showFunnel    = isAdm;
+  const showFunnel    = isAdm || (!isAdm && _regDashTab === 'all');
   const innerTab      = isAdm ? _admInnerTab : _regInnerTab;
 
   // ── 데이터 필터링 ──
@@ -119,7 +121,7 @@ function _renderDashContent(role) {
 
   // ── 내부탭별 컨텐츠 ──
   const nujeokContent = `
-    ${isAdm ? `
+    ${(isAdm || _regDashTab === 'all') ? `
     <div class="sl" style="margin:0 0 8px;">청년회 전체 목표 대비 현황</div>
     <div id="${pfx}-yw-cards-wrap" style="margin-bottom:18px;"><div class="loading-box">로딩 중...</div></div>
     ` : `
@@ -161,6 +163,7 @@ function _renderDashContent(role) {
     ${innerTab === 'nujeok' ? nujeokContent : boyooContent}
   `;
 
+  const _showYwCards = isAdm || _regDashTab === 'all';
   _asyncFillLd(
     pfx + '-stage-wrap',
     pfx + '-meet-wrap',
@@ -168,8 +171,8 @@ function _renderDashContent(role) {
     showFunnel ? pfx + '-funnel-wrap' : null,
     filterRegions,
     isAdm && isAdmin,
-    pfx + '-cards-wrap',
-    isAdm ? pfx + '-yw-cards-wrap' : null
+    _showYwCards ? null : pfx + '-cards-wrap',
+    _showYwCards ? pfx + '-yw-cards-wrap' : null
   );
 
   if (innerTab === 'boyoo') {
