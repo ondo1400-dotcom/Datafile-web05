@@ -67,7 +67,7 @@ function renderGoalTable(regionListArg) {
       actual[region][stage] = (actual[region][stage] || 0) + 1;
     });
 
-  tbody.innerHTML = regionList.map(region => {
+  const regionRows = regionList.map(region => {
     const cells = STAGE_ORDER.map(stage => {
       const goalKey = makeGoalKey(kaigang, center, stage, region);
       const goal    = STATE.goals[goalKey] || 0;
@@ -110,6 +110,62 @@ function renderGoalTable(regionListArg) {
       ${senCell}
     </tr>`;
   }).join('');
+
+  // 지역 합계 행 (읽기 전용 — 각 지역 목표의 합)
+  const totCells = STAGE_ORDER.map(stage => {
+    const totGoal = regionList.reduce((s, r) => s + (STATE.goals[makeGoalKey(kaigang, center, stage, r)] || 0), 0);
+    const totAct  = regionList.reduce((s, r) => s + ((actual[r] || {})[stage] || 0), 0);
+    const pct     = totGoal ? Math.round(totAct / totGoal * 100) : null;
+    const pctHtml = pct !== null
+      ? `<span style="font-size:10px;${pct>=100?'color:var(--green);font-weight:700;':pct>=70?'color:var(--amber);':'color:var(--red);'}">${pct}%</span>`
+      : '<span style="font-size:10px;color:var(--text3);">—</span>';
+    return `<td style="padding:6px 4px;border:1px solid var(--border);text-align:center;background:#fef9c3;">
+      <div style="font-size:15px;font-weight:800;">${totGoal || '—'}</div>
+      <div style="margin-top:2px;">${pctHtml}</div>
+      <div style="font-size:9px;color:var(--text3);">실적 ${totAct}</div>
+    </td>`;
+  }).join('');
+  const totSenGoal = regionList.reduce((s, r) => s + (STATE.goals[makeGoalKey(kaigang, center, '센등', r)] || 0), 0);
+  const totSenCell = `<td style="padding:6px 4px;border:1px solid var(--border);text-align:center;background:#fef9c3;border-left:2px solid #d97706;">
+    <div style="font-size:15px;font-weight:800;">${totSenGoal || '—'}</div>
+  </td>`;
+  const totRow = `<tr>
+    <td style="padding:8px 12px;border:1px solid var(--border);font-weight:700;background:#FAC608;color:#1a1400;text-align:center;white-space:nowrap;">합계</td>
+    ${totCells}${totSenCell}
+  </tr>`;
+
+  // 청년회 목표 행 (직접 입력 — 지역 합계와 별도로 설정)
+  const ywCells = STAGE_ORDER.map(stage => {
+    const goalKey = makeGoalKey(kaigang, center, stage, '청년회');
+    const goal    = STATE.goals[goalKey] || 0;
+    return `<td style="padding:6px 4px;border:1px solid var(--border);text-align:center;background:#fff7ed;">
+      <input
+        type="number" min="0" max="999"
+        value="${goal || ''}"
+        placeholder="0"
+        style="width:48px;text-align:center;border:1px solid #d97706;border-radius:4px;padding:3px;font-size:13px;font-weight:700;background:#fff7ed;"
+        onchange="updateGoal('${kaigang}','${center}','${stage}','청년회',this.value)"
+        onfocus="this.select()"
+      />
+    </td>`;
+  }).join('');
+  const ywSenGoal = STATE.goals[makeGoalKey(kaigang, center, '센등', '청년회')] || 0;
+  const ywSenCell = `<td style="padding:6px 4px;border:1px solid var(--border);text-align:center;background:#fff7ed;border-left:2px solid #d97706;">
+    <input
+      type="number" min="0" max="999"
+      value="${ywSenGoal || ''}"
+      placeholder="0"
+      style="width:48px;text-align:center;border:1px solid #d97706;border-radius:4px;padding:3px;font-size:13px;font-weight:700;background:#fef3c7;"
+      onchange="updateGoal('${kaigang}','${center}','센등','청년회',this.value)"
+      onfocus="this.select()"
+    />
+  </td>`;
+  const ywRow = `<tr>
+    <td style="padding:8px 12px;border:1px solid var(--border);font-weight:700;background:#FAC608;color:#1a1400;text-align:center;white-space:nowrap;">청년회<br><span style="font-size:10px;font-weight:400;">목표</span></td>
+    ${ywCells}${ywSenCell}
+  </tr>`;
+
+  tbody.innerHTML = regionRows + totRow + ywRow;
 
   // 저장 상태 표시
   const status = document.getElementById('goal-save-status');

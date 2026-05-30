@@ -649,7 +649,23 @@ async function submitDetailEdit() {
     STATE.dbFindings = (refreshed || []).map((r, i) => ({ ...r, __rowIndex: parseInt(r.id) || i }));
     Object.assign(_detailRow, payload);
 
-    showToast('✅ 수정 완료! 심의요청 탭에서 보고할 수 있어요');
+    const reportFields = STAGE_REPORT_FIELDS[stage] || [];
+    const reportChanged = changed.filter(f => reportFields.includes(f));
+    if (reportChanged.length > 0) {
+      await SUPA.from('pending_updates').insert({
+        '섭외자':   payload['섭외자']   || '',
+        '인도자':   payload['인도자']   || '',
+        '실적지역': payload['실적지역'] || '',
+        changes:    payload,
+        source:     'app',
+        requested_by: USER_AUTH?.email || '',
+      });
+      const encoded = encodeURIComponent(JSON.stringify({ action: 'requestEdit', ...payload, 단계: stage }));
+      fetch(GAS_URL + '?payload=' + encoded + '&t=' + Date.now()).catch(() => {});
+      showToast('📤 수정 완료! 지파에 수정 요청 전송됨');
+    } else {
+      showToast('✅ 수정 완료');
+    }
     closeDetailEditModal();
     renderRegDetail();
   } catch(e) {
