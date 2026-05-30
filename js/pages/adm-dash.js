@@ -369,8 +369,10 @@ let _ldCenter  = '전체';
 // 활성 인원 (청년누적 + 찾기) — 전지역
 function _ldAllPeople() {
   const active = STATE.nujeok.filter(r => !isTallag(r));
+  const mkKey = r => [normalizeKaigang(r['목표개강(연도/월)']), r['섭외자'] || '', r['인도자'] || ''].join('|');
+  const activeKeys = new Set(active.map(mkKey));
   const finds  = (STATE.dbFindings || [])
-    .filter(r => r['구분'] === '찾기')
+    .filter(r => r['구분'] === '찾기' && !activeKeys.has(mkKey(r)))
     .map(r => ({ ...r, '단계': '찾기' }));
   return [...active, ...finds];
 }
