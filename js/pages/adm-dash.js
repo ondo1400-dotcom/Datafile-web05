@@ -1242,7 +1242,7 @@ function _buildDailySectionInner(filterRegions, readOnly) {
   const regions = _getDailyRegions(filterRegions);
   if (!regions.length) return '<div style="color:var(--text3);font-size:12px;padding:10px;">데이터가 없습니다</div>';
 
-  const inpBase = 'width:48px;text-align:center;border:none;border-bottom:1.5px solid #cbd5e1;background:transparent;font-size:15px;font-weight:700;font-family:inherit;padding:2px 0;outline:none;display:block;margin:auto;';
+  const inpBase = 'width:48px;text-align:center;border:none;background:transparent;font-size:15px;font-weight:700;font-family:inherit;padding:2px 0;outline:none;display:block;margin:auto;';
   const safe    = s => String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   const B       = 'border:1px solid #e9ecef;';
 
@@ -1259,8 +1259,7 @@ function _buildDailySectionInner(filterRegions, readOnly) {
   const inp = (val, color, onchange) =>
     `<input type="number" min="0" value="${val||''}" placeholder="0"
       style="${inpBase}color:${color};"
-      onfocus="this.style.borderBottomColor='${color}';this.select();"
-      onblur="this.style.borderBottomColor='#cbd5e1';"
+      onfocus="this.select();"
       onchange="${onchange}">`;
 
   const COLS = 1 + _DAILY_STAGES.length * 4;
@@ -1289,14 +1288,14 @@ function _buildDailySectionInner(filterRegions, readOnly) {
       const pctTxt = pct === null ? '—' : pct + '%';
       const ps     = pctStyle(pct);
       const goalCell = readOnly
-        ? `<td style="${B}text-align:center;font-size:15px;font-weight:700;color:#334155;vertical-align:middle;">${goal || 0}</td>`
-        : `<td style="${B}text-align:center;padding:6px 4px;vertical-align:middle;">${inp(goal, '#334155', `onDailyGoalChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
+        ? `<td style="${B}text-align:center;font-size:15px;font-weight:700;color:#334155;vertical-align:middle;background:#fff;">${goal || 0}</td>`
+        : `<td style="${B}text-align:center;padding:6px 4px;vertical-align:middle;background:#fff;">${inp(goal, '#334155', `onDailyGoalChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
       const achCell = readOnly
-        ? `<td style="${B}text-align:center;font-size:15px;font-weight:700;color:#0369a1;vertical-align:middle;">${rep || 0}</td>`
-        : `<td style="${B}text-align:center;padding:6px 4px;vertical-align:middle;">${inp(rep, '#0369a1', `onDailyReportChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
+        ? `<td style="${B}text-align:center;font-size:15px;font-weight:700;color:#0369a1;vertical-align:middle;background:#fff;">${rep || 0}</td>`
+        : `<td style="${B}text-align:center;padding:6px 4px;vertical-align:middle;background:#fff;">${inp(rep, '#0369a1', `onDailyReportChange('${safe(date)}','${safe(region)}','${stage}',this.value,'daily-section-wrap')`)}</td>`;
       return `${goalCell}
         ${achCell}
-        <td style="${B}text-align:center;font-size:15px;font-weight:600;color:#0284c7;vertical-align:middle;">${web || 0}</td>
+        <td style="${B}text-align:center;font-size:15px;font-weight:600;color:#0284c7;vertical-align:middle;background:#fff;">${web || 0}</td>
         <td style="${B}text-align:center;font-size:13px;font-weight:700;padding:0;vertical-align:middle;${ps}">${pctTxt}</td>`;
     }).join('');
     return `<tr style="border-bottom:1px solid #e9ecef;">
@@ -1356,7 +1355,7 @@ function _buildWeeklySectionInner(filterRegions, readOnly) {
   const safe  = s => String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 
   const B2 = 'border:1px solid #e9ecef;';
-  const inpStW = 'width:44px;text-align:center;border:none;border-bottom:1.5px solid #cbd5e1;background:transparent;font-size:13px;font-weight:700;font-family:inherit;padding:2px 0;outline:none;display:block;margin:auto;';
+  const inpStW = 'width:44px;text-align:center;border:none;background:transparent;font-size:13px;font-weight:700;font-family:inherit;padding:2px 0;outline:none;display:block;margin:auto;';
 
   const pctStyleW = pct => {
     if (pct === null) return 'background:#f1f5f9;color:#94a3b8;';
@@ -1386,10 +1385,10 @@ function _buildWeeklySectionInner(filterRegions, readOnly) {
       const pctTxt = pct === null ? '—' : pct + '%';
       const ps   = pctStyleW(pct);
       const goalCell = readOnly
-        ? `<td style="${B2}text-align:center;font-weight:700;font-size:15px;color:#334155;vertical-align:middle;">${goal}</td>`
-        : `<td style="${B2}text-align:center;padding:6px 4px;vertical-align:middle;"><input type="number" min="0" value="${goal||''}" placeholder="0" style="${inpStW}" onchange="onWeeklyGoalChange('${safe(ws)}','${safe(region)}','${stage}',this.value,'weekly-section-wrap')" onfocus="this.style.borderBottomColor='#334155';this.select();" onblur="this.style.borderBottomColor='#cbd5e1';"></td>`;
+        ? `<td style="${B2}text-align:center;font-weight:700;font-size:15px;color:#334155;vertical-align:middle;background:#fff;">${goal}</td>`
+        : `<td style="${B2}text-align:center;padding:6px 4px;vertical-align:middle;background:#fff;"><input type="number" min="0" value="${goal||''}" placeholder="0" style="${inpStW}" onchange="onWeeklyGoalChange('${safe(ws)}','${safe(region)}','${stage}',this.value,'weekly-section-wrap')" onfocus="this.select();"></td>`;
       return `${goalCell}
-        <td style="${B2}text-align:center;font-weight:700;font-size:15px;color:#0369a1;vertical-align:middle;">${ach}</td>
+        <td style="${B2}text-align:center;font-weight:700;font-size:15px;color:#0369a1;vertical-align:middle;background:#fff;">${ach}</td>
         <td style="${B2}text-align:center;font-weight:700;font-size:13px;vertical-align:middle;${ps}">${pctTxt}</td>`;
     }).join('');
     return `<tr style="border-bottom:1px solid #e9ecef;">

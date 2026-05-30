@@ -434,7 +434,9 @@ function _toTimeVal(v) {
 function renderReviewFormFields(stage) {
   const container = document.getElementById('review-form-fields');
   if (!container) return;
-  const data       = _reviewDbRow || {};
+  // nujeok 데이터를 기본으로 깔고 db_findings가 있으면 덮어씀
+  // → db_findings에 없는 필드(교사, 다음만남일 등)는 nujeok 값으로 채워짐
+  const data = { ...(_reviewRow || {}), ...(_reviewDbRow || {}) };
   const stageExtra = _REVIEW_STAGE_FIELDS[stage] || [];
 
   const renderField = f => {
