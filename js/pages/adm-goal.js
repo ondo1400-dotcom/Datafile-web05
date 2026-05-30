@@ -322,9 +322,9 @@ async function runDbNormalization() {
   let totalChanged = 0;
   try {
     const tables = [
-      ['nujeok',      'id,"목표개강(연도/월)","목표센터"'],
-      ['tallag',      'id,"목표개강(연도/월)","목표센터"'],
-      ['db_findings', 'id,"목표개강(연도/월)","목표센터"'],
+      ['nujeok',      '"실적지역","섭외자","인도자","목표개강(연도/월)","목표센터"'],
+      ['tallag',      '"실적지역","섭외자","인도자","목표개강(연도/월)","목표센터"'],
+      ['db_findings', '"실적지역","섭외자","인도자","목표개강(연도/월)","목표센터"'],
     ];
     for (const [table, cols] of tables) {
       const { data: rows, error } = await SUPA.from(table).select(cols);
@@ -340,7 +340,11 @@ async function runDbNormalization() {
         const patch = {};
         if (kChanged) patch['목표개강(연도/월)'] = normK;
         if (cChanged) patch['목표센터'] = normC;
-        const { error: ue } = await SUPA.from(table).update(patch).eq('id', r.id);
+        const { error: ue } = await SUPA.from(table)
+          .update(patch)
+          .eq('실적지역', r['실적지역'])
+          .eq('섭외자',   r['섭외자'])
+          .eq('인도자',   r['인도자']);
         if (ue) throw new Error(ue.message);
         totalChanged++;
       }
