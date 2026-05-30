@@ -193,6 +193,7 @@ def update_next_meeting(섭외자: str, next_date: str):
 def parse_form(text: str) -> Optional[dict]:
     lines = text.split('\n')
     data  = {}
+    last_key = None
     for line in lines:
         if ' : ' not in line:
             continue
@@ -203,12 +204,17 @@ def parse_form(text: str) -> Optional[dict]:
             continue
         if re.fullmatch(r'\(.*\)', val):
             val = ''
+        if key.startswith('ㄴ'):
+            if last_key and val and last_key in data:
+                data[last_key] = str(data[last_key]) + ' / ' + val
+            continue
         if key in CHECKLIST_FIELDS:
             if val == '예':
                 val = 1
             elif val == '아니오':
                 val = 0
         data[key] = val
+        last_key = key
     if not data.get('실적지역') or not data.get('섭외자') or not data.get('인도자'):
         return None
     return data
