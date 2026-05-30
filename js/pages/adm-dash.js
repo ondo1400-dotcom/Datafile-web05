@@ -729,41 +729,60 @@ function _buildLdFilterHtml(filterId, stageId, meetId, funnelId, myRegions, isAd
   const wrap = document.getElementById(filterId);
   if (!wrap) return;
 
-  const kaigangs = ['전체', ...[...new Set(
+  // 전체 버튼 제거 — 실제 개강 값만 표시, 선택된 버튼 재클릭 시 해제
+  const kaigangs = [...new Set(
     STATE.nujeok.map(r => normalizeKaigang(r['목표개강(연도/월)'])).filter(Boolean)
-  )].sort()];
+  )].sort();
 
   const relevantNujeok = _ldKaigang === '전체'
     ? STATE.nujeok
     : STATE.nujeok.filter(r => normalizeKaigang(r['목표개강(연도/월)']) === _ldKaigang);
   const centerSet = [...new Set(relevantNujeok.map(r => r['목표센터']).filter(Boolean))].sort();
-  const centers = centerSet.length > 1 ? ['전체', ...centerSet] : [];
-
-  const btn = (label, active, onclick) =>
-    `<button onclick="${onclick}" style="padding:3px 10px;border-radius:12px;border:1px solid var(--border);font-size:11px;cursor:pointer;font-family:inherit;background:${active?'var(--adm2)':'var(--surface2)'};color:${active?'#fff':'var(--text2)'};">${label}</button>`;
+  const centers = centerSet;
 
   const mrJson    = JSON.stringify(myRegions  || null).replace(/"/g, '&quot;');
   const cidJson   = JSON.stringify(cardsId    || null).replace(/"/g, '&quot;');
   const ywCidJson = JSON.stringify(ywCardsId  || null).replace(/"/g, '&quot;');
-  const kaigangBtns = kaigangs.map(k =>
-    btn(k, _ldKaigang === k, `_ldSetKaigang('${k}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson},${ywCidJson})`)
-  ).join('');
 
-  const centerRow = centers.length ? `
-    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px;">
-      <span style="font-size:10px;color:var(--text3);font-weight:700;">센터</span>
-      ${centers.map(c => btn(c, _ldCenter === c, `_ldSetCenter('${c}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson},${ywCidJson})`)).join('')}
+  const kBtn = k => {
+    const active  = _ldKaigang === k;
+    const nextVal = active ? '전체' : k;
+    return `<button onclick="_ldSetKaigang('${nextVal}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson},${ywCidJson})"
+      style="padding:4px 14px;border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:${active?700:500};
+      border:1.5px solid ${active?'var(--adm2)':'var(--border2)'};
+      background:${active?'var(--adm2)':'var(--surface)'};
+      color:${active?'#fff':'var(--text2)'};white-space:nowrap;">${k}</button>`;
+  };
+
+  const cBtn = c => {
+    const active  = _ldCenter === c;
+    const nextVal = active ? '전체' : c;
+    return `<button onclick="_ldSetCenter('${nextVal}','${filterId}','${stageId}','${meetId}','${funnelId}',${mrJson},${!!isAdmin},${cidJson},${ywCidJson})"
+      style="padding:4px 14px;border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:${active?700:500};
+      border:1.5px solid ${active?'var(--adm2)':'var(--border2)'};
+      background:${active?'var(--adm2)':'var(--surface)'};
+      color:${active?'#fff':'var(--text2)'};white-space:nowrap;">${c}</button>`;
+  };
+
+  const tgBtn = isAdmin
+    ? `<button onclick="sendDashTg(event,'${stageId}','${meetId}')" style="padding:4px 14px;border-radius:20px;border:none;background:#229ED9;color:#fff;font-size:12px;cursor:pointer;font-weight:700;white-space:nowrap;">📊 전송</button>`
+    : '';
+
+  const centerRow = centers.length > 1 ? `
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:11px;font-weight:700;color:var(--text3);min-width:26px;">센터</span>
+      ${centers.map(c => cBtn(c)).join('')}
     </div>` : '';
 
-  const tgBtns = isAdmin ? `
-    <button onclick="sendDashTg(event)" style="padding:3px 12px;border-radius:12px;border:none;background:#229ED9;color:#fff;font-size:11px;cursor:pointer;font-weight:700;margin-left:4px;">📊 현황 전송</button>` : '';
-
   wrap.innerHTML = `
-    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-      <span style="font-size:10px;color:var(--text3);font-weight:700;">개강</span>
-      ${kaigangBtns}${tgBtns}
+    <div style="display:flex;flex-direction:column;gap:8px;padding:10px 14px;background:var(--surface2);border-radius:12px;margin-bottom:2px;">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:11px;font-weight:700;color:var(--text3);min-width:26px;">개강</span>
+        ${kaigangs.map(k => kBtn(k)).join('')}
+        ${tgBtn}
+      </div>
+      ${centerRow}
     </div>
-    ${centerRow}
   `;
 }
 
@@ -982,20 +1001,45 @@ function _buildDashSummaryText() {
   ].join('\n');
 }
 
-// ─── 보유현황 텍스트 직접 전송 ───
-async function sendDashTg(e) {
+// ─── 보유현황 이미지 + 텍스트 전송 ───
+async function sendDashTg(e, stageId, meetId) {
   const btn = e.target;
   const origText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = '전송 중...';
 
   try {
     if (!TELEGRAM_BOT_TOKEN) throw new Error('텔레그램 토큰 미설정 (config.js)');
-    const text = _buildDashSummaryText();
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    if (typeof html2canvas === 'undefined') throw new Error('html2canvas 라이브러리 로드 실패');
+
+    btn.textContent = '캡처 중...';
+    const stageEl = document.getElementById(stageId);
+    const meetEl  = document.getElementById(meetId);
+    if (!stageEl || !meetEl) throw new Error('캡처 대상 요소 없음');
+
+    const opts = { scale: 1.5, backgroundColor: '#ffffff', useCORS: true, logging: false };
+    const [c1, c2] = await Promise.all([html2canvas(stageEl, opts), html2canvas(meetEl, opts)]);
+
+    const pad = 16;
+    const combined = document.createElement('canvas');
+    combined.width  = Math.max(c1.width, c2.width) + pad * 2;
+    combined.height = c1.height + c2.height + pad * 3;
+    const ctx = combined.getContext('2d');
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, combined.width, combined.height);
+    ctx.drawImage(c1, pad, pad);
+    ctx.drawImage(c2, pad, pad + c1.height + pad);
+
+    btn.textContent = '전송 중...';
+    const caption = _buildDashSummaryText();
+    const blob = await new Promise(resolve => combined.toBlob(resolve, 'image/jpeg', 0.85));
+    const form = new FormData();
+    form.append('chat_id', REVIEW_TELEGRAM_CHAT);
+    form.append('photo', blob, 'dashboard.jpg');
+    form.append('caption', caption);
+
+    const res  = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: LIVEDATA_TELEGRAM_CHAT, text }),
+      body: form,
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.description || '전송 실패');
