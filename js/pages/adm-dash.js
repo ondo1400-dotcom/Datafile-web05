@@ -282,51 +282,58 @@ function _buildNujeokAchHtml(myRegions) {
   }
 
   function rateStyle(rv) {
-    if (rv === 0)  return 'background:#dc2626;color:#fff;';
-    if (rv >= 100) return 'background:#dcfce7;color:#15803d;';
-    if (rv >= 70)  return 'background:#bbf7d0;color:#166534;';
-    if (rv >= 50)  return 'background:#ffedd5;color:#c2410c;';
-    return 'background:#fee2e2;color:#dc2626;';
+    if (rv === 0)   return 'color:#ef4444;background:#fff1f2;';
+    if (rv >= 100)  return 'color:#16a34a;background:#f0fdf4;';
+    if (rv >= 70)   return 'color:#15803d;background:#dcfce7;';
+    if (rv >= 50)   return 'color:#d97706;background:#fffbeb;';
+    return 'color:#dc2626;background:#fff1f2;';
   }
 
-  function rateCell(cnt, goal) {
-    if (!goal) return `<td style="border:1px solid var(--border);text-align:center;">—</td>`;
+  function rateCell(cnt, goal, isTotRow = false) {
+    const base = isTotRow ? 'background:#FAC608;' : '';
+    if (!goal) return `<td style="border:1px solid var(--border);text-align:center;${base}color:var(--text3);">—</td>`;
     const rv = Math.round(cnt / goal * 100);
-    return `<td style="border:1px solid var(--border);text-align:center;font-weight:700;${rateStyle(rv)}">${rv}%</td>`;
+    const st = isTotRow ? `background:#FAC608;color:${rv>=70?'#15803d':rv>=50?'#92400e':'#991b1b'};` : rateStyle(rv);
+    return `<td style="border:1px solid var(--border);text-align:center;font-weight:700;font-size:11px;${st}">${rv}%</td>`;
   }
 
   const COLS   = 2 + SHOW_STAGES.length * 3;
   const kLabel = _ldKaigang !== '전체' ? _ldKaigang : '전체';
 
-  const hdr1 = SHOW_STAGES.map(s =>
-    `<th colspan="3" style="padding:5px 8px;background:#dbeafe;color:#1e40af;border:1px solid var(--border);text-align:center;">${STAGE_ABBR[s]}</th>`
-  ).join('');
-  const hdr2 = SHOW_STAGES.flatMap(() => [
-    `<th style="padding:3px;background:#f0f9ff;color:#0369a1;border:1px solid var(--border);text-align:center;font-size:10px;">목표</th>`,
-    `<th style="padding:3px;background:#f0f9ff;color:#0369a1;border:1px solid var(--border);text-align:center;font-size:10px;">달성</th>`,
-    `<th style="padding:3px;background:#fef9c3;color:#854d0e;border:1px solid var(--border);text-align:center;font-size:10px;">%</th>`,
-  ]).join('');
+  const hdr1 = SHOW_STAGES.map(s => {
+    const sc = STAGE_COLORS[s] || { bg: '#dbeafe', c: '#1e40af' };
+    return `<th colspan="3" style="padding:6px 8px;background:${sc.bg};color:${sc.c};border:1px solid var(--border);text-align:center;font-size:12px;">${STAGE_ABBR[s]}</th>`;
+  }).join('');
+  const hdr2 = SHOW_STAGES.flatMap(s => {
+    const sc = STAGE_COLORS[s] || { bg: '#dbeafe', c: '#1e40af' };
+    const bg = sc.bg + '88';
+    return [
+      `<th style="padding:3px 4px;background:${bg};color:${sc.c};border:1px solid var(--border);text-align:center;font-size:10px;font-weight:500;">목표</th>`,
+      `<th style="padding:3px 4px;background:${bg};color:${sc.c};border:1px solid var(--border);text-align:center;font-size:10px;font-weight:500;">달성</th>`,
+      `<th style="padding:3px 4px;background:#f8fafc;color:var(--text2);border:1px solid var(--border);text-align:center;font-size:10px;font-weight:500;">%</th>`,
+    ];
+  }).join('');
 
   const regionRows = regions.map(region => {
     const c = countMap[region];
     if (!c) return '';
-    const isMine  = myRegions && myRegions.includes(region);
-    const rowBg   = isMine ? 'background:var(--reg-light,#f0fdf4);' : '';
-    const label   = isMine ? `<span style="color:var(--reg2);font-weight:700;">★ ${region}</span>` : region;
+    const isMine = myRegions && myRegions.includes(region);
+    const rowBg  = isMine ? 'background:#f0fdf4;' : '';
+    const label  = isMine ? `<span style="color:var(--reg2);font-weight:700;">★ ${region}</span>` : region;
     const senGoal = _ldGetGoal(region, '센등');
 
     const cells = SHOW_STAGES.flatMap(s => {
       const goal = _ldGetGoal(region, s);
       const ach  = cumul(c, s);
       return [
-        `<td style="border:1px solid var(--border);text-align:center;background:#eef6ff;font-size:11px;">${goal || '—'}</td>`,
-        `<td style="border:1px solid var(--border);text-align:center;font-weight:700;font-family:monospace;">${ach}</td>`,
+        `<td style="border:1px solid var(--border);text-align:center;color:var(--text3);font-size:11px;">${goal || '—'}</td>`,
+        `<td style="border:1px solid var(--border);text-align:center;font-weight:700;">${ach}</td>`,
         rateCell(ach, goal),
       ];
     }).join('');
 
     return `<tr style="${rowBg}">
-      <td style="font-weight:700;padding:8px 12px;border:1px solid var(--border);text-align:center;${rowBg}">${label}</td>
+      <td style="font-weight:700;padding:8px 12px;border:1px solid var(--border);text-align:center;white-space:nowrap;${rowBg}">${label}</td>
       <td style="border:1px solid var(--border);text-align:center;font-weight:700;">${senGoal || '—'}</td>
       ${cells}
     </tr>`;
@@ -336,9 +343,9 @@ function _buildNujeokAchHtml(myRegions) {
     const goal = regions.reduce((sum, r) => sum + _ldGetGoal(r, s), 0);
     const ach  = cumul(totRow, s);
     return [
-      `<td style="border:1px solid var(--border);text-align:center;background:#fef9c3;font-size:11px;">${goal || '—'}</td>`,
-      `<td style="border:1px solid var(--border);text-align:center;font-weight:700;font-family:monospace;background:#fef9c3;">${ach}</td>`,
-      rateCell(ach, goal),
+      `<td style="border:1px solid var(--border);text-align:center;background:#FAC608;color:#1a1400;font-size:11px;">${goal || '—'}</td>`,
+      `<td style="border:1px solid var(--border);text-align:center;font-weight:700;background:#FAC608;color:#1a1400;">${ach}</td>`,
+      rateCell(ach, goal, true),
     ];
   }).join('');
   const totSenGoal = regions.reduce((sum, r) => sum + (_ldGetGoal(r, '센등') || 0), 0);
@@ -347,22 +354,22 @@ function _buildNujeokAchHtml(myRegions) {
     const goal = _ldGetGoal('청년회', s);
     const ach  = cumul(totRow, s);
     return [
-      `<td style="border:1px solid var(--border);text-align:center;background:#fef9c3;font-size:11px;">${goal || '—'}</td>`,
-      `<td style="border:1px solid var(--border);text-align:center;font-weight:700;font-family:monospace;background:#fef9c3;">${ach}</td>`,
-      rateCell(ach, goal),
+      `<td style="border:1px solid var(--border);text-align:center;background:#fbbf24;color:#1a1400;font-size:11px;">${goal || '—'}</td>`,
+      `<td style="border:1px solid var(--border);text-align:center;font-weight:700;background:#fbbf24;color:#1a1400;">${ach}</td>`,
+      rateCell(ach, goal, true),
     ];
   }).join('');
   const ywSenGoal = _ldGetGoal('청년회', '센등') || '—';
 
   return `<div class="dash-tbl-wrap">
-    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
       <thead>
         <tr>
-          <td colspan="${COLS}" style="text-align:center;padding:8px 12px;background:#FEF08A;color:#1a1400;font-weight:700;font-size:14px;border:1px solid var(--border);">${kLabel} 청년개강 누적 달성 현황</td>
+          <td colspan="${COLS}" style="text-align:center;padding:10px 16px;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;font-weight:700;font-size:13px;letter-spacing:0.5px;">${kLabel} 청년개강 누적 달성 현황</td>
         </tr>
         <tr>
-          <th rowspan="2" style="padding:8px 12px;background:#bde0f5;color:#0c2d42;border:1px solid var(--border);text-align:center;">단계<br>지역</th>
-          <th rowspan="2" style="padding:6px 4px;background:#bde0f5;color:#0c2d42;border:1px solid var(--border);text-align:center;font-size:11px;">센등<br>목표</th>
+          <th rowspan="2" style="padding:8px 12px;background:#f1f5f9;color:#334155;border:1px solid var(--border);text-align:center;font-size:11px;">지역</th>
+          <th rowspan="2" style="padding:6px 6px;background:#f1f5f9;color:#334155;border:1px solid var(--border);text-align:center;font-size:10px;">센등<br>목표</th>
           ${hdr1}
         </tr>
         <tr>${hdr2}</tr>
@@ -375,8 +382,8 @@ function _buildNujeokAchHtml(myRegions) {
           ${totCells}
         </tr>
         <tr>
-          <td style="font-weight:700;background:#FAC608;color:#1a1400;padding:8px 12px;border:1px solid var(--border);text-align:center;">청년회</td>
-          <td style="border:1px solid var(--border);text-align:center;font-weight:700;background:#FAC608;color:#1a1400;">${ywSenGoal}</td>
+          <td style="font-weight:700;background:#fbbf24;color:#1a1400;padding:8px 12px;border:1px solid var(--border);text-align:center;">청년회</td>
+          <td style="border:1px solid var(--border);text-align:center;font-weight:700;background:#fbbf24;color:#1a1400;">${ywSenGoal}</td>
           ${ywCells}
         </tr>
       </tbody>
