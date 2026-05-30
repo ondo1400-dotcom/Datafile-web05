@@ -251,8 +251,21 @@ async function approveAndSend(rowIndex, stage) {
       '전송완료여부': 'Y', '전송완료일시': new Date().toISOString(),
     }).eq('id', rowId);
 
-    const { data: refreshed2 } = await SUPA.from('db_findings').select('*');
+    const [{ data: refreshed2 }, { data: freshNujeok }] = await Promise.all([
+      SUPA.from('db_findings').select('*'),
+      SUPA.from('nujeok').select('*'),
+    ]);
     STATE.dbFindings = (refreshed2 || []).map((d, i) => ({ ...d, __rowIndex: parseInt(d.id) || i }));
+    if (freshNujeok) {
+      const cc = STATE.canonicalCenters;
+      STATE.nujeok = freshNujeok.map((r, i) => ({
+        ...r,
+        '목표개강(연도/월)': normalizeKaigang(r['목표개강(연도/월)']),
+        '이전개강':          normalizeKaigang(r['이전개강']),
+        '목표센터':          normalizeCenter(r['목표센터'], cc),
+        __rowIndex: parseInt(r.id) || i,
+      }));
+    }
 
     showToast(`📤 [${stage}] 승인 및 전송 완료!`);
     renderAdmReview();
